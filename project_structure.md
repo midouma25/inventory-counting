@@ -1,3 +1,231 @@
+# هيكل المشروع (Project Tree)
+
+```text
+├── inventory-counting/
+    ├── extract_code.py
+    ├── project_structure.md
+    ├── README.md
+    ├── frontend/
+        ├── .gitignore
+        ├── .oxlintrc.json
+        ├── App.jsx
+        ├── index.css
+        ├── index.html
+        ├── package-lock.json
+        ├── package.json
+        ├── postcss.config.js
+        ├── README.md
+        ├── tailwind.config.js
+        ├── vite.config.js
+        ├── assets/
+        ├── public/
+        ├── src/
+            ├── App.jsx
+            ├── i18n.js
+            ├── index.css
+            ├── main.jsx
+            ├── assets/
+            ├── components/
+                ├── layout/
+                    ├── MainLayout.jsx
+                    ├── Sidebar.jsx
+                    ├── Topbar.jsx
+                ├── pages/
+                    ├── Agenda.jsx
+                    ├── Dashboard.jsx
+                    ├── HR.jsx
+                    ├── Login.jsx
+                    ├── Suppliers.jsx
+                    ├── Employees/
+                    ├── Suppliers/
+                ├── ui/
+            ├── locales/
+                ├── en/
+                    ├── translation.json
+        ├── store/
+            ├── authStore.js
+        ├── utils/
+```
+
+---
+
+# محتوى الأكواد (Source Code)
+
+## الملف: `extract_code.py`
+
+```python
+import os
+
+def generate_code_report(directory, output_filename="project_structure.md"):
+    # المجلدات والملفات التي سيتم تجاهلها (لتجنب استخراج ملفات ضخمة أو غير هامة)
+# إضافة .venv إلى القائمة
+    ignore_dirs = {'.git', 'node_modules', '__pycache__', 'venv', '.venv', 'env', '.next', 'build', 'dist'}
+    ignore_exts = {'.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.pdf', '.zip', '.exe', '.pyc', '.mp4'}
+
+    with open(output_filename, 'w', encoding='utf-8') as f:
+        f.write("# هيكل المشروع (Project Tree)\n\n```text\n")
+
+        # 1. رسم شجرة المجلدات والملفات
+        for root, dirs, files in os.walk(directory):
+            # فلترة المجلدات لتجاهل الغير مرغوب فيها
+            dirs[:] = [d for d in dirs if d not in ignore_dirs]
+            
+            # حساب مستوى المسافة البادئة بناءً على عمق المجلد
+            level = root.replace(directory, '').count(os.sep)
+            indent = ' ' * 4 * level
+            folder_name = os.path.basename(root)
+            
+            if folder_name:  # تجنب طباعة مسار فارغ للمجلد الرئيسي
+                f.write(f"{indent}├── {folder_name}/\n")
+            
+            subindent = ' ' * 4 * (level + 1)
+            for file in files:
+                ext = os.path.splitext(file)[1].lower()
+                if ext not in ignore_exts:
+                    f.write(f"{subindent}├── {file}\n")
+
+        f.write("```\n\n---\n\n# محتوى الأكواد (Source Code)\n\n")
+
+        # 2. كتابة محتوى الملفات
+        for root, dirs, files in os.walk(directory):
+            dirs[:] = [d for d in dirs if d not in ignore_dirs]
+            for file in files:
+                ext = os.path.splitext(file)[1].lower()
+                if ext not in ignore_exts:
+                    file_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(file_path, directory)
+
+                    # تحديد لغة البرمجة لتنسيقها في ملف الماركداون
+                    lang = ext.replace('.', '') if ext else 'text'
+                    if lang in ['js', 'jsx']: lang = 'javascript'
+                    elif lang in ['ts', 'tsx']: lang = 'typescript'
+                    elif lang == 'py': lang = 'python'
+
+                    f.write(f"## الملف: `{rel_path}`\n\n")
+                    f.write(f"```{lang}\n")
+                    
+                    try:
+                        with open(file_path, 'r', encoding='utf-8') as code_file:
+                            f.write(code_file.read())
+                    except Exception as e:
+                        f.write(f"// تعذر قراءة الملف: {e}")
+                        
+                    f.write("\n```\n\n---\n\n")
+
+    print(f"تم الانتهاء بنجاح! تم حفظ النتيجة في ملف: {output_filename}")
+
+# تشغيل السكربت على المجلد الحالي
+if __name__ == "__main__":
+    current_directory = os.getcwd()
+    generate_code_report(current_directory)
+```
+
+---
+
+## الملف: `project_structure.md`
+
+```md
+
+```
+
+---
+
+## الملف: `README.md`
+
+```md
+// تعذر قراءة الملف: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte
+```
+
+---
+
+## الملف: `frontend\.gitignore`
+
+```text
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+```
+
+---
+
+## الملف: `frontend\.oxlintrc.json`
+
+```json
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "oxc"],
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+  }
+}
+
+```
+
+---
+
+## الملف: `frontend\App.jsx`
+
+```javascript
+
+```
+
+---
+
+## الملف: `frontend\index.css`
+
+```css
+
+```
+
+---
+
+## الملف: `frontend\index.html`
+
+```html
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>frontend</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+
+```
+
+---
+
+## الملف: `frontend\package-lock.json`
+
+```json
 {
   "name": "frontend",
   "version": "0.0.0",
@@ -2390,3 +2618,968 @@
     }
   }
 }
+
+```
+
+---
+
+## الملف: `frontend\package.json`
+
+```json
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "oxlint",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@tanstack/react-table": "^8.21.3",
+    "i18next": "^26.3.6",
+    "i18next-browser-languagedetector": "^8.2.1",
+    "lucide-react": "^1.25.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-i18next": "^17.0.10",
+    "react-router-dom": "^7.18.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "autoprefixer": "^10.5.4",
+    "oxlint": "^1.71.0",
+    "postcss": "^8.5.20",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.1.1"
+  }
+}
+
+```
+
+---
+
+## الملف: `frontend\postcss.config.js`
+
+```javascript
+export default {
+  plugins: {
+    '@tailwindcss/postcss': {},
+    autoprefixer: {},
+  },
+}
+```
+
+---
+
+## الملف: `frontend\README.md`
+
+```md
+# React + Vite
+
+This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+
+Currently, two official plugins are available:
+
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+
+## React Compiler
+
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+
+## Expanding the Oxlint configuration
+
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+
+```
+
+---
+
+## الملف: `frontend\tailwind.config.js`
+
+```javascript
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}
+```
+
+---
+
+## الملف: `frontend\vite.config.js`
+
+```javascript
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+})
+```
+
+---
+
+## الملف: `frontend\src\App.jsx`
+
+```javascript
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+
+// Layout
+import MainLayout from './layout/MainLayout';
+ 
+// الصفحات الحقيقية التي قمنا ببنائها حتى الآن
+import Dashboard from './pages/Dashboard';
+import Suppliers from './pages/Suppliers';
+import HR from './pages/HR';
+
+// صفحات وهمية مؤقتة (Placeholders) لباقي الروابط حتى نقوم ببرمجتها
+const Expenses = () => <div className="p-8 text-slate-300">Expenses Page (Coming Soon...)</div>;
+const Agenda = () => <div className="p-8 text-slate-300">Agenda Page (Coming Soon...)</div>;
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* المسار الرئيسي يغلف كل الصفحات بـ MainLayout (الشريط الجانبي والعلوي) */}
+        <Route path="/" element={<MainLayout />}>
+          {/* صفحة البداية الافتراضية */}
+          <Route index element={<Dashboard />} />
+          
+          {/* باقي الصفحات */}
+          <Route path="suppliers" element={<Suppliers />} />
+          <Route path="hr" element={<HR />} />
+          <Route path="expenses" element={<Expenses />} />
+          <Route path="agenda" element={<Agenda />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export default App;
+```
+
+---
+
+## الملف: `frontend\src\i18n.js`
+
+```javascript
+import i18n from 'i18next';
+import { initReactI18next } from 'react-i18next';
+import LanguageDetector from 'i18next-browser-languagedetector';
+import enTranslation from './locales/en/translation.json';
+
+const resources = {
+  en: { translation: enTranslation },
+};
+
+i18n
+  .use(LanguageDetector)
+  .use(initReactI18next)
+  .init({
+    resources,
+    fallbackLng: 'en',
+    debug: false,
+    interpolation: {
+      escapeValue: false,
+    },
+  });
+
+export default i18n;
+```
+
+---
+
+## الملف: `frontend\src\index.css`
+
+```css
+@import "tailwindcss";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+```
+
+---
+
+## الملف: `frontend\src\main.jsx`
+
+```javascript
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.jsx'
+import './i18n'
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+
+```
+
+---
+
+## الملف: `frontend\src\components\layout\MainLayout.jsx`
+
+```javascript
+import React from 'react';
+import { Outlet } from 'react-router-dom';
+import Sidebar from './Sidebar';
+import Topbar from './Topbar';
+
+export default function MainLayout() {
+  return (
+    <div className="flex h-screen bg-slate-950 overflow-hidden">
+      <Sidebar />
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+        <Topbar />
+        <main className="flex-1 overflow-y-auto">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+## الملف: `frontend\src\components\layout\Sidebar.jsx`
+
+```javascript
+import React from 'react';
+import { NavLink } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { LayoutDashboard, Users, Briefcase, Receipt, Calendar } from 'lucide-react';
+
+export default function Sidebar() {
+  const { t } = useTranslation();
+
+  const menuItems = [
+    { path: '/', name: t('sidebar.dashboard'), icon: <LayoutDashboard size={20} /> },
+    { path: '/suppliers', name: t('sidebar.suppliers'), icon: <Users size={20} /> },
+    { path: '/hr', name: t('sidebar.hr'), icon: <Briefcase size={20} /> },
+    { path: '/expenses', name: t('sidebar.expenses'), icon: <Receipt size={20} /> },
+    { path: '/agenda', name: t('sidebar.agenda'), icon: <Calendar size={20} /> },
+  ];
+
+  return (
+    <aside className="w-64 bg-slate-950 border-r border-slate-800 flex flex-col h-screen sticky top-0">
+      <div className="h-16 flex items-center px-6 border-b border-slate-800">
+        <h2 className="text-xl font-bold text-white tracking-wider">
+          POS<span className="text-blue-500">Manger</span>
+        </h2>
+      </div>
+
+      <nav className="flex-1 px-4 py-6 space-y-2">
+        {menuItems.map((item) => (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                isActive 
+                  ? 'bg-slate-800 text-white font-medium' 
+                  : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+              }`
+            }
+          >
+            {item.icon}
+            <span>{item.name}</span>
+          </NavLink>
+        ))}
+      </nav>
+    </aside>
+  );
+}
+```
+
+---
+
+## الملف: `frontend\src\components\layout\Topbar.jsx`
+
+```javascript
+import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { Bell, Search, UserCircle } from 'lucide-react';
+
+export default function Topbar() {
+  const { t } = useTranslation();
+
+  return (
+    <header className="h-16 bg-slate-950 border-b border-slate-800 flex items-center justify-between px-6 sticky top-0 z-10">
+      <div className="flex items-center bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 w-64">
+        <Search size={18} className="text-slate-500 mr-2" />
+        <input 
+          type="text" 
+          placeholder={t('common.search')} 
+          className="bg-transparent border-none outline-none text-sm text-slate-300 w-full placeholder-slate-600"
+        />
+      </div>
+
+      <div className="flex items-center gap-4 text-slate-400">
+        <button className="relative hover:text-white transition-colors">
+          <Bell size={20} />
+          <span className="absolute -top-1 -right-1 bg-red-500 w-2.5 h-2.5 rounded-full border-2 border-slate-950"></span>
+        </button>
+        <div className="h-6 w-px bg-slate-800"></div>
+        <div className="flex items-center gap-2 cursor-pointer hover:text-white transition-colors">
+          <UserCircle size={24} />
+          <div className="text-sm">
+            <p className="font-medium text-white leading-none">{t('common.superAdmin')}</p>
+            <p className="text-xs text-slate-500 mt-1">{t('common.systemOwner')}</p>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+```
+
+---
+
+## الملف: `frontend\src\components\pages\Agenda.jsx`
+
+```javascript
+
+```
+
+---
+
+## الملف: `frontend\src\components\pages\Dashboard.jsx`
+
+```javascript
+import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { TrendingUp, AlertCircle, Users, Wallet, Plus } from 'lucide-react';
+
+export default function Dashboard() {
+  const { t } = useTranslation();
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans">
+      
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-white">{t('dashboard.title')}</h1>
+          <p className="text-sm text-slate-500 mt-1">{t('dashboard.subtitle')}</p>
+        </div>
+        <button className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-md font-medium hover:bg-slate-200 transition-colors">
+          <Plus size={18} />
+          <span>{t('dashboard.quickAction')}</span>
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-sm text-slate-400">{t('dashboard.kpi.totalDebts')}</p>
+              <h3 className="text-2xl font-bold text-white mt-1">450,000 DA</h3>
+            </div>
+            <div className="p-2 bg-slate-800 rounded-lg text-slate-400">
+              <TrendingUp size={20} />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-slate-900 border border-red-900/30 p-5 rounded-xl">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-sm text-slate-400">{t('dashboard.kpi.dueThisWeek')}</p>
+              <h3 className="text-2xl font-bold text-red-400 mt-1">125,000 DA</h3>
+            </div>
+            <div className="p-2 bg-red-950/50 rounded-lg text-red-400">
+              <AlertCircle size={20} />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-sm text-slate-400">{t('dashboard.kpi.activeEmployees')}</p>
+              <h3 className="text-2xl font-bold text-white mt-1">4 / 6</h3>
+            </div>
+            <div className="p-2 bg-slate-800 rounded-lg text-slate-400">
+              <Users size={20} />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-sm text-slate-400">{t('dashboard.kpi.expenses')}</p>
+              <h3 className="text-2xl font-bold text-white mt-1">32,000 DA</h3>
+            </div>
+            <div className="p-2 bg-slate-800 rounded-lg text-slate-400">
+              <Wallet size={20} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
+        <div className="lg:col-span-3 bg-slate-900 border border-slate-800 rounded-xl p-5 min-h-[300px] flex flex-col">
+          <h3 className="text-lg font-medium text-white mb-4">{t('dashboard.charts.topCreditors')}</h3>
+          <div className="flex-1 flex items-center justify-center border-2 border-dashed border-slate-800 rounded-lg text-slate-500">
+            Bar Chart Area
+          </div>
+        </div>
+
+        <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5 min-h-[300px] flex flex-col">
+          <h3 className="text-lg font-medium text-white mb-4">{t('dashboard.charts.expensesDist')}</h3>
+          <div className="flex-1 flex items-center justify-center border-2 border-dashed border-slate-800 rounded-lg text-slate-500">
+            Pie/Area Chart Area
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
+          <h3 className="text-lg font-medium text-white mb-4">{t('dashboard.lists.urgentAlerts')}</h3>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center p-3 border border-slate-800 rounded-lg hover:bg-slate-800/50 transition-colors">
+              <div>
+                <p className="font-medium text-white">ULTRA JOY Inc.</p>
+                <p className="text-xs text-slate-500">Today at 14:00</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="font-bold text-red-400">39,390 DA</span>
+                <button className="text-xs bg-slate-800 text-white px-3 py-1.5 rounded hover:bg-slate-700">
+                  {t('dashboard.actions.payNow')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
+          <h3 className="text-lg font-medium text-white mb-4">{t('dashboard.lists.recentAudit')}</h3>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center p-3 border border-slate-800 rounded-lg">
+              <div>
+                <p className="text-sm font-medium text-white">Advance Recorded - Ahmed</p>
+                <p className="text-xs text-slate-500">45 mins ago by Admin</p>
+              </div>
+              <span className="text-sm text-slate-400">- 2,000 DA</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  );
+}
+```
+
+---
+
+## الملف: `frontend\src\components\pages\HR.jsx`
+
+```javascript
+import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { ScanBarcode, UserCheck, Users, Clock, AlertCircle } from 'lucide-react';
+
+// بيانات وهمية لعمال المتجر
+const initialAttendance = [
+  { id: 1, pin: '1001', name: 'Ahmed Ali', role: 'Cashier', timeIn: '08:00 AM', timeOut: null, status: 'present' },
+  { id: 2, pin: '1002', name: 'Sarah Connor', role: 'Store Manager', timeIn: '07:45 AM', timeOut: null, status: 'present' },
+  { id: 3, pin: '1003', name: 'Karim Nabil', role: 'Stock Clerk', timeIn: '08:15 AM', timeOut: null, status: 'late' },
+  { id: 4, pin: '1004', name: 'Mona Youssef', role: 'Cashier', timeIn: null, timeOut: null, status: 'absent' },
+];
+
+export default function HR() {
+  const { t } = useTranslation();
+  const [pinInput, setPinInput] = useState('');
+  const [attendanceData, setAttendanceData] = useState(initialAttendance);
+  const [lastAction, setLastAction] = useState(null); // لعرض رسالة نجاح التسجيل
+  const inputRef = useRef(null);
+
+  // تركيز تلقائي على حقل الباركود عند فتح الصفحة ليكون جاهزاً للمسح
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, []);
+
+  // دالة معالجة الباركود أو الـ PIN عند الضغط على Enter
+  const handleCheckIn = (e) => {
+    e.preventDefault();
+    if (!pinInput.trim()) return;
+
+    const employeeIndex = attendanceData.findIndex(emp => emp.pin === pinInput.trim());
+    
+    if (employeeIndex !== -1) {
+      const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const updatedData = [...attendanceData];
+      const emp = updatedData[employeeIndex];
+
+      // منطق مبسط: إذا لم يسجل دخول نسجله، وإذا سجل دخوله مسبقاً نسجل خروجه
+      if (!emp.timeIn) {
+        emp.timeIn = currentTime;
+        emp.status = 'present';
+        setLastAction({ type: 'success', msg: `${emp.name} Checked IN at ${currentTime}` });
+      } else if (!emp.timeOut) {
+        emp.timeOut = currentTime;
+        setLastAction({ type: 'success', msg: `${emp.name} Checked OUT at ${currentTime}` });
+      } else {
+        setLastAction({ type: 'error', msg: `${emp.name} has already completed their shift.` });
+      }
+
+      setAttendanceData(updatedData);
+    } else {
+      setLastAction({ type: 'error', msg: 'Invalid PIN or Barcode not recognized!' });
+    }
+
+    // مسح الحقل استعداداً للعامل التالي
+    setPinInput('');
+    inputRef.current.focus();
+    
+    // إخفاء الرسالة بعد 3 ثوانٍ
+    setTimeout(() => setLastAction(null), 3000);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans">
+      
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-white">{t('hr.title')}</h1>
+        <p className="text-sm text-slate-500 mt-1">{t('hr.subtitle')}</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* القسم الأيسر: قارئ الباركود (Scanner) */}
+        <div className="lg:col-span-1 space-y-6">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-3 bg-blue-500/10 text-blue-400 rounded-lg">
+                <ScanBarcode size={24} />
+              </div>
+              <h2 className="text-xl font-bold text-white">{t('hr.scanner.title')}</h2>
+            </div>
+
+            <form onSubmit={handleCheckIn} className="space-y-4">
+              <div>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value)}
+                  placeholder={t('hr.scanner.placeholder')}
+                  className="w-full bg-slate-950 border-2 border-slate-800 focus:border-blue-500 rounded-lg px-4 py-4 text-center text-xl text-white tracking-widest placeholder-slate-600 transition-colors outline-none"
+                  autoComplete="off"
+                />
+                <p className="text-xs text-slate-500 text-center mt-2">
+                  Scanner acts as keyboard. Focus field and scan.
+                </p>
+              </div>
+              <button 
+                type="submit"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition-colors"
+              >
+                {t('hr.scanner.submit')}
+              </button>
+            </form>
+
+            {/* رسائل النجاح أو الخطأ */}
+            {lastAction && (
+              <div className={`mt-4 p-3 rounded-lg text-sm text-center border ${
+                lastAction.type === 'success' 
+                  ? 'bg-emerald-950/50 border-emerald-900 text-emerald-400' 
+                  : 'bg-red-950/50 border-red-900 text-red-400'
+              }`}>
+                {lastAction.msg}
+              </div>
+            )}
+          </div>
+
+          {/* بطاقات الإحصائيات (KPIs) */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl text-center">
+              <UserCheck size={24} className="text-emerald-400 mx-auto mb-2" />
+              <p className="text-2xl font-bold text-white">3</p>
+              <p className="text-xs text-slate-500 uppercase">{t('hr.kpi.present')}</p>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl text-center">
+              <AlertCircle size={24} className="text-red-400 mx-auto mb-2" />
+              <p className="text-2xl font-bold text-white">1</p>
+              <p className="text-xs text-slate-500 uppercase">{t('hr.kpi.absent')}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* القسم الأيمن: جدول حضور اليوم */}
+        <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+          <div className="p-4 border-b border-slate-800 bg-slate-900 flex justify-between items-center">
+            <h3 className="font-medium text-white flex items-center gap-2">
+              <Users size={18} className="text-slate-400" />
+              Today's Attendance
+            </h3>
+            <span className="text-xs text-slate-500">{new Date().toLocaleDateString()}</span>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-800 bg-slate-950/50">
+                  <th className="px-6 py-4 text-sm font-medium text-slate-400">{t('hr.table.name')}</th>
+                  <th className="px-6 py-4 text-sm font-medium text-slate-400">{t('hr.table.timeIn')}</th>
+                  <th className="px-6 py-4 text-sm font-medium text-slate-400">{t('hr.table.timeOut')}</th>
+                  <th className="px-6 py-4 text-sm font-medium text-slate-400">{t('hr.table.status')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {attendanceData.map((emp) => (
+                  <tr key={emp.id} className="border-b border-slate-800/50 hover:bg-slate-800/20">
+                    <td className="px-6 py-4">
+                      <p className="font-medium text-white">{emp.name}</p>
+                      <p className="text-xs text-slate-500">{emp.role} (PIN: {emp.pin})</p>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-300">
+                      {emp.timeIn ? (
+                        <span className="flex items-center gap-1"><Clock size={14} className="text-emerald-400"/> {emp.timeIn}</span>
+                      ) : '-'}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-300">
+                      {emp.timeOut ? (
+                        <span className="flex items-center gap-1"><Clock size={14} className="text-slate-400"/> {emp.timeOut}</span>
+                      ) : '-'}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                        emp.status === 'present' ? 'bg-emerald-950 text-emerald-400 border border-emerald-900' : 
+                        emp.status === 'late' ? 'bg-amber-950 text-amber-400 border border-amber-900' : 
+                        'bg-red-950 text-red-400 border border-red-900'
+                      }`}>
+                        {t(`hr.status.${emp.status}`)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+## الملف: `frontend\src\components\pages\Login.jsx`
+
+```javascript
+
+```
+
+---
+
+## الملف: `frontend\src\components\pages\Suppliers.jsx`
+
+```javascript
+import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { 
+  useReactTable, 
+  getCoreRowModel, 
+  getFilteredRowModel,
+  getSortedRowModel,
+  flexRender 
+} from '@tanstack/react-table';
+import { Plus, Search, MoreHorizontal, ArrowUpDown } from 'lucide-react';
+
+// بيانات وهمية مؤقتة حتى نقوم بربطها بقاعدة بيانات SQLite لاحقاً
+const mockData = [
+  { id: 1, name: 'ULTRA JOY Inc.', phone: '0555-123-456', totalDebt: 150000 },
+  { id: 2, name: 'Cevital Group', phone: '0770-987-654', totalDebt: 0 },
+  { id: 3, name: 'Soummam Dairy', phone: '0661-222-333', totalDebt: 45000 },
+  { id: 4, name: 'Bifrut', phone: '0550-111-222', totalDebt: 12000 },
+];
+
+export default function Suppliers() {
+  const { t } = useTranslation();
+  const [globalFilter, setGlobalFilter] = useState('');
+
+  // تعريف أعمدة الجدول
+  const columns = useMemo(() => [
+    {
+      accessorKey: 'name',
+      header: ({ column }) => (
+        <button 
+          className="flex items-center gap-2 hover:text-white transition-colors"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
+          {t('suppliers.table.name')}
+          <ArrowUpDown size={14} />
+        </button>
+      ),
+      cell: (info) => <span className="font-medium text-white">{info.getValue()}</span>,
+    },
+    {
+      accessorKey: 'phone',
+      header: t('suppliers.table.phone'),
+      cell: (info) => <span className="text-slate-400">{info.getValue() || '-'}</span>,
+    },
+    {
+      accessorKey: 'totalDebt',
+      header: t('suppliers.table.totalDebt'),
+      cell: (info) => {
+        const amount = info.getValue();
+        return (
+          <span className={`font-bold ${amount > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+            {amount.toLocaleString()} DA
+          </span>
+        );
+      },
+    },
+    {
+      id: 'status',
+      header: t('suppliers.table.status'),
+      cell: ({ row }) => {
+        const amount = row.original.totalDebt;
+        const isClear = amount === 0;
+        return (
+          <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+            isClear 
+              ? 'bg-emerald-950 text-emerald-400 border border-emerald-900' 
+              : 'bg-red-950 text-red-400 border border-red-900'
+          }`}>
+            {isClear ? t('suppliers.status.clear') : t('suppliers.status.indebted')}
+          </span>
+        );
+      },
+    },
+    {
+      id: 'actions',
+      header: t('suppliers.table.actions'),
+      cell: () => (
+        <div className="flex items-center gap-3">
+          <button className="text-xs bg-slate-800 text-white px-3 py-1.5 rounded hover:bg-slate-700 transition-colors">
+            {t('suppliers.actions.pay')}
+          </button>
+          <button className="text-slate-400 hover:text-white transition-colors">
+            <MoreHorizontal size={18} />
+          </button>
+        </div>
+      ),
+    },
+  ], [t]);
+
+  // تهيئة جدول TanStack
+  const table = useReactTable({
+    data: mockData,
+    columns,
+    state: { globalFilter },
+    onGlobalFilterChange: setGlobalFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans">
+      
+      {/* القسم العلوي: العنوان وزر الإضافة */}
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-white">{t('suppliers.title')}</h1>
+          <p className="text-sm text-slate-500 mt-1">{t('suppliers.subtitle')}</p>
+        </div>
+        <button className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-md font-medium hover:bg-slate-200 transition-colors">
+          <Plus size={18} />
+          <span>{t('suppliers.addSupplier')}</span>
+        </button>
+      </div>
+
+      {/* حاوية البحث والجدول */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+        
+        {/* شريط البحث */}
+        <div className="p-4 border-b border-slate-800 flex items-center">
+          <div className="relative w-full max-w-md">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <input
+              type="text"
+              value={globalFilter ?? ''}
+              onChange={e => setGlobalFilter(e.target.value)}
+              placeholder={t('suppliers.searchPlaceholder')}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-slate-600 transition-colors"
+            />
+          </div>
+        </div>
+
+        {/* الجدول */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              {table.getHeaderGroups().map(headerGroup => (
+                <tr key={headerGroup.id} className="border-b border-slate-800 bg-slate-950/50">
+                  {headerGroup.headers.map(header => (
+                    <th key={header.id} className="px-6 py-4 text-sm font-medium text-slate-400 whitespace-nowrap">
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            <tbody>
+              {table.getRowModel().rows.map(row => (
+                <tr key={row.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
+                  {row.getVisibleCells().map(cell => (
+                    <td key={cell.id} className="px-6 py-4 text-sm whitespace-nowrap">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        
+        {/* حالة عدم وجود نتائج */}
+        {table.getRowModel().rows.length === 0 && (
+          <div className="p-8 text-center text-slate-500">
+            No results found.
+          </div>
+        )}
+        
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+## الملف: `frontend\src\locales\en\translation.json`
+
+```json
+{
+  "common": {
+    "search": "Search...",
+    "superAdmin": "Super Admin",
+    "systemOwner": "System Owner"
+  },
+  "sidebar": {
+    "dashboard": "Dashboard",
+    "suppliers": "Suppliers",
+    "hr": "HR & Staff",
+    "expenses": "Expenses",
+    "agenda": "Agenda"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "System overview & financial metrics",
+    "quickAction": "Quick Action",
+    "kpi": {
+      "totalDebts": "Total Debts (Suppliers)",
+      "dueThisWeek": "Due This Week",
+      "activeEmployees": "Active Employees",
+      "expenses": "Expenses & Advances"
+    },
+    "charts": {
+      "topCreditors": "Top 5 Creditors",
+      "expensesDist": "Expenses Distribution"
+    },
+    "lists": {
+      "urgentAlerts": "Urgent Agenda Alerts",
+      "recentAudit": "Recent Audit Logs"
+    },
+    "actions": {
+      "payNow": "Pay Now"
+    }
+  }
+    ,
+
+
+  "suppliers": {
+    "title": "Suppliers & Debts",
+    "subtitle": "Manage supplier accounts and unpaid invoices",
+    "addSupplier": "New Supplier",
+    "searchPlaceholder": "Search suppliers by name or phone...",
+    "table": {
+      "name": "Supplier Name",
+      "phone": "Phone Number",
+      "totalDebt": "Total Debt",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "clear": "Clear (No Debt)",
+      "indebted": "Indebted"
+    },
+    "actions": {
+      "view": "View Details",
+      "pay": "Make Payment"
+    }
+  }
+
+  ,
+
+  
+  "hr": {
+    "title": "HR & Staff",
+    "subtitle": "Manage attendance, shifts, and employee records",
+    "scanner": {
+      "title": "Time Clock (Check-In / Out)",
+      "placeholder": "Scan Barcode or Enter PIN...",
+      "submit": "Record"
+    },
+    "kpi": {
+      "present": "Present Today",
+      "absent": "Absent",
+      "late": "Late"
+    },
+    "table": {
+      "name": "Employee Name",
+      "role": "Position",
+      "timeIn": "Time In",
+      "timeOut": "Time Out",
+      "status": "Status"
+    },
+    "status": {
+      "present": "Present",
+      "absent": "Absent",
+      "late": "Late"
+    }
+  }
+}
+
+
+```
+
+---
+
+## الملف: `frontend\store\authStore.js`
+
+```javascript
+
+```
+
+---
+

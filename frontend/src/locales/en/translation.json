@@ -1,0 +1,137 @@
+{
+  "common": {
+    "search": "Search...",
+    "superAdmin": "Super Admin",
+    "systemOwner": "System Owner"
+  },
+  "sidebar": {
+    "dashboard": "Dashboard",
+    "suppliers": "Suppliers",
+    "hr": "HR & Staff",
+    "expenses": "Expenses",
+    "agenda": "Agenda"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "System overview & financial metrics",
+    "quickAction": "Quick Action",
+    "kpi": {
+      "totalDebts": "Total Debts (Suppliers)",
+      "dueThisWeek": "Due This Week",
+      "activeEmployees": "Active Employees",
+      "expenses": "Expenses & Advances"
+    },
+    "charts": {
+      "topCreditors": "Top 5 Creditors",
+      "expensesDist": "Expenses Distribution"
+    },
+    "lists": {
+      "urgentAlerts": "Urgent Agenda Alerts",
+      "recentAudit": "Recent Audit Logs"
+    },
+    "actions": {
+      "payNow": "Pay Now"
+    }
+  }
+    ,
+
+
+  "suppliers": {
+    "title": "Suppliers & Debts",
+    "subtitle": "Manage supplier accounts and unpaid invoices",
+    "addSupplier": "New Supplier",
+    "searchPlaceholder": "Search suppliers by name or phone...",
+    "table": {
+      "name": "Supplier Name",
+      "phone": "Phone Number",
+      "totalDebt": "Total Debt",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "clear": "Clear (No Debt)",
+      "indebted": "Indebted"
+    },
+    "actions": {
+      "view": "View Details",
+      "pay": "Make Payment"
+    }
+  }
+
+  ,
+
+  
+  "hr": {
+    "title": "HR & Staff",
+    "subtitle": "Manage attendance, shifts, and employee records",
+    "scanner": {
+      "title": "Time Clock (Check-In / Out)",
+      "placeholder": "Scan Barcode or Enter PIN...",
+      "submit": "Record"
+    },
+    "kpi": {
+      "present": "Present Today",
+      "absent": "Absent",
+      "late": "Late"
+    },
+    "table": {
+      "name": "Employee Name",
+      "role": "Position",
+      "timeIn": "Time In",
+      "timeOut": "Time Out",
+      "status": "Status"
+    },
+    "status": {
+      "present": "Present",
+      "absent": "Absent",
+      "late": "Late"
+    }
+  }
+
+  ,
+
+  "expenses": {
+    "title": "Expenses & Advances",
+    "subtitle": "Track daily store expenses and employee salary advances",
+    "addExpense": "Add Expense",
+    "searchPlaceholder": "Search by description...",
+    "kpi": {
+      "today": "Today's Expenses",
+      "month": "This Month (Total)"
+    },
+    "table": {
+      "date": "Date",
+      "description": "Description",
+      "category": "Category",
+      "amount": "Amount"
+    },
+    "categories": {
+      "utilities": "Utilities & Bills",
+      "maintenance": "Maintenance",
+      "supplies": "Store Supplies",
+      "advance": "Employee Advance"
+    }
+  }
+  ,
+  
+  "agenda": {
+    "title": "Store Agenda",
+    "subtitle": "Manage scheduled deliveries, upcoming payments, and tasks",
+    "addTask": "New Task",
+    "filters": {
+      "all": "All Tasks",
+      "pending": "Pending",
+      "completed": "Completed"
+    },
+    "types": {
+      "delivery": "Delivery",
+      "payment": "Payment",
+      "maintenance": "Maintenance"
+    },
+    "sections": {
+      "today": "Today's Schedule",
+      "upcoming": "Upcoming"
+    }
+  }
+}
+
