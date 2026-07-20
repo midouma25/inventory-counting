@@ -73,14 +73,14 @@ export default function Dashboard() {
         <div className="lg:col-span-3 bg-slate-900 border border-slate-800 rounded-xl p-5 min-h-[300px] flex flex-col">
           <h3 className="text-lg font-medium text-white mb-4">{t('dashboard.charts.topCreditors')}</h3>
           <div className="flex-1 flex items-center justify-center border-2 border-dashed border-slate-800 rounded-lg text-slate-500">
-            Bar Chart Area
+            {t('dashboard.charts.barPlaceholder')}
           </div>
         </div>
 
         <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5 min-h-[300px] flex flex-col">
           <h3 className="text-lg font-medium text-white mb-4">{t('dashboard.charts.expensesDist')}</h3>
           <div className="flex-1 flex items-center justify-center border-2 border-dashed border-slate-800 rounded-lg text-slate-500">
-            Pie/Area Chart Area
+            {t('dashboard.charts.piePlaceholder')}
           </div>
         </div>
       </div>

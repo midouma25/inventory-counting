@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   useReactTable, 
@@ -8,20 +8,50 @@ import {
   flexRender 
 } from '@tanstack/react-table';
 import { Plus, Search, MoreHorizontal, ArrowUpDown } from 'lucide-react';
-
-// بيانات وهمية مؤقتة حتى نقوم بربطها بقاعدة بيانات SQLite لاحقاً
-const mockData = [
-  { id: 1, name: 'ULTRA JOY Inc.', phone: '0555-123-456', totalDebt: 150000 },
-  { id: 2, name: 'Cevital Group', phone: '0770-987-654', totalDebt: 0 },
-  { id: 3, name: 'Soummam Dairy', phone: '0661-222-333', totalDebt: 45000 },
-  { id: 4, name: 'Bifrut', phone: '0550-111-222', totalDebt: 12000 },
-];
+import Modal from '../ui/Modal';
 
 export default function Suppliers() {
   const { t } = useTranslation();
+  
+  const [suppliers, setSuppliers] = useState([]);
   const [globalFilter, setGlobalFilter] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // تعريف أعمدة الجدول
+  useEffect(() => {
+    const fetchSuppliers = async () => {
+      try {
+        if (window.api && window.api.getSuppliers) {
+          const data = await window.api.getSuppliers();
+          setSuppliers(data);
+        } else {
+          console.warn("API is not available. Are you running in Electron?");
+        }
+      } catch (error) {
+        console.error("Failed to fetch suppliers:", error);
+      }
+    };
+    fetchSuppliers();
+  }, []);
+
+  const handleAddSupplier = async (e) => {
+    e.preventDefault();
+    const newSupplier = {
+      name: e.target[0].value,
+      phone: e.target[1].value,
+      totalDebt: parseFloat(e.target[2].value) || 0
+    };
+
+    try {
+      if (window.api && window.api.addSupplier) {
+        const addedSupplier = await window.api.addSupplier(newSupplier);
+        setSuppliers(prev => [addedSupplier, ...prev]);
+        setIsModalOpen(false);
+      }
+    } catch (error) {
+      console.error("Error adding supplier:", error);
+    }
+  };
+
   const columns = useMemo(() => [
     {
       accessorKey: 'name',
@@ -86,9 +116,8 @@ export default function Suppliers() {
     },
   ], [t]);
 
-  // تهيئة جدول TanStack
   const table = useReactTable({
-    data: mockData,
+    data: suppliers, 
     columns,
     state: { globalFilter },
     onGlobalFilterChange: setGlobalFilter,
@@ -100,22 +129,22 @@ export default function Suppliers() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans">
       
-      {/* القسم العلوي: العنوان وزر الإضافة */}
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-white">{t('suppliers.title')}</h1>
           <p className="text-sm text-slate-500 mt-1">{t('suppliers.subtitle')}</p>
         </div>
-        <button className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-md font-medium hover:bg-slate-200 transition-colors">
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-md font-medium hover:bg-slate-200 transition-colors"
+        >
           <Plus size={18} />
           <span>{t('suppliers.addSupplier')}</span>
         </button>
       </div>
 
-      {/* حاوية البحث والجدول */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
         
-        {/* شريط البحث */}
         <div className="p-4 border-b border-slate-800 flex items-center">
           <div className="relative w-full max-w-md">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
@@ -129,7 +158,6 @@ export default function Suppliers() {
           </div>
         </div>
 
-        {/* الجدول */}
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -157,14 +185,61 @@ export default function Suppliers() {
           </table>
         </div>
         
-        {/* حالة عدم وجود نتائج */}
         {table.getRowModel().rows.length === 0 && (
           <div className="p-8 text-center text-slate-500">
-            No results found.
+            {t('common.noResults')}
           </div>
         )}
-        
       </div>
+
+      <Modal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        title={t('suppliers.addSupplier')}
+      >
+        <form className="space-y-4" onSubmit={handleAddSupplier}>
+          <div>
+            <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.modal.nameLabel')}</label>
+            <input 
+              type="text" 
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 transition-colors" 
+              required 
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.modal.phoneLabel')}</label>
+            <input 
+              type="tel" 
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 transition-colors" 
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.modal.debtLabel')}</label>
+            <input 
+              type="number" 
+              defaultValue="0" 
+              min="0"
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 transition-colors" 
+            />
+          </div>
+          <div className="pt-4 flex justify-end gap-3">
+            <button 
+              type="button" 
+              onClick={() => setIsModalOpen(false)} 
+              className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800 transition-colors"
+            >
+              {t('suppliers.modal.cancelBtn')}
+            </button>
+            <button 
+              type="submit" 
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+            >
+              {t('suppliers.modal.saveBtn')}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
     </div>
   );
 }

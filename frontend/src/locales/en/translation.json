@@ -2,7 +2,8 @@
   "common": {
     "search": "Search...",
     "superAdmin": "Super Admin",
-    "systemOwner": "System Owner"
+    "systemOwner": "System Owner",
+    "noResults": "No results found."
   },
   "sidebar": {
     "dashboard": "Dashboard",
@@ -23,7 +24,9 @@
     },
     "charts": {
       "topCreditors": "Top 5 Creditors",
-      "expensesDist": "Expenses Distribution"
+      "expensesDist": "Expenses Distribution",
+      "piePlaceholder": "Pie/Area Chart Area",
+      "barPlaceholder": "Bar Chart Area"
     },
     "lists": {
       "urgentAlerts": "Urgent Agenda Alerts",
@@ -32,10 +35,7 @@
     "actions": {
       "payNow": "Pay Now"
     }
-  }
-    ,
-
-
+  },
   "suppliers": {
     "title": "Suppliers & Debts",
     "subtitle": "Manage supplier accounts and unpaid invoices",
@@ -55,25 +55,31 @@
     "actions": {
       "view": "View Details",
       "pay": "Make Payment"
+    },
+    "modal": {
+      "nameLabel": "Supplier Name",
+      "phoneLabel": "Phone Number",
+      "debtLabel": "Initial Debt (DA)",
+      "saveBtn": "Save Supplier",
+      "cancelBtn": "Cancel"
     }
-  }
-
-  ,
-
-  
+  },
   "hr": {
     "title": "HR & Staff",
     "subtitle": "Manage attendance, shifts, and employee records",
     "scanner": {
       "title": "Time Clock (Check-In / Out)",
       "placeholder": "Scan Barcode or Enter PIN...",
-      "submit": "Record"
+      "submit": "Record",
+      "hint": "Scanner acts as keyboard. Focus field and scan."
     },
     "kpi": {
       "present": "Present Today",
       "absent": "Absent",
       "late": "Late"
     },
+    "todayAttendance": "Today's Attendance",
+    "pin": "PIN:",
     "table": {
       "name": "Employee Name",
       "role": "Position",
@@ -86,10 +92,7 @@
       "absent": "Absent",
       "late": "Late"
     }
-  }
-
-  ,
-
+  },
   "expenses": {
     "title": "Expenses & Advances",
     "subtitle": "Track daily store expenses and employee salary advances",
@@ -111,9 +114,7 @@
       "supplies": "Store Supplies",
       "advance": "Employee Advance"
     }
-  }
-  ,
-  
+  },
   "agenda": {
     "title": "Store Agenda",
     "subtitle": "Manage scheduled deliveries, upcoming payments, and tasks",
@@ -134,4 +135,3 @@
     }
   }
 }
-

@@ -1,0 +1,137 @@
+{
+  "common": {
+    "search": "بحث...",
+    "superAdmin": "المدير العام",
+    "systemOwner": "مالك النظام",
+    "noResults": "لا توجد نتائج مطابقة لبحثك."
+  },
+  "sidebar": {
+    "dashboard": "لوحة القيادة",
+    "suppliers": "الموردين",
+    "hr": "الموارد البشرية",
+    "expenses": "المصاريف",
+    "agenda": "الأجندة"
+  },
+  "dashboard": {
+    "title": "لوحة القيادة",
+    "subtitle": "نظرة عامة على النظام والمؤشرات المالية",
+    "quickAction": "إجراء سريع",
+    "kpi": {
+      "totalDebts": "إجمالي ديون الموردين",
+      "dueThisWeek": "مستحقة هذا الأسبوع",
+      "activeEmployees": "العمال النشطون",
+      "expenses": "المصاريف والسلفيات"
+    },
+    "charts": {
+      "topCreditors": "أكبر 5 دائنين",
+      "expensesDist": "توزيع المصاريف",
+      "piePlaceholder": "مساحة المخطط الدائري",
+      "barPlaceholder": "مساحة المخطط العمودي"
+    },
+    "lists": {
+      "urgentAlerts": "تنبيهات عاجلة",
+      "recentAudit": "سجل النشاطات الأخير"
+    },
+    "actions": {
+      "payNow": "دفع الآن"
+    }
+  },
+  "suppliers": {
+    "title": "الموردين والديون",
+    "subtitle": "إدارة حسابات الموردين والفواتير غير المدفوعة",
+    "addSupplier": "مورد جديد",
+    "searchPlaceholder": "ابحث عن مورد بالاسم أو الهاتف...",
+    "table": {
+      "name": "اسم المورد",
+      "phone": "رقم الهاتف",
+      "totalDebt": "إجمالي الدين",
+      "status": "الحالة",
+      "actions": "الإجراءات"
+    },
+    "status": {
+      "clear": "صافي (لا يوجد دين)",
+      "indebted": "مدين"
+    },
+    "actions": {
+      "view": "التفاصيل",
+      "pay": "تسديد دفعة"
+    },
+    "modal": {
+      "nameLabel": "اسم المورد",
+      "phoneLabel": "رقم الهاتف",
+      "debtLabel": "الدين الأولي (د.ج)",
+      "saveBtn": "حفظ المورد",
+      "cancelBtn": "إلغاء"
+    }
+  },
+  "hr": {
+    "title": "الموارد البشرية",
+    "subtitle": "إدارة الحضور، الورديات، وسجلات العمال",
+    "scanner": {
+      "title": "سجل الدخول والخروج",
+      "placeholder": "قم بمسح الباركود أو أدخل الرمز...",
+      "submit": "تسجيل",
+      "hint": "قارئ الباركود يعمل كلوحة مفاتيح. ضع المؤشر في الحقل وقم بالمسح."
+    },
+    "kpi": {
+      "present": "حاضر اليوم",
+      "absent": "غائب",
+      "late": "متأخر"
+    },
+    "todayAttendance": "سجل حضور اليوم",
+    "pin": "الرمز:",
+    "table": {
+      "name": "اسم العامل",
+      "role": "المنصب",
+      "timeIn": "وقت الدخول",
+      "timeOut": "وقت الخروج",
+      "status": "الحالة"
+    },
+    "status": {
+      "present": "حاضر",
+      "absent": "غائب",
+      "late": "متأخر"
+    }
+  },
+  "expenses": {
+    "title": "المصاريف والسلفيات",
+    "subtitle": "تتبع مصاريف المتجر اليومية وسلفيات العمال",
+    "addExpense": "إضافة مصروف",
+    "searchPlaceholder": "ابحث في الوصف...",
+    "kpi": {
+      "today": "مصاريف اليوم",
+      "month": "مصاريف هذا الشهر"
+    },
+    "table": {
+      "date": "التاريخ",
+      "description": "الوصف",
+      "category": "التصنيف",
+      "amount": "المبلغ"
+    },
+    "categories": {
+      "utilities": "فواتير ومرافق",
+      "maintenance": "صيانة",
+      "supplies": "مستلزمات المتجر",
+      "advance": "سلفة عامل"
+    }
+  },
+  "agenda": {
+    "title": "أجندة المتجر",
+    "subtitle": "إدارة مواعيد الاستلام، المدفوعات القادمة، والمهام",
+    "addTask": "مهمة جديدة",
+    "filters": {
+      "all": "كل المهام",
+      "pending": "قيد الانتظار",
+      "completed": "مكتملة"
+    },
+    "types": {
+      "delivery": "استلام سلع",
+      "payment": "تسديد مستحقات",
+      "maintenance": "صيانة"
+    },
+    "sections": {
+      "today": "جدول اليوم",
+      "upcoming": "المهام القادمة"
+    }
+  }
+}

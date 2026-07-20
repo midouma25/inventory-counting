@@ -1,70 +1,70 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScanBarcode, UserCheck, Users, Clock, AlertCircle } from 'lucide-react';
-
-// بيانات وهمية لعمال المتجر
-const initialAttendance = [
-  { id: 1, pin: '1001', name: 'Ahmed Ali', role: 'Cashier', timeIn: '08:00 AM', timeOut: null, status: 'present' },
-  { id: 2, pin: '1002', name: 'Sarah Connor', role: 'Store Manager', timeIn: '07:45 AM', timeOut: null, status: 'present' },
-  { id: 3, pin: '1003', name: 'Karim Nabil', role: 'Stock Clerk', timeIn: '08:15 AM', timeOut: null, status: 'late' },
-  { id: 4, pin: '1004', name: 'Mona Youssef', role: 'Cashier', timeIn: null, timeOut: null, status: 'absent' },
-];
 
 export default function HR() {
   const { t } = useTranslation();
   const [pinInput, setPinInput] = useState('');
-  const [attendanceData, setAttendanceData] = useState(initialAttendance);
-  const [lastAction, setLastAction] = useState(null); // لعرض رسالة نجاح التسجيل
+  const [attendanceData, setAttendanceData] = useState([]);
+  const [lastAction, setLastAction] = useState(null); 
   const inputRef = useRef(null);
 
-  // تركيز تلقائي على حقل الباركود عند فتح الصفحة ليكون جاهزاً للمسح
-  useEffect(() => {
-    if (inputRef.current) {
-      inputRef.current.focus();
+  // دالة جلب بيانات حضور اليوم من قاعدة البيانات
+  const fetchAttendance = useCallback(async () => {
+    try {
+      const todayString = new Date().toISOString().split('T')[0];
+      if (window.api && window.api.getTodayAttendance) {
+        const data = await window.api.getTodayAttendance(todayString);
+        setAttendanceData(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch attendance:", error);
     }
   }, []);
 
-  // دالة معالجة الباركود أو الـ PIN عند الضغط على Enter
-  const handleCheckIn = (e) => {
+  useEffect(() => {
+    fetchAttendance();
+    if (inputRef.current) inputRef.current.focus();
+  }, [fetchAttendance]);
+
+  // دالة معالجة إدخال الباركود
+  const handleCheckIn = async (e) => {
     e.preventDefault();
     if (!pinInput.trim()) return;
 
-    const employeeIndex = attendanceData.findIndex(emp => emp.pin === pinInput.trim());
-    
-    if (employeeIndex !== -1) {
-      const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const updatedData = [...attendanceData];
-      const emp = updatedData[employeeIndex];
+    try {
+      const todayString = new Date().toISOString().split('T')[0];
+      // صيغة الوقت (AM/PM)
+      const timeString = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      
+      if (window.api && window.api.processAttendance) {
+        const result = await window.api.processAttendance({
+          pin: pinInput.trim(),
+          date: todayString,
+          time: timeString
+        });
 
-      // منطق مبسط: إذا لم يسجل دخول نسجله، وإذا سجل دخوله مسبقاً نسجل خروجه
-      if (!emp.timeIn) {
-        emp.timeIn = currentTime;
-        emp.status = 'present';
-        setLastAction({ type: 'success', msg: `${emp.name} Checked IN at ${currentTime}` });
-      } else if (!emp.timeOut) {
-        emp.timeOut = currentTime;
-        setLastAction({ type: 'success', msg: `${emp.name} Checked OUT at ${currentTime}` });
-      } else {
-        setLastAction({ type: 'error', msg: `${emp.name} has already completed their shift.` });
+        setLastAction({ type: result.success ? 'success' : 'error', msg: result.message });
+        if (result.success) {
+          fetchAttendance(); // إعادة تحديث الجدول بعد التسجيل بنجاح
+        }
       }
-
-      setAttendanceData(updatedData);
-    } else {
-      setLastAction({ type: 'error', msg: 'Invalid PIN or Barcode not recognized!' });
+    } catch (error) {
+      console.error("Error processing attendance:", error);
     }
 
-    // مسح الحقل استعداداً للعامل التالي
     setPinInput('');
-    inputRef.current.focus();
-    
-    // إخفاء الرسالة بعد 3 ثوانٍ
-    setTimeout(() => setLastAction(null), 3000);
+    if (inputRef.current) inputRef.current.focus();
+    setTimeout(() => setLastAction(null), 4000);
   };
+
+  // حساب الإحصائيات (KPIs) ديناميكياً
+  const presentCount = attendanceData.filter(emp => emp.status === 'present').length;
+  const absentCount = attendanceData.filter(emp => emp.status === 'absent').length;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans">
       
-      {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-white">{t('hr.title')}</h1>
         <p className="text-sm text-slate-500 mt-1">{t('hr.subtitle')}</p>
@@ -72,9 +72,8 @@ export default function HR() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* القسم الأيسر: قارئ الباركود (Scanner) */}
         <div className="lg:col-span-1 space-y-6">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-3 bg-blue-500/10 text-blue-400 rounded-lg">
                 <ScanBarcode size={24} />
@@ -94,7 +93,7 @@ export default function HR() {
                   autoComplete="off"
                 />
                 <p className="text-xs text-slate-500 text-center mt-2">
-                  Scanner acts as keyboard. Focus field and scan.
+                  {t('hr.scanner.hint')}
                 </p>
               </div>
               <button 
@@ -105,9 +104,8 @@ export default function HR() {
               </button>
             </form>
 
-            {/* رسائل النجاح أو الخطأ */}
             {lastAction && (
-              <div className={`mt-4 p-3 rounded-lg text-sm text-center border ${
+              <div className={`mt-4 p-3 rounded-lg text-sm text-center border font-medium ${
                 lastAction.type === 'success' 
                   ? 'bg-emerald-950/50 border-emerald-900 text-emerald-400' 
                   : 'bg-red-950/50 border-red-900 text-red-400'
@@ -117,35 +115,35 @@ export default function HR() {
             )}
           </div>
 
-          {/* بطاقات الإحصائيات (KPIs) */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl text-center">
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl text-center shadow-lg">
               <UserCheck size={24} className="text-emerald-400 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-white">3</p>
-              <p className="text-xs text-slate-500 uppercase">{t('hr.kpi.present')}</p>
+              <p className="text-3xl font-bold text-white">{presentCount}</p>
+              <p className="text-xs text-slate-500 uppercase mt-1">{t('hr.kpi.present')}</p>
             </div>
-            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl text-center">
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl text-center shadow-lg">
               <AlertCircle size={24} className="text-red-400 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-white">1</p>
-              <p className="text-xs text-slate-500 uppercase">{t('hr.kpi.absent')}</p>
+              <p className="text-3xl font-bold text-white">{absentCount}</p>
+              <p className="text-xs text-slate-500 uppercase mt-1">{t('hr.kpi.absent')}</p>
             </div>
           </div>
         </div>
 
-        {/* القسم الأيمن: جدول حضور اليوم */}
-        <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-          <div className="p-4 border-b border-slate-800 bg-slate-900 flex justify-between items-center">
+        <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg flex flex-col">
+          <div className="p-4 border-b border-slate-800 bg-slate-950 flex justify-between items-center">
             <h3 className="font-medium text-white flex items-center gap-2">
               <Users size={18} className="text-slate-400" />
-              Today's Attendance
+              {t('hr.todayAttendance')}
             </h3>
-            <span className="text-xs text-slate-500">{new Date().toLocaleDateString()}</span>
+            <span className="text-xs text-slate-500 bg-slate-900 px-3 py-1 rounded-full border border-slate-800">
+              {new Date().toLocaleDateString()}
+            </span>
           </div>
           
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto flex-1">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-800 bg-slate-950/50">
+                <tr className="border-b border-slate-800 bg-slate-900/50">
                   <th className="px-6 py-4 text-sm font-medium text-slate-400">{t('hr.table.name')}</th>
                   <th className="px-6 py-4 text-sm font-medium text-slate-400">{t('hr.table.timeIn')}</th>
                   <th className="px-6 py-4 text-sm font-medium text-slate-400">{t('hr.table.timeOut')}</th>
@@ -154,26 +152,30 @@ export default function HR() {
               </thead>
               <tbody>
                 {attendanceData.map((emp) => (
-                  <tr key={emp.id} className="border-b border-slate-800/50 hover:bg-slate-800/20">
+                  <tr key={emp.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
                     <td className="px-6 py-4">
                       <p className="font-medium text-white">{emp.name}</p>
-                      <p className="text-xs text-slate-500">{emp.role} (PIN: {emp.pin})</p>
+                      <p className="text-xs text-slate-500">{emp.role} ({t('hr.pin')} {emp.pin})</p>
                     </td>
-                    <td className="px-6 py-4 text-sm text-slate-300">
+                    <td className="px-6 py-4 text-sm">
                       {emp.timeIn ? (
-                        <span className="flex items-center gap-1"><Clock size={14} className="text-emerald-400"/> {emp.timeIn}</span>
-                      ) : '-'}
+                        <span className="flex items-center gap-1.5 text-slate-300">
+                          <Clock size={14} className="text-emerald-400"/> {emp.timeIn}
+                        </span>
+                      ) : <span className="text-slate-600">-</span>}
                     </td>
-                    <td className="px-6 py-4 text-sm text-slate-300">
+                    <td className="px-6 py-4 text-sm">
                       {emp.timeOut ? (
-                        <span className="flex items-center gap-1"><Clock size={14} className="text-slate-400"/> {emp.timeOut}</span>
-                      ) : '-'}
+                        <span className="flex items-center gap-1.5 text-slate-300">
+                          <Clock size={14} className="text-slate-400"/> {emp.timeOut}
+                        </span>
+                      ) : <span className="text-slate-600">-</span>}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                        emp.status === 'present' ? 'bg-emerald-950 text-emerald-400 border border-emerald-900' : 
-                        emp.status === 'late' ? 'bg-amber-950 text-amber-400 border border-amber-900' : 
-                        'bg-red-950 text-red-400 border border-red-900'
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
+                        emp.status === 'present' 
+                          ? 'bg-emerald-950/50 text-emerald-400 border-emerald-900/50' 
+                          : 'bg-red-950/50 text-red-400 border-red-900/50'
                       }`}>
                         {t(`hr.status.${emp.status}`)}
                       </span>
