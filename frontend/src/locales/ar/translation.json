@@ -115,7 +115,7 @@
       "advance": "سلفة عامل"
     }
   },
-  "agenda": {
+"agenda": {
     "title": "أجندة المتجر",
     "subtitle": "إدارة مواعيد الاستلام، المدفوعات القادمة، والمهام",
     "addTask": "مهمة جديدة",
@@ -132,6 +132,14 @@
     "sections": {
       "today": "جدول اليوم",
       "upcoming": "المهام القادمة"
+    },
+    "modal": {
+      "taskTitleLabel": "عنوان المهمة",
+      "taskTypeLabel": "نوع المهمة",
+      "dateLabel": "التاريخ",
+      "timeLabel": "الوقت",
+      "saveBtn": "إضافة المهمة",
+      "cancelBtn": "إلغاء"
     }
   }
 }

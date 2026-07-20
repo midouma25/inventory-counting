@@ -34,6 +34,10 @@ app.whenReady().then(() => {
 
   ipcMain.handle('get-today-attendance', (e, date) => db.getTodayAttendance(date));
   ipcMain.handle('process-attendance', (e, data) => db.processAttendance(data.pin, data.date, data.time));
+
+  ipcMain.handle('get-agenda-tasks', () => db.getAgendaTasks());
+  ipcMain.handle('add-agenda-task', (e, data) => db.addAgendaTask(data));
+  ipcMain.handle('toggle-agenda-task-status', (e, id, status) => db.toggleAgendaTaskStatus(id, status));
 });
 
 app.on('window-all-closed', function () {

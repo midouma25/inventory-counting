@@ -115,7 +115,7 @@
       "advance": "Employee Advance"
     }
   },
-  "agenda": {
+"agenda": {
     "title": "Store Agenda",
     "subtitle": "Manage scheduled deliveries, upcoming payments, and tasks",
     "addTask": "New Task",
@@ -132,6 +132,14 @@
     "sections": {
       "today": "Today's Schedule",
       "upcoming": "Upcoming"
+    },
+    "modal": {
+      "taskTitleLabel": "Task Title",
+      "taskTypeLabel": "Task Type",
+      "dateLabel": "Date",
+      "timeLabel": "Time",
+      "saveBtn": "Add Task",
+      "cancelBtn": "Cancel"
     }
   }
 }

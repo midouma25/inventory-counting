@@ -8,5 +8,9 @@ contextBridge.exposeInMainWorld('api', {
   addExpense: (data) => ipcRenderer.invoke('add-expense', data),
 
   getTodayAttendance: (date) => ipcRenderer.invoke('get-today-attendance', date),
-  processAttendance: (data) => ipcRenderer.invoke('process-attendance', data)
+  processAttendance: (data) => ipcRenderer.invoke('process-attendance', data),
+
+  getAgendaTasks: () => ipcRenderer.invoke('get-agenda-tasks'),
+  addAgendaTask: (data) => ipcRenderer.invoke('add-agenda-task', data),
+  toggleAgendaTaskStatus: (id, status) => ipcRenderer.invoke('toggle-agenda-task-status', id, status)
 });
