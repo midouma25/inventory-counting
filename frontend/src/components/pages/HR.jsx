@@ -1,193 +1,283 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
-import { ScanBarcode, UserCheck, Users, Clock, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { Search, Plus, MoreHorizontal, UserCheck, AlertCircle, ScanLine, Users, X } from "lucide-react";
 
-export default function HR() {
+import useEmployeeStore from "../../../store/employeeStore";
+import useAttendanceStore from "../../../store/attendanceStore";
+
+const HR = () => {
   const { t } = useTranslation();
-  const [pinInput, setPinInput] = useState('');
-  const [attendanceData, setAttendanceData] = useState([]);
-  const [lastAction, setLastAction] = useState(null); 
+  const [activeTab, setActiveTab] = useState('attendance');
+
+  // --- حالة الموظفين ---
+  const { employees, fetchEmployees, addEmployee, isLoading: empLoading } = useEmployeeStore();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [formData, setFormData] = useState({ name: "", role: "", pinCode: "" });
+
+  // --- حالة الحضور ---
+  const { todayRecords, fetchTodayRecords, submitPin, isLoading: attLoading } = useAttendanceStore();
+  const [pinInput, setPinInput] = useState("");
+  const [feedback, setFeedback] = useState(null);
   const inputRef = useRef(null);
 
-  // دالة جلب بيانات حضور اليوم من قاعدة البيانات
-  const fetchAttendance = useCallback(async () => {
-    try {
-      const todayString = new Date().toISOString().split('T')[0];
-      if (window.api && window.api.getTodayAttendance) {
-        const data = await window.api.getTodayAttendance(todayString);
-        setAttendanceData(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch attendance:", error);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchAttendance();
-    if (inputRef.current) inputRef.current.focus();
-  }, [fetchAttendance]);
+    fetchEmployees();
+    fetchTodayRecords();
+  }, [fetchEmployees, fetchTodayRecords]);
 
-  // دالة معالجة إدخال الباركود
-  const handleCheckIn = async (e) => {
+  const filteredEmployees = employees.filter((emp) =>
+    emp.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleAddEmployee = async (e) => {
     e.preventDefault();
-    if (!pinInput.trim()) return;
-
-    try {
-      const todayString = new Date().toISOString().split('T')[0];
-      // صيغة الوقت (AM/PM)
-      const timeString = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-      
-      if (window.api && window.api.processAttendance) {
-        const result = await window.api.processAttendance({
-          pin: pinInput.trim(),
-          date: todayString,
-          time: timeString
-        });
-
-        setLastAction({ type: result.success ? 'success' : 'error', msg: result.message });
-        if (result.success) {
-          fetchAttendance(); // إعادة تحديث الجدول بعد التسجيل بنجاح
-        }
-      }
-    } catch (error) {
-      console.error("Error processing attendance:", error);
+    if (!formData.name || !formData.pinCode) return;
+    const success = await addEmployee(formData);
+    if (success) {
+      setIsDialogOpen(false);
+      setFormData({ name: "", role: "", pinCode: "" });
+      fetchEmployees();
+    } else {
+      alert(t('hr.messages.error'));
     }
-
-    setPinInput('');
-    if (inputRef.current) inputRef.current.focus();
-    setTimeout(() => setLastAction(null), 4000);
   };
 
-  // حساب الإحصائيات (KPIs) ديناميكياً
-  const presentCount = attendanceData.filter(emp => emp.status === 'present').length;
-  const absentCount = attendanceData.filter(emp => emp.status === 'absent').length;
+  const handleAttendanceSubmit = async (e) => {
+    e.preventDefault();
+    if (!pinInput.trim()) return;
+    
+    const result = await submitPin(pinInput.trim());
+    
+    if (result && result.success) {
+       const actionText = result.action === 'check_in' ? t('hr.messages.checkIn') : t('hr.messages.checkOut');
+       setFeedback({ type: 'success', message: `${actionText}: ${result.employeeName}` });
+       fetchTodayRecords();
+    } else if (result) {
+       setFeedback({ type: 'error', message: result.message });
+    }
+    
+    setPinInput("");
+    if(inputRef.current) inputRef.current.focus();
+    setTimeout(() => setFeedback(null), 4000);
+  };
+
+  const presentCount = todayRecords.filter(r => !r.time_out).length;
+  const absentCount = employees.length - presentCount > 0 ? employees.length - presentCount : 0;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans">
+    <div className="min-h-screen bg-slate-950 text-slate-100 p-6 font-sans flex flex-col gap-6">
       
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white">{t('hr.title')}</h1>
-        <p className="text-sm text-slate-500 mt-1">{t('hr.subtitle')}</p>
+      {/* الترويسة العلوية */}
+      <div className="flex justify-between items-end">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2">{t('hr.title')}</h1>
+          <p className="text-slate-400">{t('hr.subtitle')}</p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        <div className="lg:col-span-1 space-y-6">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-3 bg-blue-500/10 text-blue-400 rounded-lg">
-                <ScanBarcode size={24} />
-              </div>
-              <h2 className="text-xl font-bold text-white">{t('hr.scanner.title')}</h2>
-            </div>
+      {/* التبويبات */}
+      <div className="flex bg-slate-900 border border-slate-800 rounded-lg w-fit p-1">
+        <button 
+          onClick={() => setActiveTab('attendance')}
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-medium transition-colors ${activeTab === 'attendance' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+        >
+          <ScanLine size={18} />
+          {t('hr.tabs.attendance')}
+        </button>
+        <button 
+          onClick={() => setActiveTab('employees')}
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-medium transition-colors ${activeTab === 'employees' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+        >
+          <Users size={18} />
+          {t('hr.tabs.employees')}
+        </button>
+      </div>
 
-            <form onSubmit={handleCheckIn} className="space-y-4">
-              <div>
+      {/* تبويب الحضور */}
+      {activeTab === 'attendance' && (
+        <div className="flex gap-6 w-full h-[calc(100vh-220px)]">
+          <div className="w-1/3 flex flex-col gap-6">
+            <div className="bg-slate-900/80 rounded-xl border border-slate-800 p-6 relative overflow-hidden">
+              <div className="flex items-center justify-between mb-6">
+                <div className="bg-slate-800 p-2 rounded-lg text-blue-400"><ScanLine size={24} /></div>
+                <h3 className="text-xl font-bold">{t('hr.scanner.title')}</h3>
+              </div>
+              <form onSubmit={handleAttendanceSubmit} className="flex flex-col gap-4">
                 <input
                   ref={inputRef}
-                  type="text"
+                  type="password"
+                  placeholder={t('hr.scanner.placeholder')}
                   value={pinInput}
                   onChange={(e) => setPinInput(e.target.value)}
-                  placeholder={t('hr.scanner.placeholder')}
-                  className="w-full bg-slate-950 border-2 border-slate-800 focus:border-blue-500 rounded-lg px-4 py-4 text-center text-xl text-white tracking-widest placeholder-slate-600 transition-colors outline-none"
-                  autoComplete="off"
+                  className="w-full text-center text-xl py-6 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500 tracking-widest"
+                  autoFocus
                 />
-                <p className="text-xs text-slate-500 text-center mt-2">
-                  {t('hr.scanner.hint')}
-                </p>
-              </div>
-              <button 
-                type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition-colors"
-              >
-                {t('hr.scanner.submit')}
-              </button>
-            </form>
+                <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white text-lg py-4 rounded-lg font-medium transition-colors">
+                  {t('hr.scanner.submit')}
+                </button>
+              </form>
+              
+              {feedback && (
+                <div className={`mt-4 p-3 rounded-lg text-sm text-center border ${feedback.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+                  {feedback.message}
+                </div>
+              )}
+            </div>
 
-            {lastAction && (
-              <div className={`mt-4 p-3 rounded-lg text-sm text-center border font-medium ${
-                lastAction.type === 'success' 
-                  ? 'bg-emerald-950/50 border-emerald-900 text-emerald-400' 
-                  : 'bg-red-950/50 border-red-900 text-red-400'
-              }`}>
-                {lastAction.msg}
+            <div className="flex gap-4">
+              <div className="flex-1 bg-slate-900/80 rounded-xl border border-slate-800 p-6 flex flex-col items-center justify-center">
+                <UserCheck className="text-emerald-500 mb-2" size={32} />
+                <span className="text-3xl font-bold">{presentCount}</span>
+                <span className="text-slate-400 text-sm mt-1">{t('hr.kpi.present')}</span>
               </div>
-            )}
+              <div className="flex-1 bg-slate-900/80 rounded-xl border border-slate-800 p-6 flex flex-col items-center justify-center">
+                <AlertCircle className="text-red-500 mb-2" size={32} />
+                <span className="text-3xl font-bold">{absentCount}</span>
+                <span className="text-slate-400 text-sm mt-1">{t('hr.kpi.absent')}</span>
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl text-center shadow-lg">
-              <UserCheck size={24} className="text-emerald-400 mx-auto mb-2" />
-              <p className="text-3xl font-bold text-white">{presentCount}</p>
-              <p className="text-xs text-slate-500 uppercase mt-1">{t('hr.kpi.present')}</p>
+          <div className="w-2/3 bg-slate-900/50 rounded-xl border border-slate-800 flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-slate-800 bg-slate-900 flex justify-between items-center">
+              <h3 className="font-bold flex items-center gap-2"><Users className="w-5 h-5 text-slate-400" /> {t('hr.tabs.attendance')}</h3>
+              <span className="text-sm text-slate-400 bg-slate-800 px-3 py-1 rounded-full border border-slate-700">{new Date().toLocaleDateString()}</span>
             </div>
-            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl text-center shadow-lg">
-              <AlertCircle size={24} className="text-red-400 mx-auto mb-2" />
-              <p className="text-3xl font-bold text-white">{absentCount}</p>
-              <p className="text-xs text-slate-500 uppercase mt-1">{t('hr.kpi.absent')}</p>
+            <div className="flex-1 overflow-auto p-4">
+              <table className="w-full text-start border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-800 text-slate-400 text-sm">
+                    <th className="px-4 py-3 font-medium text-start">{t('hr.table.name')}</th>
+                    <th className="px-4 py-3 font-medium text-center">{t('hr.table.timeIn')}</th>
+                    <th className="px-4 py-3 font-medium text-center">{t('hr.table.timeOut')}</th>
+                    <th className="px-4 py-3 font-medium text-start">{t('hr.table.status')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {attLoading ? (
+                    <tr><td colSpan={4} className="text-center py-8 text-slate-500">{t('hr.table.loading')}</td></tr>
+                  ) : todayRecords.length === 0 ? (
+                    <tr><td colSpan={4} className="text-center py-8 text-slate-500">{t('hr.table.empty')}</td></tr>
+                  ) : (
+                    todayRecords.map((record) => (
+                      <tr key={record.id} className="border-b border-slate-800/50 hover:bg-slate-800/20">
+                        <td className="px-4 py-3 font-medium text-start">{record.name}</td>
+                        <td className="px-4 py-3 text-center text-emerald-400">{record.time_in}</td>
+                        <td className="px-4 py-3 text-center text-slate-400">{record.time_out || '-'}</td>
+                        <td className="px-4 py-3 text-start">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${!record.time_out ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
+                            {!record.time_out ? t('hr.status.present') : t('hr.status.departed')}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
+      )}
 
-        <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg flex flex-col">
-          <div className="p-4 border-b border-slate-800 bg-slate-950 flex justify-between items-center">
-            <h3 className="font-medium text-white flex items-center gap-2">
-              <Users size={18} className="text-slate-400" />
-              {t('hr.todayAttendance')}
-            </h3>
-            <span className="text-xs text-slate-500 bg-slate-900 px-3 py-1 rounded-full border border-slate-800">
-              {new Date().toLocaleDateString()}
-            </span>
+      {/* تبويب الموظفين */}
+      {activeTab === 'employees' && (
+        <div className="flex flex-col gap-6">
+          <div className="flex justify-between items-center bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+            <button 
+              onClick={() => setIsDialogOpen(true)}
+              className="flex items-center gap-2 bg-white text-black hover:bg-slate-200 px-4 py-2 rounded-md font-medium transition-colors"
+            >
+              <Plus size={18} />
+              {t('hr.employees.addBtn')}
+            </button>
+            
+            <div className="relative w-1/3">
+              <Search size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <input
+                type="text"
+                placeholder={t('hr.employees.search')}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-800 rounded-lg ps-10 pe-4 py-2 text-white focus:outline-none focus:border-slate-600 text-start"
+              />
+            </div>
           </div>
-          
-          <div className="overflow-x-auto flex-1">
-            <table className="w-full text-left border-collapse">
+
+          <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden">
+            <table className="w-full text-start border-collapse">
               <thead>
-                <tr className="border-b border-slate-800 bg-slate-900/50">
-                  <th className="px-6 py-4 text-sm font-medium text-slate-400">{t('hr.table.name')}</th>
-                  <th className="px-6 py-4 text-sm font-medium text-slate-400">{t('hr.table.timeIn')}</th>
-                  <th className="px-6 py-4 text-sm font-medium text-slate-400">{t('hr.table.timeOut')}</th>
-                  <th className="px-6 py-4 text-sm font-medium text-slate-400">{t('hr.table.status')}</th>
+                <tr className="border-b border-slate-800 bg-slate-900 text-slate-400 text-sm">
+                  <th className="px-6 py-4 font-medium text-start">{t('hr.employees.table.name')}</th>
+                  <th className="px-6 py-4 font-medium text-start">{t('hr.employees.table.role')}</th>
+                  <th className="px-6 py-4 font-medium text-center">{t('hr.employees.table.status')}</th>
+                  <th className="px-6 py-4 font-medium text-start">{t('hr.employees.table.actions')}</th>
                 </tr>
               </thead>
               <tbody>
-                {attendanceData.map((emp) => (
-                  <tr key={emp.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
-                    <td className="px-6 py-4">
-                      <p className="font-medium text-white">{emp.name}</p>
-                      <p className="text-xs text-slate-500">{emp.role} ({t('hr.pin')} {emp.pin})</p>
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      {emp.timeIn ? (
-                        <span className="flex items-center gap-1.5 text-slate-300">
-                          <Clock size={14} className="text-emerald-400"/> {emp.timeIn}
-                        </span>
-                      ) : <span className="text-slate-600">-</span>}
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      {emp.timeOut ? (
-                        <span className="flex items-center gap-1.5 text-slate-300">
-                          <Clock size={14} className="text-slate-400"/> {emp.timeOut}
-                        </span>
-                      ) : <span className="text-slate-600">-</span>}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
-                        emp.status === 'present' 
-                          ? 'bg-emerald-950/50 text-emerald-400 border-emerald-900/50' 
-                          : 'bg-red-950/50 text-red-400 border-red-900/50'
-                      }`}>
-                        {t(`hr.status.${emp.status}`)}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {empLoading ? (
+                  <tr><td colSpan={4} className="text-center py-8 text-slate-500">{t('hr.table.loading')}</td></tr>
+                ) : filteredEmployees.length === 0 ? (
+                  <tr><td colSpan={4} className="text-center py-8 text-slate-500">{t('hr.employees.empty')}</td></tr>
+                ) : (
+                  filteredEmployees.map((emp) => (
+                    <tr key={emp.id} className="border-b border-slate-800/50 hover:bg-slate-800/20">
+                      <td className="px-6 py-4 font-medium text-start text-white">{emp.name}</td>
+                      <td className="px-6 py-4 text-slate-400 text-start">{emp.role}</td>
+                      <td className="px-6 py-4 text-center">
+                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{t('hr.employees.status.active')}</span>
+                      </td>
+                      <td className="px-6 py-4 text-start">
+                        <button className="text-slate-400 hover:text-white transition-colors">
+                          <MoreHorizontal size={18} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
-        </div>
 
-      </div>
+          {/* نافذة إضافة الموظف */}
+          {isDialogOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+              <div className="bg-slate-950 border border-slate-800 rounded-xl w-full max-w-md p-6 shadow-2xl">
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h2 className="text-xl font-bold text-white">{t('hr.dialog.title')}</h2>
+                    <p className="text-sm text-slate-400 mt-1">{t('hr.dialog.desc')}</p>
+                  </div>
+                  <button onClick={() => setIsDialogOpen(false)} className="text-slate-500 hover:text-white"><X size={20}/></button>
+                </div>
+                
+                <form onSubmit={handleAddEmployee} className="flex flex-col gap-4 text-start">
+                  <div>
+                    <label className="block text-sm text-slate-300 mb-1 text-start">{t('hr.dialog.name')}</label>
+                    <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 text-start" placeholder={t('hr.dialog.namePlaceholder')} required />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-300 mb-1 text-start">{t('hr.dialog.role')}</label>
+                    <input type="text" value={formData.role} onChange={(e) => setFormData({...formData, role: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 text-start" placeholder={t('hr.dialog.rolePlaceholder')} required />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-300 mb-1 text-start">{t('hr.dialog.pin')}</label>
+                    <input type="password" value={formData.pinCode} onChange={(e) => setFormData({...formData, pinCode: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 tracking-widest text-start" placeholder="****" required />
+                  </div>
+                  
+                  <div className="mt-4 flex justify-end gap-3">
+                    <button type="button" onClick={() => setIsDialogOpen(false)} className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800 transition-colors">{t('hr.dialog.cancel')}</button>
+                    <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors">{t('hr.dialog.save')}</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
     </div>
   );
-}
+};
+
+export default HR;

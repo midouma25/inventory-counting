@@ -64,35 +64,65 @@
       "cancelBtn": "Cancel"
     }
   },
-  "hr": {
-    "title": "HR & Staff",
-    "subtitle": "Manage attendance, shifts, and employee records",
-    "scanner": {
-      "title": "Time Clock (Check-In / Out)",
-      "placeholder": "Scan Barcode or Enter PIN...",
-      "submit": "Record",
-      "hint": "Scanner acts as keyboard. Focus field and scan."
-    },
-    "kpi": {
-      "present": "Present Today",
-      "absent": "Absent",
-      "late": "Late"
-    },
-    "todayAttendance": "Today's Attendance",
-    "pin": "PIN:",
+"hr": {
+  "title": "HR & Staff",
+  "subtitle": "Manage attendance, shifts, and employee records",
+  "tabs": {
+    "attendance": "Daily Attendance",
+    "employees": "Manage Employees"
+  },
+  "scanner": {
+    "title": "Check-In / Out",
+    "placeholder": "Enter PIN or scan barcode...",
+    "submit": "Record"
+  },
+  "kpi": {
+    "present": "Present Today",
+    "absent": "Absent"
+  },
+  "table": {
+    "name": "Employee Name",
+    "timeIn": "Time In",
+    "timeOut": "Time Out",
+    "status": "Status",
+    "empty": "No records for today",
+    "loading": "Loading..."
+  },
+  "status": {
+    "present": "Present",
+    "departed": "Departed"
+  },
+  "employees": {
+    "addBtn": "New Employee",
+    "search": "Search employee...",
+    "empty": "No employees found",
     "table": {
       "name": "Employee Name",
       "role": "Position",
-      "timeIn": "Time In",
-      "timeOut": "Time Out",
-      "status": "Status"
+      "status": "Status",
+      "actions": "Actions"
     },
     "status": {
-      "present": "Present",
-      "absent": "Absent",
-      "late": "Late"
+      "active": "Active"
     }
   },
+  "dialog": {
+    "title": "Add New Employee",
+    "desc": "Enter employee details and a unique PIN code.",
+    "name": "Full Name",
+    "namePlaceholder": "e.g. John Doe",
+    "role": "Position",
+    "rolePlaceholder": "e.g. Cashier",
+    "pin": "PIN Code",
+    "cancel": "Cancel",
+    "save": "Save Employee"
+  },
+  "messages": {
+    "checkIn": "Checked IN",
+    "checkOut": "Checked OUT",
+    "error": "Error occurred. PIN might be in use."
+  }
+},
   "expenses": {
     "title": "Expenses & Advances",
     "subtitle": "Track daily store expenses and employee salary advances",

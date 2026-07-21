@@ -1,7 +1,6 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
-const { initDatabase, verifyLogin, getSuppliers, addSupplier } = require('./database');
-
+const { initDatabase, verifyLogin, getSuppliers, addSupplier, getEmployees, addEmployee, handlePinEntry, getTodayAttendance } = require('./database');
 function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
@@ -28,6 +27,8 @@ function createWindow() {
   });
 }
 
+
+
 // إنشاء قنوات الاتصال (IPC Channels)
 function setupIpcHandlers() {
   // قناة تسجيل الدخول
@@ -35,13 +36,30 @@ function setupIpcHandlers() {
     return verifyLogin(credentials.username, credentials.password);
   });
 
-  // قنوات الموردين
-  ipcMain.handle('get-suppliers', async () => {
-    return getSuppliers();
+  // الموردين
+  ipcMain.handle('get-suppliers', () => {
+    return getSuppliers(); // مسحنا .db
   });
 
-  ipcMain.handle('add-supplier', async (event, data) => {
-    return addSupplier(data);
+  ipcMain.handle('add-supplier', (event, data) => {
+    return addSupplier(data); // مسحنا .db
+  });
+
+  // الموارد البشرية والحضور
+  ipcMain.handle('get-employees', () => {
+    return getEmployees(); // مسحنا .db
+  });
+
+  ipcMain.handle('add-employee', (event, data) => {
+    return addEmployee(data); // مسحنا .db
+  });
+
+  ipcMain.handle('handle-pin-entry', (event, pinCode) => {
+    return handlePinEntry(pinCode); // مسحنا .db
+  });
+
+  ipcMain.handle('get-today-attendance', () => {
+    return getTodayAttendance(); // مسحنا .db
   });
 }
 

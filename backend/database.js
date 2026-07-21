@@ -162,8 +162,63 @@ function addEmployee(employeeData) {
   }
 }
 
+// دوال الحضور والانصراف
+function handlePinEntry(pinCode) {
+  try {
+    // 1. البحث عن الموظف
+    const employee = db.prepare("SELECT * FROM employees WHERE pin_code = ?").get(pinCode);
+    if (!employee) return { success: false, message: 'رمز PIN غير صحيح' };
+
+    // 2. تجهيز تاريخ ووقت اليوم
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const now = new Date().toLocaleTimeString('en-US', { hour12: false }); // HH:MM:SS
+
+    // 3. فحص سجل الموظف لليوم الحالي
+    const record = db.prepare("SELECT * FROM attendance WHERE employee_id = ? AND date = ?").get(employee.id, today);
+
+    if (!record) {
+      // تسجيل دخول (Check-in)
+      db.prepare("INSERT INTO attendance (employee_id, date, time_in) VALUES (?, ?, ?)").run(employee.id, today, now);
+      return { success: true, action: 'check_in', employeeName: employee.name, time: now };
+    } else if (!record.time_out) {
+      // تسجيل خروج (Check-out)
+      db.prepare("UPDATE attendance SET time_out = ? WHERE id = ?").run(now, record.id);
+      return { success: true, action: 'check_out', employeeName: employee.name, time: now };
+    } else {
+      // تم إكمال الدوام
+      return { success: false, message: `الموظف ${employee.name} أتم تسجيل الحضور والانصراف اليوم` };
+    }
+  } catch (error) {
+    console.error("خطأ في تسجيل الحضور:", error);
+    return { success: false, message: error.message };
+  }
+}
+
+function getTodayAttendance() {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    // نجلب السجلات مع اسم الموظف ومنصبه عبر الربط (JOIN)
+    return db.prepare(`
+      SELECT a.*, e.name, e.role 
+      FROM attendance a 
+      JOIN employees e ON a.employee_id = e.id 
+      WHERE a.date = ? 
+      ORDER BY a.id DESC
+    `).all(today);
+  } catch (error) {
+    console.error("خطأ في جلب سجلات الحضور:", error);
+    throw error;
+  }
+}
+
 
 module.exports = {
-  initDatabase, verifyLogin, getSuppliers, addSupplier,
-  getEmployees, addEmployee 
+  initDatabase,
+  verifyLogin,
+  getSuppliers,
+  addSupplier,
+  getEmployees,
+  addEmployee,
+  handlePinEntry,
+  getTodayAttendance
 };
