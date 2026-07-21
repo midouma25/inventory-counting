@@ -1,13 +1,22 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bell, Search, UserCircle, Globe } from 'lucide-react';
+import { Bell, Search, UserCircle, Globe, LogOut } from 'lucide-react';
+import useAuthStore from '../../../store/authStore';
+import { useNavigate } from 'react-router-dom';
 
 export default function Topbar() {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
+  const logout = useAuthStore(state => state.logout);
 
   const toggleLanguage = () => {
     const newLang = i18n.language.startsWith('en') ? 'ar' : 'en';
     i18n.changeLanguage(newLang);
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
   };
 
   return (
@@ -22,13 +31,7 @@ export default function Topbar() {
       </div>
 
       <div className="flex items-center gap-4 text-slate-400">
-        
-        {/* زر تغيير اللغة */}
-        <button 
-          onClick={toggleLanguage}
-          className="relative hover:text-white transition-colors bg-slate-900 p-2 rounded-lg border border-slate-800"
-          title="تغيير اللغة"
-        >
+        <button onClick={toggleLanguage} className="relative hover:text-white transition-colors bg-slate-900 p-2 rounded-lg border border-slate-800">
           <Globe size={18} />
         </button>
 
@@ -39,13 +42,21 @@ export default function Topbar() {
         
         <div className="h-6 w-px bg-slate-800"></div>
         
-        <div className="flex items-center gap-2 cursor-pointer hover:text-white transition-colors">
-          <UserCircle size={24} />
+        <div className="flex items-center gap-2">
+          <UserCircle size={24} className="text-white" />
           <div className="text-sm">
             <p className="font-medium text-white leading-none">{t('common.superAdmin')}</p>
-            <p className="text-xs text-slate-500 mt-1">{t('common.systemOwner')}</p>
           </div>
         </div>
+
+        {/* زر تسجيل الخروج */}
+        <button 
+          onClick={handleLogout}
+          className="ml-2 p-2 hover:bg-red-950/50 hover:text-red-400 rounded-lg transition-colors border border-transparent hover:border-red-900/50"
+          title="Logout"
+        >
+          <LogOut size={18} />
+        </button>
       </div>
     </header>
   );

@@ -1,34 +1,50 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Expenses from './components/pages/Expenses';
-import Agenda from './components/pages/Agenda'; // استيراد صفحة الأجندة      
-// Layout
+// 1. قم بتغيير الاستيراد هنا:
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'; 
+import useAuthStore from '../store/authStore';
+
+// Layout & Pages
 import MainLayout from './components/layout/MainLayout';
- 
-// الصفحات الحقيقية التي قمنا ببنائها حتى الآن
 import Dashboard from './components/pages/Dashboard';
 import Suppliers from './components/pages/Suppliers';
 import HR from './components/pages/HR';
+import Expenses from './components/pages/Expenses';
+import Agenda from './components/pages/Agenda';
+import Login from './components/pages/Login'; 
 
-// صفحات وهمية مؤقتة (Placeholders) لباقي الروابط حتى نقوم ببرمجتها
+const ProtectedRoute = ({ children }) => {
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return children;
+};
 
 function App() {
   return (
-    <BrowserRouter>
+    // 2. استخدم HashRouter بدلاً من BrowserRouter
+    <HashRouter>
       <Routes>
-        {/* المسار الرئيسي يغلف كل الصفحات بـ MainLayout (الشريط الجانبي والعلوي) */}
-        <Route path="/" element={<MainLayout />}>
-          {/* صفحة البداية الافتراضية */}
+        <Route path="/login" element={<Login />} />
+
+        <Route 
+          path="/" 
+          element={
+            <ProtectedRoute>
+              <MainLayout />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<Dashboard />} />
-          
-          {/* باقي الصفحات */}
           <Route path="suppliers" element={<Suppliers />} />
           <Route path="hr" element={<HR />} />
           <Route path="expenses" element={<Expenses />} />
           <Route path="agenda" element={<Agenda />} />
         </Route>
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 

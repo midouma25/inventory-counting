@@ -140,6 +140,16 @@
       "timeLabel": "Time",
       "saveBtn": "Add Task",
       "cancelBtn": "Cancel"
-    }
+}
+  },
+  "login": {
+    "title": "Welcome Back",
+    "subtitle": "Sign in to access your dashboard",
+    "username": "Username",
+    "password": "Password",
+    "submit": "Sign In",
+    "loading": "Authenticating...",
+    "error": "Invalid username or password",
+    "serverError": "Database connection error"
   }
 }
