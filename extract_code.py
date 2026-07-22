@@ -1,64 +1,189 @@
 import os
 
-def generate_code_report(directory, output_filename="project_structure4.md"):
-    # المجلدات والملفات التي سيتم تجاهلها (لتجنب استخراج ملفات ضخمة أو غير هامة)
-# إضافة .venv إلى القائمة
-    ignore_dirs = {'.git', 'node_modules', '__pycache__', 'venv', '.venv', 'env', '.next', 'build', 'dist' , 'release', 'out', 'target', 'bin', 'obj', '.idea', '.vscode'}
-    ignore_exts = {'.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.pdf', '.zip', '.exe', '.pyc', '.mp4'}
+# ==============================
+# الإعدادات
+# ==============================
 
-    with open(output_filename, 'w', encoding='utf-8') as f:
-        f.write("# هيكل المشروع (Project Tree)\n\n```text\n")
+OUTPUT_FILE = "project_structure5.md"
+MAX_DEPTH = 3                 # أقصى عمق للشجرة
+MAX_FILE_SIZE = 200 * 1024    # 200KB
 
-        # 1. رسم شجرة المجلدات والملفات
+IGNORE_DIRS = {
+    ".git",
+    ".github",
+    ".idea",
+    ".vscode",
+    "node_modules",
+    "__pycache__",
+    ".venv",
+    "venv",
+    "env",
+    "build",
+    "dist",
+    "release",
+    "out",
+    "target",
+    "bin",
+    "obj",
+    "coverage",
+    ".next"
+}
+
+IGNORE_FILES = {
+    "package-lock.json",
+    "yarn.lock",
+    "pnpm-lock.yaml",
+    ".gitignore",
+    ".DS_Store",
+    "Thumbs.db"
+}
+
+IGNORE_EXTENSIONS = {
+    ".png", ".jpg", ".jpeg", ".gif",
+    ".svg", ".ico",
+    ".pdf",
+    ".zip", ".rar", ".7z",
+    ".mp3", ".mp4", ".wav",
+    ".exe", ".dll",
+    ".pyc",
+    ".log"
+}
+
+CODE_EXTENSIONS = {
+    ".py",
+    ".js",
+    ".jsx",
+    ".ts",
+    ".tsx",
+    ".json",
+    ".css",
+    ".html",
+    ".md",
+    ".sql"
+}
+
+
+def language(ext):
+    ext = ext.lower()
+
+    if ext == ".py":
+        return "python"
+
+    if ext in [".js", ".jsx"]:
+        return "javascript"
+
+    if ext in [".ts", ".tsx"]:
+        return "typescript"
+
+    if ext == ".css":
+        return "css"
+
+    if ext == ".html":
+        return "html"
+
+    if ext == ".json":
+        return "json"
+
+    if ext == ".sql":
+        return "sql"
+
+    if ext == ".md":
+        return "markdown"
+
+    return "text"
+
+
+def generate(directory):
+
+    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
+
+        ##################################################
+        # Project Tree
+        ##################################################
+
+        f.write("# Project Structure\n\n")
+        f.write("```text\n")
+
         for root, dirs, files in os.walk(directory):
-            # فلترة المجلدات لتجاهل الغير مرغوب فيها
-            dirs[:] = [d for d in dirs if d not in ignore_dirs]
-            
-            # حساب مستوى المسافة البادئة بناءً على عمق المجلد
-            level = root.replace(directory, '').count(os.sep)
-            indent = ' ' * 4 * level
-            folder_name = os.path.basename(root)
-            
-            if folder_name:  # تجنب طباعة مسار فارغ للمجلد الرئيسي
-                f.write(f"{indent}├── {folder_name}/\n")
-            
-            subindent = ' ' * 4 * (level + 1)
-            for file in files:
+
+            dirs[:] = sorted([d for d in dirs if d not in IGNORE_DIRS])
+
+            level = os.path.relpath(root, directory).count(os.sep)
+
+            if level > MAX_DEPTH:
+                dirs.clear()
+                continue
+
+            indent = "    " * level
+
+            folder = os.path.basename(root)
+
+            if root == directory:
+                f.write(f"{os.path.basename(directory)}/\n")
+            else:
+                f.write(f"{indent}├── {folder}/\n")
+
+            sub = "    " * (level + 1)
+
+            for file in sorted(files):
+
+                if file in IGNORE_FILES:
+                    continue
+
                 ext = os.path.splitext(file)[1].lower()
-                if ext not in ignore_exts:
-                    f.write(f"{subindent}├── {file}\n")
 
-        f.write("```\n\n---\n\n# محتوى الأكواد (Source Code)\n\n")
+                if ext in IGNORE_EXTENSIONS:
+                    continue
 
-        # 2. كتابة محتوى الملفات
+                f.write(f"{sub}├── {file}\n")
+
+        f.write("```\n\n")
+
+        ##################################################
+        # Source Code
+        ##################################################
+
+        f.write("\n---\n\n")
+        f.write("# Source Code\n\n")
+
         for root, dirs, files in os.walk(directory):
-            dirs[:] = [d for d in dirs if d not in ignore_dirs]
-            for file in files:
+
+            dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
+
+            for file in sorted(files):
+
+                if file in IGNORE_FILES:
+                    continue
+
                 ext = os.path.splitext(file)[1].lower()
-                if ext not in ignore_exts:
-                    file_path = os.path.join(root, file)
-                    rel_path = os.path.relpath(file_path, directory)
 
-                    # تحديد لغة البرمجة لتنسيقها في ملف الماركداون
-                    lang = ext.replace('.', '') if ext else 'text'
-                    if lang in ['js', 'jsx']: lang = 'javascript'
-                    elif lang in ['ts', 'tsx']: lang = 'typescript'
-                    elif lang == 'py': lang = 'python'
+                if ext not in CODE_EXTENSIONS:
+                    continue
 
-                    f.write(f"## الملف: `{rel_path}`\n\n")
-                    f.write(f"```{lang}\n")
-                    
-                    try:
-                        with open(file_path, 'r', encoding='utf-8') as code_file:
-                            f.write(code_file.read())
-                    except Exception as e:
-                        f.write(f"// تعذر قراءة الملف: {e}")
-                        
-                    f.write("\n```\n\n---\n\n")
+                path = os.path.join(root, file)
 
-    print(f"تم الانتهاء بنجاح! تم حفظ النتيجة في ملف: {output_filename}")
+                if os.path.getsize(path) > MAX_FILE_SIZE:
+                    continue
 
-# تشغيل السكربت على المجلد الحالي
+                relative = os.path.relpath(path, directory)
+
+                f.write(f"## `{relative}`\n\n")
+
+                f.write(f"```{language(ext)}\n")
+
+                try:
+                    with open(path, "r", encoding="utf-8") as code:
+                        f.write(code.read())
+                except UnicodeDecodeError:
+                    f.write("// Unable to read file (encoding).")
+                except Exception as e:
+                    f.write(f"// {e}")
+
+                f.write("\n```\n\n---\n\n")
+
+    print("Done!")
+    print("Output:", OUTPUT_FILE)
+
+
 if __name__ == "__main__":
-    current_directory = os.getcwd()
-    generate_code_report(current_directory)
+    generate(os.getcwd())
