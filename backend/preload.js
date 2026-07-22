@@ -9,5 +9,9 @@ contextBridge.exposeInMainWorld('api', {
   getEmployees: () => ipcRenderer.invoke('get-employees'),
   addEmployee: (data) => ipcRenderer.invoke('add-employee', data),
   handlePinEntry: (pinCode) => ipcRenderer.invoke('handle-pin-entry', pinCode),
-  getTodayAttendance: () => ipcRenderer.invoke('get-today-attendance')
+  getExpenses: () => ipcRenderer.invoke('get-expenses'),
+  addExpense: (data) => ipcRenderer.invoke('add-expense', data),
+  deleteExpense: (id) => ipcRenderer.invoke('delete-expense', id),
+  updateExpense: (id, expense) => ipcRenderer.invoke('update-expense', { id, expense }),
+  getTodayAttendance: (date) => ipcRenderer.invoke('get-today-attendance', date),
 });

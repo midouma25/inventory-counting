@@ -20,6 +20,20 @@ function initDatabase() {
         role TEXT NOT NULL DEFAULT 'admin'
       )
     `).run();
+    
+
+    const createExpensesTable = `
+  CREATE TABLE IF NOT EXISTS expenses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    description TEXT NOT NULL,
+    category TEXT NOT NULL,
+    amount REAL NOT NULL,
+    date DATE DEFAULT (date('now', 'localtime')),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`;
+  db.prepare(createExpensesTable).run();
+
 
     // التحقق من وجود حساب الأدمن وإنشائه إذا لم يكن موجوداً
     const checkAdmin = db.prepare("SELECT COUNT(*) as count FROM users WHERE username = 'admin'").get();
@@ -97,6 +111,31 @@ function initDatabase() {
   }
 }
 
+
+function getExpenses() {
+  return db.prepare('SELECT * FROM expenses ORDER BY id DESC').all();
+}
+
+function addExpense(expense) {
+  const stmt = db.prepare('INSERT INTO expenses (description, category, amount, date) VALUES (?, ?, ?, ?)');
+  const date = expense.date || new Date().toISOString().split('T')[0]; // تاريخ اليوم إذا لم يُحدد
+  const info = stmt.run(expense.description, expense.category, expense.amount, date);
+  return { success: true, id: info.lastInsertRowid };
+}
+
+// حذف مصروف
+function deleteExpense(id) {
+  const stmt = db.prepare('DELETE FROM expenses WHERE id = ?');
+  const info = stmt.run(id);
+  return { success: info.changes > 0 };
+}
+
+// تعديل مصروف
+function updateExpense(id, expense) {
+  const stmt = db.prepare('UPDATE expenses SET description = ?, category = ?, amount = ? WHERE id = ?');
+  const info = stmt.run(expense.description, expense.category, expense.amount, id);
+  return { success: info.changes > 0 };
+}
 // دالة التحقق من تسجيل الدخول
 function verifyLogin(username, password) {
   try {
@@ -141,10 +180,11 @@ function addSupplier(supplierData) {
 // دوال الموظفين
 function getEmployees() {
   try {
-    return db.prepare("SELECT * FROM employees ORDER BY id DESC").all();
+    const stmt = db.prepare('SELECT * FROM employees');
+    return stmt.all();
   } catch (error) {
-    console.error("خطأ في جلب الموظفين:", error);
-    throw error;
+    console.error("Error fetching employees:", error);
+    return [];
   }
 }
 
@@ -194,20 +234,13 @@ function handlePinEntry(pinCode) {
   }
 }
 
-function getTodayAttendance() {
+function getTodayAttendance(date) {
   try {
-    const today = new Date().toISOString().split('T')[0];
-    // نجلب السجلات مع اسم الموظف ومنصبه عبر الربط (JOIN)
-    return db.prepare(`
-      SELECT a.*, e.name, e.role 
-      FROM attendance a 
-      JOIN employees e ON a.employee_id = e.id 
-      WHERE a.date = ? 
-      ORDER BY a.id DESC
-    `).all(today);
+    const stmt = db.prepare('SELECT * FROM attendance WHERE date = ?');
+    return stmt.all(date);
   } catch (error) {
-    console.error("خطأ في جلب سجلات الحضور:", error);
-    throw error;
+    console.error("Error fetching today's attendance:", error);
+    return [];
   }
 }
 
@@ -220,5 +253,10 @@ module.exports = {
   getEmployees,
   addEmployee,
   handlePinEntry,
-  getTodayAttendance
+  getExpenses,
+  addExpense,
+  deleteExpense,
+  updateExpense,
+  getTodayAttendance,
+  getEmployees
 };

@@ -123,10 +123,13 @@
     "error": "Error occurred. PIN might be in use."
   }
 },
-  "expenses": {
+"expenses": {
     "title": "Expenses & Advances",
     "subtitle": "Track daily store expenses and employee salary advances",
     "addExpense": "Add Expense",
+    "editExpense": "Edit Expense",
+    "saveChanges": "Save Changes",
+    "deleteConfirm": "Are you sure you want to delete this expense? This action cannot be undone.",
     "searchPlaceholder": "Search by description...",
     "kpi": {
       "today": "Today's Expenses",
@@ -136,7 +139,8 @@
       "date": "Date",
       "description": "Description",
       "category": "Category",
-      "amount": "Amount"
+      "amount": "Amount",
+      "actions": "Actions"
     },
     "categories": {
       "utilities": "Utilities & Bills",
@@ -182,4 +186,6 @@
     "error": "Invalid username or password",
     "serverError": "Database connection error"
   }
+  
+
 }

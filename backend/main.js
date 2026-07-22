@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
-const { initDatabase, verifyLogin, getSuppliers, addSupplier, getEmployees, addEmployee, handlePinEntry, getTodayAttendance } = require('./database');
+const { initDatabase, verifyLogin, getSuppliers, addSupplier, getEmployees, addEmployee, handlePinEntry, getExpenses, addExpense, deleteExpense, updateExpense , getTodayAttendance     } = require('./database');
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
@@ -45,6 +46,24 @@ function setupIpcHandlers() {
     return addSupplier(data); // مسحنا .db
   });
 
+
+// --- المصاريف ---
+ipcMain.handle('get-expenses', () => {
+  return getExpenses();
+});
+
+ipcMain.handle('add-expense', (event, data) => {
+  return addExpense(data);
+});
+
+ipcMain.handle('delete-expense', (event, id) => {
+  return deleteExpense(id);
+});
+
+ipcMain.handle('update-expense', (event, data) => {
+  return updateExpense(data.id, data.expense);
+});
+
   // الموارد البشرية والحضور
   ipcMain.handle('get-employees', () => {
     return getEmployees(); // مسحنا .db
@@ -58,9 +77,9 @@ function setupIpcHandlers() {
     return handlePinEntry(pinCode); // مسحنا .db
   });
 
-  ipcMain.handle('get-today-attendance', () => {
-    return getTodayAttendance(); // مسحنا .db
-  });
+ ipcMain.handle('get-today-attendance', (event, date) => {
+  return getTodayAttendance(date);
+});
 }
 
 app.whenReady().then(() => {
