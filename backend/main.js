@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain , Notification } = require('electron');
 const path = require('path');
 const { 
   initDatabase, verifyLogin, getSuppliers, addSupplier, getEmployees, 
@@ -7,7 +7,7 @@ const {
   getSupplierDetails, addReceipt, addPayment, getAdvances, addAdvance, 
   getSalaries, calculateEmployeePayroll, paySalary , getAgendaTasks, addAgendaTask, toggleAgendaTaskStatus, getDueThisWeek , deleteAgendaTask,
   rescheduleAgendaTask
-  
+
 } = require('./database');
 
 function createWindow() {
@@ -85,6 +85,18 @@ ipcMain.handle('reschedule-agenda-task', async (event, id, newDate) => {
   return rescheduleAgendaTask(id, newDate);
 });
 
+
+// تفعيل إشعارات سطح المكتب
+ipcMain.on('show-notification', (event, data) => {
+  if (Notification.isSupported()) {
+    new Notification({
+      // نستخدم البيانات القادمة، وإذا ضاعت نستخدم نصاً افتراضياً
+      title: data?.title || 'تنبيهات النظام ⚠️',
+      body: data?.body || 'لديك مهام مستحقة تحتاج إلى مراجعة',
+      icon: path.join(__dirname, 'assets', 'icon.png') // تأكد من مسار الأيقونة إذا أردت تغيير أيقونة Electron
+    }).show();
+  }
+});
 
 
 app.whenReady().then(() => {

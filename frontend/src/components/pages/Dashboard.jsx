@@ -9,7 +9,7 @@ export default function Dashboard() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const isRTL = i18n.dir() === 'rtl';
-
+  const [urgentTasks, setUrgentTasks] = useState([]);
   const [stats, setStats] = useState({
     totalDebts: 0,
     totalExpenses: 0,
@@ -18,6 +18,49 @@ export default function Dashboard() {
     topCreditors: [],
     dueThisWeek: 0,
   });
+  
+
+useEffect(() => {
+    const fetchAndNotifyUrgentData = async () => {
+      try {
+        if (window.api && window.api.getAgendaTasks) {
+          const tasks = await window.api.getAgendaTasks();
+          
+          const todayString = new Date().toISOString().split('T')[0];
+          
+          const urgent = tasks.filter(task => 
+            ((task.task_date && task.task_date <= todayString) || 
+             (task.date && task.date <= todayString)) && 
+             task.status === 'pending'
+          );
+          
+          setUrgentTasks(urgent);
+
+if (urgent.length > 0) {
+  const hasNotified = sessionStorage.getItem('notified_urgent_tasks');
+  
+  if (!hasNotified && window.api.showNotification) {
+    // تجهيز النصوص صراحة لضمان عدم إرسال قيم فارغة
+    const notifTitle = t('dashboard.alerts.systemTitle') || 'تنبيهات عاجلة';
+    const notifBody = t('dashboard.alerts.urgentBody', { count: urgent.length }) || `لديك ${urgent.length} مهام متأخرة اليوم!`;
+
+    window.api.showNotification({
+      title: String(notifTitle),
+      body: String(notifBody)
+    });
+    sessionStorage.setItem('notified_urgent_tasks', 'true');
+  }
+}
+        }
+      } catch (error) {
+        console.error("Error fetching urgent tasks:", error);
+      }
+    };
+
+    fetchAndNotifyUrgentData();
+  }, [t]); // أضفنا t كمراقب ليتحدث الإشعار إذا تغيرت اللغة
+
+
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -76,6 +119,7 @@ export default function Dashboard() {
   };
 
   return (
+
     <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans">
       
       <div className="flex justify-between items-center mb-8">
@@ -182,26 +226,29 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <h3 className="text-lg font-medium text-white mb-4">{t('dashboard.lists.urgentAlerts')}</h3>
+          <h3 className="text-lg font-bold text-white mb-4">
+            {t('dashboard.lists.urgentAlerts')}
+          </h3>
+          
           <div className="space-y-3">
-            {stats.topCreditors.length > 0 ? (
-               <div className="flex justify-between items-center p-3 border border-slate-800 rounded-lg hover:bg-slate-800/50 transition-colors">
-                 <div>
-                   <p className="font-medium text-white">{stats.topCreditors[0].name}</p>
-                 </div>
-                 <div className="flex items-center gap-3">
-                   <span className="font-bold text-red-400" dir="ltr">{stats.topCreditors[0].debt.toLocaleString()} DA</span>
-                   <button 
-                     onClick={() => navigate('/suppliers')}
-                     className="flex items-center gap-1 text-xs bg-slate-800 text-white px-3 py-1.5 rounded hover:bg-slate-700"
-                   >
-                     {t('dashboard.actions.payNow')}
-                     {isRTL ? <ArrowLeft size={12} /> : <ArrowRight size={12} />}
-                   </button>
-                 </div>
-               </div>
+            {urgentTasks.length === 0 ? (
+              <p className="text-slate-500 text-sm">
+                {t('dashboard.alerts.noTasks')}
+              </p>
             ) : (
-               <div className="p-3 text-slate-500 text-center text-sm">{t('common.noResults')}</div>
+              urgentTasks.slice(0, 5).map(task => (
+                <div key={task.id} className="p-3 bg-red-950/20 border border-red-900/50 rounded-lg flex justify-between items-center">
+                  <div>
+                    <p className="font-medium text-red-200 text-sm">{task.title}</p>
+                    <p className="text-xs text-red-400 mt-1">{task.date || task.task_date}</p>
+                  </div>
+                  {task.amount > 0 && (
+                    <span className="font-bold text-slate-300 text-sm">
+                      {task.amount.toLocaleString()} DA
+                    </span>
+                  )}
+                </div>
+              ))
             )}
           </div>
         </div>

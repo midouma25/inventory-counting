@@ -38,7 +38,7 @@ paySalary: (data) => ipcRenderer.invoke('pay-salary', data),
   
 
   deleteAgendaTask: (id) => ipcRenderer.invoke('delete-agenda-task', id),
-  rescheduleAgendaTask: (id, newDate) => ipcRenderer.invoke('reschedule-agenda-task', id, newDate)
-
+  rescheduleAgendaTask: (id, newDate) => ipcRenderer.invoke('reschedule-agenda-task', id, newDate),
+  showNotification: (title, body) => ipcRenderer.send('show-notification', { title, body })
 
 });

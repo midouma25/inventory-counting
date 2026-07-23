@@ -40,6 +40,11 @@
       "comingSoon": "Coming Soon",
       "auditDesc": "Will be activated later to monitor accountant activity",
       "inDevelopment": "In Development"
+    },
+    "alerts": {
+      "systemTitle": "Urgent System Alerts ⚠️",
+      "urgentBody": "You have {{count}} urgent tasks (payments or receipts) due today or overdue!",
+      "noTasks": "No urgent tasks found at the moment."
     }
   },
   "suppliers": {
