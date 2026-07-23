@@ -22,11 +22,17 @@ function initDatabase() {
     db.prepare(`CREATE TABLE IF NOT EXISTS employees (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, role TEXT, pin_code TEXT UNIQUE, status TEXT DEFAULT 'active', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`).run();
     db.prepare(`CREATE TABLE IF NOT EXISTS attendance (id INTEGER PRIMARY KEY AUTOINCREMENT, employee_id INTEGER NOT NULL, date TEXT NOT NULL, time_in TEXT, time_out TEXT, status TEXT DEFAULT 'present', FOREIGN KEY (employee_id) REFERENCES employees(id))`).run();
     db.prepare(`CREATE TABLE IF NOT EXISTS expenses (id INTEGER PRIMARY KEY AUTOINCREMENT, description TEXT NOT NULL, category TEXT NOT NULL, amount REAL NOT NULL, date TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`).run();
+    
+    // إنشاء جدول الأجندة
     db.prepare(`CREATE TABLE IF NOT EXISTS agenda_tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, type TEXT NOT NULL, task_date TEXT NOT NULL, task_time TEXT, status TEXT DEFAULT 'pending', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`).run();
 
+    // إضافة حقل المبلغ لجدول الأجندة (مع تخطي الخطأ إذا كان موجوداً مسبقاً)
+    try {
+      db.prepare("ALTER TABLE agenda_tasks ADD COLUMN amount REAL DEFAULT 0").run();
+    } catch (innerError) {
+      // نتجاهل الخطأ بصمت لأن العمود موجود بالفعل
+    }
 
-
-    // التعديل هنا: إضافة حقل caisse_source
     db.prepare(`CREATE TABLE IF NOT EXISTS advances (
       id INTEGER PRIMARY KEY AUTOINCREMENT, 
       employee_id INTEGER NOT NULL, 
@@ -118,18 +124,60 @@ function getSupplierDetails(supplierId) {
   const payments = db.prepare('SELECT * FROM payments WHERE supplier_id = ? ORDER BY date DESC').all(supplierId);
   return { ...supplier, receipts, payments };
 }
+
+
+// دالة حذف المهمة
+function deleteAgendaTask(id) {
+  try {
+    db.prepare("DELETE FROM agenda_tasks WHERE id = ?").run(id);
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting task:', error);
+    throw error;
+  }
+}
+
+// دالة تأجيل المهمة
+function rescheduleAgendaTask(id, newDate) {
+  try {
+    db.prepare("UPDATE agenda_tasks SET task_date = ? WHERE id = ?").run(newDate, id);
+    return { success: true };
+  } catch (error) {
+    console.error('Error rescheduling task:', error);
+    throw error;
+  }
+}
+
 const addReceipt = db.transaction((data) => {
-  const { supplierId, amount, date, note, pdfPath } = data;
-  const info = db.prepare('INSERT INTO receipts (supplier_id, amount, date, note, pdf_path) VALUES (?, ?, ?, ?, ?)').run(supplierId, amount, date, note, pdfPath || null);
-  db.prepare('UPDATE suppliers SET total_debt = total_debt + ?, status = "indebted" WHERE id = ?').run(amount, supplierId);
-  return info.lastInsertRowid;
+  try {
+    const supplierId = Number(data.supplierId);
+    const amount = Number(data.amount) || 0;
+    const date = data.date || new Date().toISOString().split('T')[0];
+    const note = data.note || '';
+
+    // إدخال الفاتورة
+    const info = db.prepare('INSERT INTO receipts (supplier_id, amount, date, note) VALUES (?, ?, ?, ?)').run(supplierId, amount, date, note);
+    
+    // التعديل هنا: استخدام علامات التنصيص المفردة 'indebted' بدلاً من المزدوجة
+    db.prepare("UPDATE suppliers SET total_debt = total_debt + ?, status = 'indebted' WHERE id = ?").run(amount, supplierId);
+    
+    return info.lastInsertRowid;
+  } catch (error) {
+    throw error; 
+  }
 });
+
+
 const addPayment = db.transaction((data) => {
-  const { supplierId, amount, date, caisseSource, note } = data;
-  const info = db.prepare('INSERT INTO payments (supplier_id, amount, date, caisse_source, note) VALUES (?, ?, ?, ?, ?)').run(supplierId, amount, date, caisseSource || 'Caisse 1', note);
-  const updateStmt = db.prepare(`UPDATE suppliers SET total_debt = total_debt - ?, status = CASE WHEN (total_debt - ?) <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?`);
-  updateStmt.run(amount, amount, supplierId);
-  return info.lastInsertRowid;
+  try {
+    const { supplierId, amount, date, caisseSource, note } = data;
+    const info = db.prepare('INSERT INTO payments (supplier_id, amount, date, caisse_source, note) VALUES (?, ?, ?, ?, ?)').run(supplierId, amount, date, caisseSource || 'Caisse 1', note);
+    const updateStmt = db.prepare(`UPDATE suppliers SET total_debt = total_debt - ?, status = CASE WHEN (total_debt - ?) <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?`);
+    updateStmt.run(amount, amount, supplierId);
+    return info.lastInsertRowid;
+  } catch (error) {
+    throw error;
+  }
 });
 
 function getAdvances(employeeId) {
@@ -215,9 +263,55 @@ const paySalary = db.transaction((data) => {
 });
 
 
+
+// --- دوال الأجندة والتنبيهات ---
+
+function getAgendaTasks() {
+  return db.prepare("SELECT * FROM agenda_tasks ORDER BY task_date ASC, task_time ASC").all();
+}
+
+function addAgendaTask(data) {
+  const info = db.prepare('INSERT INTO agenda_tasks (title, type, task_date, task_time, amount) VALUES (?, ?, ?, ?, ?)').run(
+    data.title, 
+    data.type, 
+    data.date, 
+    data.time || '', 
+    data.amount || 0
+  );
+  return { ...data, id: info.lastInsertRowid, status: 'pending' };
+}
+
+function toggleAgendaTaskStatus(id, status) {
+  db.prepare('UPDATE agenda_tasks SET status = ? WHERE id = ?').run(status, id);
+  return { success: true };
+}
+
+function getDueThisWeek() {
+  const today = new Date();
+  const nextWeek = new Date(today);
+  nextWeek.setDate(today.getDate() + 7);
+  
+  const todayStr = today.toISOString().split('T')[0];
+  const nextWeekStr = nextWeek.toISOString().split('T')[0];
+
+  const result = db.prepare(`
+    SELECT SUM(amount) as total 
+    FROM agenda_tasks 
+    WHERE type = 'payment' AND status = 'pending' 
+    AND task_date >= ? AND task_date <= ?
+  `).get(todayStr, nextWeekStr);
+  
+  return result.total || 0;
+}
+
+
+
 module.exports = {
   initDatabase, verifyLogin, getSuppliers, addSupplier, getEmployees, addEmployee, 
   handlePinEntry, getExpenses, addExpense, deleteExpense, updateExpense, getTodayAttendance,
   getSupplierDetails, addReceipt, addPayment, getAdvances, addAdvance, 
-  getSalaries, calculateEmployeePayroll, paySalary
+  getSalaries, calculateEmployeePayroll, paySalary,
+  getAgendaTasks, addAgendaTask, toggleAgendaTaskStatus, getDueThisWeek , deleteAgendaTask,
+  rescheduleAgendaTask
+  // <-- تمت إضافتها هنا
 };

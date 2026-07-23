@@ -5,7 +5,9 @@ const {
   addEmployee, handlePinEntry, getExpenses, addExpense, deleteExpense, 
   updateExpense, getTodayAttendance, 
   getSupplierDetails, addReceipt, addPayment, getAdvances, addAdvance, 
-  getSalaries, calculateEmployeePayroll, paySalary // <--- تم إضافة getSalaries هنا بنجاح
+  getSalaries, calculateEmployeePayroll, paySalary , getAgendaTasks, addAgendaTask, toggleAgendaTaskStatus, getDueThisWeek , deleteAgendaTask,
+  rescheduleAgendaTask
+  
 } = require('./database');
 
 function createWindow() {
@@ -65,6 +67,25 @@ function setupIpcHandlers() {
     try { return paySalary(data); } catch (err) { return { success: false, error: err.message }; }
   });
 }
+
+
+// --- الأجندة والتنبيهات ---
+  ipcMain.handle('get-agenda-tasks', () => getAgendaTasks());
+  ipcMain.handle('add-agenda-task', (event, data) => addAgendaTask(data));
+  ipcMain.handle('toggle-agenda-task-status', (event, id, status) => toggleAgendaTaskStatus(id, status));
+  ipcMain.handle('get-due-this-week', () => getDueThisWeek());
+
+
+
+ipcMain.handle('delete-agenda-task', async (event, id) => {
+  return deleteAgendaTask(id);
+});
+
+ipcMain.handle('reschedule-agenda-task', async (event, id, newDate) => {
+  return rescheduleAgendaTask(id, newDate);
+});
+
+
 
 app.whenReady().then(() => {
   initDatabase();

@@ -9,52 +9,50 @@ import {
 } from '@tanstack/react-table';
 import { 
   Plus, Search, ArrowUpDown, ArrowRight, ArrowLeft, 
-  FileText, Banknote, ArrowUpRight, ArrowDownRight, MoreHorizontal, X 
+  FileText, Banknote, ArrowUpRight, ArrowDownRight, MoreHorizontal, Calendar 
 } from 'lucide-react';
 
 import useSupplierStore from '../../../store/supplierStore';
-import useEmployeeStore from '../../../store/employeeStore'; // <-- 1. استدعاء مخزن العمال
+import useEmployeeStore from '../../../store/employeeStore'; 
 import Modal from '../ui/Modal';
 
 export default function Suppliers() {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.dir() === 'rtl';
   
-  // استدعاء الحالة من مخزن الموردين
   const { 
     suppliers, fetchSuppliers, addSupplier, 
     currentSupplier, fetchSupplierDetails, clearCurrentSupplier,
     addReceipt, addPayment
   } = useSupplierStore();
 
-  // <-- 2. استدعاء الحالة من مخزن العمال
   const { employees, fetchEmployees } = useEmployeeStore();
 
-  // حالات الواجهة
   const [globalFilter, setGlobalFilter] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   
-  // حالات النماذج
   const [formData, setFormData] = useState({ name: '', phone: '', initialDebt: 0 });
   const [transactionData, setTransactionData] = useState({ 
     amount: '', 
     date: new Date().toISOString().split('T')[0], 
     note: '', 
-    caisseSource: '' // جعلناها فارغة كبداية ليُجبر على اختيار عامل
+    caisseSource: '' 
+  });
+  const [scheduleData, setScheduleData] = useState({ 
+    amount: '', 
+    date: new Date().toISOString().split('T')[0], 
+    time: '10:00',
+    note: '' 
   });
 
-  // جلب الموردين والعمال عند فتح الصفحة
   useEffect(() => {
     fetchSuppliers();
-    fetchEmployees(); // <-- جلب العمال
+    fetchEmployees(); 
   }, [fetchSuppliers, fetchEmployees]);
 
-  // ==========================================
-  // دوال الحفظ والتعامل مع البيانات
-  // ==========================================
-  
   const handleSaveSupplier = async (e) => {
     e.preventDefault();
     const success = await addSupplier(formData);
@@ -66,41 +64,48 @@ export default function Suppliers() {
 
   const handleSaveReceipt = async (e) => {
     e.preventDefault();
-    const payload = { 
-      ...transactionData, 
-      supplierId: currentSupplier.id, 
-      amount: Number(transactionData.amount) 
-    };
+    const payload = { ...transactionData, supplierId: currentSupplier.id, amount: Number(transactionData.amount) };
     const success = await addReceipt(payload);
     if (success) setIsReceiptModalOpen(false);
   };
 
   const handleSavePayment = async (e) => {
     e.preventDefault();
-    const payload = { 
-      ...transactionData, 
-      supplierId: currentSupplier.id, 
-      amount: Number(transactionData.amount) 
-    };
+    const payload = { ...transactionData, supplierId: currentSupplier.id, amount: Number(transactionData.amount) };
     const success = await addPayment(payload);
     if (success) setIsPaymentModalOpen(false);
   };
 
+  const handleSchedulePayment = async (e) => {
+    e.preventDefault();
+    const taskData = {
+      title: `${t('agenda.scheduledPaymentTitle')} ${currentSupplier.name}`,
+      type: 'payment',
+      date: scheduleData.date,
+      time: scheduleData.time,
+      task_date: scheduleData.date, // إضافة ضرورية للباك إند
+      task_time: scheduleData.time, // إضافة ضرورية للباك إند
+      amount: Number(scheduleData.amount),
+    };
+    try {
+      if (window.api && window.api.addAgendaTask) {
+        await window.api.addAgendaTask(taskData);
+        setIsScheduleModalOpen(false);
+        setScheduleData({ amount: '', date: new Date().toISOString().split('T')[0], time: '10:00', note: '' });
+        alert(t('common.success'));
+      }
+    } catch (error) {
+      console.error("Error scheduling payment:", error);
+      alert(t('common.errorScheduling'));
+    }
+  };
+
   const openTransactionModal = (type) => {
-    setTransactionData({ 
-      amount: '', 
-      date: new Date().toISOString().split('T')[0], 
-      note: '', 
-      caisseSource: '' // تصفير الصندوق عند فتح النافذة
-    });
+    setTransactionData({ amount: '', date: new Date().toISOString().split('T')[0], note: '', caisseSource: '' });
     if (type === 'receipt') setIsReceiptModalOpen(true);
     else setIsPaymentModalOpen(true);
   };
 
-  // ==========================================
-  // إعدادات جدول الموردين
-  // ==========================================
-  
   const columns = useMemo(() => [
     {
       accessorKey: 'name',
@@ -153,10 +158,6 @@ export default function Suppliers() {
     getCoreRowModel: getCoreRowModel(), getFilteredRowModel: getFilteredRowModel(), getSortedRowModel: getSortedRowModel(),
   });
 
-  // ==========================================
-  // الشاشة 2: تفاصيل المورد (Master-Detail View)
-  // ==========================================
-  
   if (currentSupplier) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans relative">
@@ -186,6 +187,10 @@ export default function Suppliers() {
           <button onClick={() => openTransactionModal('payment')} className="flex-1 flex items-center justify-center gap-3 bg-slate-900 border border-slate-800 hover:border-emerald-900 hover:bg-emerald-950/30 text-white py-4 rounded-xl transition-all shadow-sm">
             <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-lg"><ArrowDownRight size={20} /></div>
             <span className="font-medium text-lg">{t('suppliers.details.addPayment')}</span>
+          </button>
+          <button onClick={() => setIsScheduleModalOpen(true)} className="flex-1 flex items-center justify-center gap-3 bg-slate-900 border border-slate-800 hover:border-blue-900 hover:bg-blue-950/30 text-white py-4 rounded-xl transition-all shadow-sm">
+            <div className="p-2 bg-blue-500/20 text-blue-400 rounded-lg"><Calendar size={20} /></div>
+            <span className="font-medium text-lg">{t('suppliers.details.schedulePayment')}</span>
           </button>
         </div>
 
@@ -224,7 +229,6 @@ export default function Suppliers() {
                 currentSupplier.payments.map(p => (
                   <div key={p.id} className="p-4 border border-slate-800 rounded-lg bg-slate-950 hover:border-slate-700 transition-colors">
                     <div className="flex justify-between items-start mb-2">
-                      {/* عرض اسم العامل الذي قام بالدفع */}
                       <span className="text-sm text-slate-400">{p.date} • <span className="text-emerald-500/70"> {t('suppliers.details.caisseLabel')} {p.caisse_source}</span></span>
                       <span className="font-bold text-emerald-400">-{p.amount.toLocaleString()} DA</span>
                     </div>
@@ -236,7 +240,6 @@ export default function Suppliers() {
           </div>
         </div>
 
-        {/* 1. نافذة الفاتورة */}
         <Modal isOpen={isReceiptModalOpen} onClose={() => setIsReceiptModalOpen(false)} title={t('suppliers.details.addReceipt')}>
           <form onSubmit={handleSaveReceipt} className="space-y-4">
             <div>
@@ -258,7 +261,6 @@ export default function Suppliers() {
           </form>
         </Modal>
 
-        {/* 2. نافذة الدفعة (Payment) مع قائمة العمال */}
         <Modal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} title={t('suppliers.details.addPayment')}>
           <form onSubmit={handleSavePayment} className="space-y-4">
             <div>
@@ -266,7 +268,6 @@ export default function Suppliers() {
               <input type="number" min="1" max={currentSupplier.total_debt > 0 ? currentSupplier.total_debt : undefined} required value={transactionData.amount} onChange={e => setTransactionData({...transactionData, amount: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500 transition-colors" />
             </div>
             
-            {/* --- تعديل قائمة الصندوق لتصبح بأسماء العمال --- */}
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.caisse')}</label>
               <select required value={transactionData.caisseSource} onChange={e => setTransactionData({...transactionData, caisseSource: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500 transition-colors" dir={isRTL ? "rtl" : "ltr"}>
@@ -291,14 +292,42 @@ export default function Suppliers() {
             </div>
           </form>
         </Modal>
+
+        <Modal isOpen={isScheduleModalOpen} onClose={() => setIsScheduleModalOpen(false)} title={t('suppliers.modal.scheduleTitle')}>
+          <form onSubmit={handleSchedulePayment} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.amount')} (DA)</label>
+              <input type="number" min="1" max={currentSupplier.total_debt > 0 ? currentSupplier.total_debt : undefined} required value={scheduleData.amount} onChange={e => setScheduleData({...scheduleData, amount: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.date')}</label>
+                <input type="date" required value={scheduleData.date} onChange={e => setScheduleData({...scheduleData, date: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.time')}</label>
+<input 
+  type="time" 
+  value={scheduleData.time} 
+  onChange={e => setScheduleData({...scheduleData, time: e.target.value})} 
+  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors" 
+/>              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.note')}</label>
+              <input type="text" value={scheduleData.note} onChange={e => setScheduleData({...scheduleData, note: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder={t('suppliers.modal.notePlaceholder')} />
+            </div>
+            <div className="pt-4 flex justify-end gap-3 mt-6">
+              <button type="button" onClick={() => setIsScheduleModalOpen(false)} className="px-4 py-2 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">{t('suppliers.modal.cancelBtn')}</button>
+              <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">{t('suppliers.modal.confirmScheduleBtn')}</button>
+            </div>
+          </form>
+        </Modal>
+
       </div>
     );
   }
 
-  // ==========================================
-  // الشاشة 1: الجدول الرئيسي للموردين
-  // ==========================================
-  
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans relative">
       <div className="flex justify-between items-center mb-8">

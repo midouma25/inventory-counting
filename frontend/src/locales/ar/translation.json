@@ -5,6 +5,7 @@
     "systemOwner": "مالك النظام",
     "noResults": "لا توجد نتائج مطابقة لبحثك.",
     "success": "تمت العملية بنجاح",
+    "errorScheduling": "حدث خطأ أثناء الجدولة",
     "cancel": "إلغاء"
   },
   "sidebar": {
@@ -19,6 +20,7 @@
     "title": "لوحة القيادة",
     "subtitle": "نظرة عامة على النظام والمؤشرات المالية",
     "quickAction": "إجراء سريع",
+    "quickActionExpense": "إضافة مصروف سريع",
     "kpi": {
       "totalDebts": "إجمالي ديون الموردين",
       "dueThisWeek": "مستحقة هذا الأسبوع",
@@ -29,12 +31,15 @@
       "topCreditors": "أكبر 5 دائنين",
       "expensesDist": "توزيع المصاريف"
     },
-    "lists": {
-      "urgentAlerts": "تنبيهات عاجلة",
-      "recentAudit": "سجل النشاطات الأخير"
-    },
     "actions": {
       "payNow": "دفع الآن"
+    },
+    "lists": {
+      "urgentAlerts": "تنبيهات عاجلة",
+      "recentAudit": "سجل النشاطات الأخير",
+      "comingSoon": "قريباً",
+      "auditDesc": "سيتم تفعيله لاحقاً لمراقبة نشاط المحاسب",
+      "inDevelopment": "قيد التطوير"
     }
   },
   "suppliers": {
@@ -64,8 +69,10 @@
       "payments": "الدفعات المسددة",
       "addReceipt": "إضافة فاتورة (Bon)",
       "addPayment": "تسديد دفعة",
+      "schedulePayment": "جدولة دفعة (أجندة)",
       "amount": "المبلغ",
       "date": "التاريخ",
+      "time": "الوقت",
       "note": "ملاحظة / بيان"
     },
     "modal": {
@@ -74,7 +81,10 @@
       "phoneLabel": "رقم الهاتف",
       "debtLabel": "الدين الأولي (د.ج)",
       "saveBtn": "حفظ المورد",
-      "cancelBtn": "إلغاء"
+      "cancelBtn": "إلغاء",
+      "scheduleTitle": "جدولة دفعة قادمة",
+      "notePlaceholder": "ملاحظة للتنبيه...",
+      "confirmScheduleBtn": "تأكيد الجدولة"
     }
   },
   "payroll": {
@@ -209,6 +219,9 @@
     "title": "أجندة المتجر",
     "subtitle": "إدارة مواعيد الاستلام، المدفوعات القادمة، والمهام",
     "addTask": "مهمة جديدة",
+    "scheduledPaymentTitle": "دفعة مجدولة للمورد:",
+    "scheduledPaymentDesc": "دفعة مجدولة بتاريخ {{date}} لمورد {{name}} بمبلغ {{amount}} د.ج",
+    "dueThisWeek": "مستحق هذا الأسبوع",
     "filters": {
       "all": "كل المهام",
       "pending": "قيد الانتظار",

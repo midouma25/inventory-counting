@@ -1,18 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { TrendingUp, AlertCircle, Users, Wallet, Plus } from 'lucide-react';
+import { TrendingUp, AlertCircle, Users, Wallet, Plus, ArrowLeft, ArrowRight } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
+import { useNavigate } from 'react-router-dom';
 import ExpensesPieChart from '../ExpensesPieChart';
 
 export default function Dashboard() {
-  const { t } = useTranslation();
-  
+  const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
+  const isRTL = i18n.dir() === 'rtl';
+
   const [stats, setStats] = useState({
     totalDebts: 0,
     totalExpenses: 0,
     presentEmployees: 0,
     totalEmployees: 0,
     topCreditors: [],
+    dueThisWeek: 0,
   });
 
   useEffect(() => {
@@ -21,13 +25,13 @@ export default function Dashboard() {
         if (window.api) {
           const todayString = new Date().toISOString().split('T')[0];
           
-          const [suppliers, expenses, attendance] = await Promise.all([
+          const [suppliers, expenses, attendance, dueAmount] = await Promise.all([
             window.api.getSuppliers(),
             window.api.getExpenses(),
-            window.api.getTodayAttendance(todayString)
+            window.api.getTodayAttendance(todayString),
+            window.api.getDueThisWeek()
           ]);
 
-          // ملاحظة: قاعدة البيانات تخزن الحقل باسم total_debt وليس totalDebt
           const totalDebts = suppliers.reduce((sum, s) => sum + (s.total_debt || s.totalDebt || 0), 0);
           
           const topCreditors = [...suppliers]
@@ -37,15 +41,13 @@ export default function Dashboard() {
             .map(s => ({ name: s.name, debt: s.total_debt || s.totalDebt || 0 }));
 
           const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-
           const presentEmployees = attendance.filter(emp => emp.status === 'present').length;
+          
           let totalEmployees = 0;
           if (window.api.getEmployees) {
              const employeesObj = await window.api.getEmployees();
              const empArray = Array.isArray(employeesObj) ? employeesObj : Object.values(employeesObj).filter(e => typeof e === 'object' && e !== null);
              totalEmployees = empArray.length;
-          } else {
-             totalEmployees = attendance.length || 0; 
           }
 
           setStats({
@@ -54,6 +56,7 @@ export default function Dashboard() {
             presentEmployees,
             totalEmployees,
             topCreditors,
+            dueThisWeek: dueAmount || 0,
           });
         }
       } catch (error) {
@@ -80,13 +83,15 @@ export default function Dashboard() {
           <h1 className="text-3xl font-bold text-white">{t('dashboard.title')}</h1>
           <p className="text-sm text-slate-500 mt-1">{t('dashboard.subtitle')}</p>
         </div>
-        <button className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-md font-medium hover:bg-slate-200 transition-colors">
+        <button 
+          onClick={() => navigate('/expenses')}
+          className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-md font-medium hover:bg-slate-200 transition-colors"
+        >
           <Plus size={18} />
-          <span>{t('dashboard.quickAction')}</span>
+          <span>{t('dashboard.quickActionExpense')}</span>
         </button>
       </div>
 
-      {/* بطاقات المؤشرات المالية */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl">
           <div className="flex justify-between items-start">
@@ -107,7 +112,7 @@ export default function Dashboard() {
             <div>
               <p className="text-sm text-slate-400">{t('dashboard.kpi.dueThisWeek')}</p>
               <h3 className="text-2xl font-bold text-red-400 mt-1">
-                {Math.round(stats.totalDebts * 0.3).toLocaleString()} DA 
+                {stats.dueThisWeek.toLocaleString()} DA 
               </h3>
             </div>
             <div className="p-2 bg-red-950/50 rounded-lg text-red-400">
@@ -145,7 +150,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* المخططات البيانية */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
         <div className="lg:col-span-3 bg-slate-900 border border-slate-800 rounded-xl p-5 min-h-[300px] flex flex-col">
           <h3 className="text-lg font-medium text-white mb-6">{t('dashboard.charts.topCreditors')}</h3>
@@ -176,7 +180,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* قوائم التنبيهات والأحداث الأخيرة */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
           <h3 className="text-lg font-medium text-white mb-4">{t('dashboard.lists.urgentAlerts')}</h3>
@@ -185,12 +188,15 @@ export default function Dashboard() {
                <div className="flex justify-between items-center p-3 border border-slate-800 rounded-lg hover:bg-slate-800/50 transition-colors">
                  <div>
                    <p className="font-medium text-white">{stats.topCreditors[0].name}</p>
-                   <p className="text-xs text-red-400">أكبر دائن متبقي</p>
                  </div>
                  <div className="flex items-center gap-3">
-                   <span className="font-bold text-red-400">{stats.topCreditors[0].debt.toLocaleString()} DA</span>
-                   <button className="text-xs bg-slate-800 text-white px-3 py-1.5 rounded hover:bg-slate-700">
+                   <span className="font-bold text-red-400" dir="ltr">{stats.topCreditors[0].debt.toLocaleString()} DA</span>
+                   <button 
+                     onClick={() => navigate('/suppliers')}
+                     className="flex items-center gap-1 text-xs bg-slate-800 text-white px-3 py-1.5 rounded hover:bg-slate-700"
+                   >
                      {t('dashboard.actions.payNow')}
+                     {isRTL ? <ArrowLeft size={12} /> : <ArrowRight size={12} />}
                    </button>
                  </div>
                </div>
@@ -201,14 +207,14 @@ export default function Dashboard() {
         </div>
 
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <h3 className="text-lg font-medium text-white mb-4">{t('dashboard.lists.recentAudit')}</h3>
+          <h3 className="text-lg font-medium text-white mb-4">{t('dashboard.lists.recentAudit')} ({t('dashboard.lists.comingSoon')})</h3>
           <div className="space-y-3">
-            <div className="flex justify-between items-center p-3 border border-slate-800 rounded-lg">
+            <div className="flex justify-between items-center p-3 border border-slate-800 rounded-lg border-dashed">
               <div>
-                <p className="text-sm font-medium text-white">System Status</p>
-                <p className="text-xs text-slate-500">Live & Running</p>
+                <p className="text-sm font-medium text-slate-400">System Status</p>
+                <p className="text-xs text-slate-500">{t('dashboard.lists.auditDesc')}</p>
               </div>
-              <span className="text-sm text-green-400">OK</span>
+              <span className="text-sm text-amber-400 border border-amber-900/50 bg-amber-950/30 px-2 py-1 rounded">{t('dashboard.lists.inDevelopment')}</span>
             </div>
           </div>
         </div>

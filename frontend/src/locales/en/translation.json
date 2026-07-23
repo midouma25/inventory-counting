@@ -5,6 +5,7 @@
     "systemOwner": "System Owner",
     "noResults": "No results found.",
     "success": "Operation successful",
+    "errorScheduling": "Error scheduling payment",
     "cancel": "Cancel"
   },
   "sidebar": {
@@ -19,6 +20,7 @@
     "title": "Dashboard",
     "subtitle": "System overview & financial metrics",
     "quickAction": "Quick Action",
+    "quickActionExpense": "Quick Expense",
     "kpi": {
       "totalDebts": "Total Debts (Suppliers)",
       "dueThisWeek": "Due This Week",
@@ -29,12 +31,15 @@
       "topCreditors": "Top 5 Creditors",
       "expensesDist": "Expenses Distribution"
     },
-    "lists": {
-      "urgentAlerts": "Urgent Agenda Alerts",
-      "recentAudit": "Recent Audit Logs"
-    },
     "actions": {
       "payNow": "Pay Now"
+    },
+    "lists": {
+      "urgentAlerts": "Urgent Agenda Alerts",
+      "recentAudit": "Recent Audit Logs",
+      "comingSoon": "Coming Soon",
+      "auditDesc": "Will be activated later to monitor accountant activity",
+      "inDevelopment": "In Development"
     }
   },
   "suppliers": {
@@ -64,8 +69,10 @@
       "payments": "Payments",
       "addReceipt": "Add Receipt",
       "addPayment": "Make Payment",
+      "schedulePayment": "Schedule Payment",
       "amount": "Amount",
       "date": "Date",
+      "time": "Time",
       "note": "Note"
     },
     "modal": {
@@ -74,7 +81,10 @@
       "phoneLabel": "Phone Number",
       "debtLabel": "Initial Debt (DA)",
       "saveBtn": "Save",
-      "cancelBtn": "Cancel"
+      "cancelBtn": "Cancel",
+      "scheduleTitle": "Schedule Upcoming Payment",
+      "notePlaceholder": "Note for reminder...",
+      "confirmScheduleBtn": "Confirm Schedule"
     }
   },
   "payroll": {
@@ -209,6 +219,9 @@
     "title": "Store Agenda",
     "subtitle": "Manage scheduled deliveries, upcoming payments, and tasks",
     "addTask": "New Task",
+    "scheduledPaymentTitle": "Scheduled payment for:",
+    "scheduledPaymentDesc": "Scheduled payment on {{date}} for {{name}} amount {{amount}} DA",
+    "dueThisWeek": "Due This Week",
     "filters": {
       "all": "All Tasks",
       "pending": "Pending",

@@ -28,4 +28,17 @@ addAdvance: (data) => ipcRenderer.invoke('add-advance', data),
 getSalaries: () => ipcRenderer.invoke('get-salaries'), // السطر الجديد
 calculatePayroll: (params) => ipcRenderer.invoke('calculate-payroll', params),
 paySalary: (data) => ipcRenderer.invoke('pay-salary', data),
+
+
+  // --- الأجندة والتنبيهات ---// --- الأجندة ---
+  getAgendaTasks: () => ipcRenderer.invoke('get-agenda-tasks'),
+  addAgendaTask: (data) => ipcRenderer.invoke('add-agenda-task', data),
+  toggleAgendaTaskStatus: (id, status) => ipcRenderer.invoke('toggle-agenda-task-status', id, status),
+  getDueThisWeek: () => ipcRenderer.invoke('get-due-this-week'),
+  
+
+  deleteAgendaTask: (id) => ipcRenderer.invoke('delete-agenda-task', id),
+  rescheduleAgendaTask: (id, newDate) => ipcRenderer.invoke('reschedule-agenda-task', id, newDate)
+
+
 });

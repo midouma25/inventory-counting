@@ -50,7 +50,7 @@ const useSupplierStore = create((set, get) => ({
 
   clearCurrentSupplier: () => set({ currentSupplier: null }),
 
-  addReceipt: async (receiptData) => {
+addReceipt: async (receiptData) => {
     try {
       if (window.api && window.api.addReceipt) {
         const result = await window.api.addReceipt(receiptData);
@@ -59,6 +59,9 @@ const useSupplierStore = create((set, get) => ({
           await get().fetchSupplierDetails(receiptData.supplierId);
           await get().fetchSuppliers();
           return true;
+        } else {
+          alert("فشلت إضافة الفاتورة. السبب التقني:\n" + result.error);
+          return false;
         }
       }
       return false;
@@ -77,6 +80,9 @@ const useSupplierStore = create((set, get) => ({
           await get().fetchSupplierDetails(paymentData.supplierId);
           await get().fetchSuppliers();
           return true;
+        } else {
+          alert("فشلت إضافة الدفعة. السبب التقني:\n" + result.error);
+          return false;
         }
       }
       return false;
