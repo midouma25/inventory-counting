@@ -4,7 +4,7 @@ import os
 # الإعدادات
 # ==============================
 
-OUTPUT_FILE = "project_structure5.md"
+OUTPUT_FILE = "project_structure7.md"
 MAX_DEPTH = 3                 # أقصى عمق للشجرة
 MAX_FILE_SIZE = 200 * 1024    # 200KB
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { LayoutDashboard, Users, Briefcase, Receipt, Calendar } from 'lucide-react';
+import { LayoutDashboard, Users, Briefcase, Receipt, Calendar, Banknote } from 'lucide-react';
 
 export default function Sidebar() {
   const { t } = useTranslation();
@@ -11,6 +11,7 @@ export default function Sidebar() {
     { path: '/suppliers', name: t('sidebar.suppliers'), icon: <Users size={20} /> },
     { path: '/hr', name: t('sidebar.hr'), icon: <Briefcase size={20} /> },
     { path: '/expenses', name: t('sidebar.expenses'), icon: <Receipt size={20} /> },
+    { path: '/payroll', name: t('sidebar.payroll', 'الرواتب'), icon: <Banknote size={20} /> },
     { path: '/agenda', name: t('sidebar.agenda'), icon: <Calendar size={20} /> },
   ];
 
@@ -18,7 +19,7 @@ export default function Sidebar() {
     <aside className="w-64 bg-slate-950 border-r border-slate-800 flex flex-col h-screen sticky top-0">
       <div className="h-16 flex items-center px-6 border-b border-slate-800">
         <h2 className="text-xl font-bold text-white tracking-wider">
-          POS<span className="text-blue-500">Manger</span>
+          POS<span className="text-blue-500">Manager</span>
         </h2>
       </div>
 

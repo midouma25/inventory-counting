@@ -2,12 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TrendingUp, AlertCircle, Users, Wallet, Plus } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
-import ExpensesPieChart from '../ExpensesPieChart'; // استيراد المكون الدائري المستقل
+import ExpensesPieChart from '../ExpensesPieChart';
 
 export default function Dashboard() {
   const { t } = useTranslation();
   
-  // حفظ الإحصائيات المجمعة من أقسام النظام المختلفة
   const [stats, setStats] = useState({
     totalDebts: 0,
     totalExpenses: 0,
@@ -22,35 +21,30 @@ export default function Dashboard() {
         if (window.api) {
           const todayString = new Date().toISOString().split('T')[0];
           
-          // جلب البيانات بشكل متوازي لسرعة الأداء
           const [suppliers, expenses, attendance] = await Promise.all([
             window.api.getSuppliers(),
             window.api.getExpenses(),
             window.api.getTodayAttendance(todayString)
           ]);
 
-          // 1. حساب الديون وأكبر الدائنين
-          const totalDebts = suppliers.reduce((sum, s) => sum + s.totalDebt, 0);
+          // ملاحظة: قاعدة البيانات تخزن الحقل باسم total_debt وليس totalDebt
+          const totalDebts = suppliers.reduce((sum, s) => sum + (s.total_debt || s.totalDebt || 0), 0);
+          
           const topCreditors = [...suppliers]
-            .filter(s => s.totalDebt > 0)
-            .sort((a, b) => b.totalDebt - a.totalDebt)
-            .slice(0, 5) // جلب أكبر 5 دائنين
-            .map(s => ({ name: s.name, debt: s.totalDebt }));
+            .filter(s => (s.total_debt || s.totalDebt || 0) > 0)
+            .sort((a, b) => (b.total_debt || b.totalDebt || 0) - (a.total_debt || a.totalDebt || 0))
+            .slice(0, 5)
+            .map(s => ({ name: s.name, debt: s.total_debt || s.totalDebt || 0 }));
 
-          // 2. إجمالي المصاريف
-          const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+          const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
 
-          // 3. إحصائيات الحضور
           const presentEmployees = attendance.filter(emp => emp.status === 'present').length;
-          // جلب إجمالي العمال من واجهة الموظفين (سنفترض وجود دالة getEmployees)
           let totalEmployees = 0;
           if (window.api.getEmployees) {
              const employeesObj = await window.api.getEmployees();
-             // تحويل الكائن إلى مصفوفة إذا لزم الأمر
-             const empArray = Object.values(employeesObj).filter(e => typeof e === 'object' && e !== null);
+             const empArray = Array.isArray(employeesObj) ? employeesObj : Object.values(employeesObj).filter(e => typeof e === 'object' && e !== null);
              totalEmployees = empArray.length;
           } else {
-             // بديل مؤقت في حال عدم وجود الدالة
              totalEmployees = attendance.length || 0; 
           }
 
@@ -81,7 +75,6 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans">
       
-      {/* الترويسة العليا */}
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-white">{t('dashboard.title')}</h1>
@@ -93,7 +86,7 @@ export default function Dashboard() {
         </button>
       </div>
 
-      {/* بطاقات الإحصائيات العلوية KPI */}
+      {/* بطاقات المؤشرات المالية */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl">
           <div className="flex justify-between items-start">
@@ -114,7 +107,6 @@ export default function Dashboard() {
             <div>
               <p className="text-sm text-slate-400">{t('dashboard.kpi.dueThisWeek')}</p>
               <h3 className="text-2xl font-bold text-red-400 mt-1">
-                {/* قيمة استرشادية، تمثل ثلث الديون تقريباً */}
                 {Math.round(stats.totalDebts * 0.3).toLocaleString()} DA 
               </h3>
             </div>
@@ -153,10 +145,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* قسم المخططات البيانية */}
+      {/* المخططات البيانية */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
-        
-        {/* المخطط العمودي: أكبر الدائنين */}
         <div className="lg:col-span-3 bg-slate-900 border border-slate-800 rounded-xl p-5 min-h-[300px] flex flex-col">
           <h3 className="text-lg font-medium text-white mb-6">{t('dashboard.charts.topCreditors')}</h3>
           <div className="flex-1 w-full" dir="ltr"> 
@@ -178,7 +168,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* المخطط الدائري: توزيع المصاريف */}
         <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5 min-h-[300px] flex flex-col">
           <h3 className="text-lg font-medium text-white mb-2">{t('dashboard.charts.expensesDist')}</h3>
           <div className="flex-1 w-full h-full relative">
@@ -214,7 +203,6 @@ export default function Dashboard() {
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
           <h3 className="text-lg font-medium text-white mb-4">{t('dashboard.lists.recentAudit')}</h3>
           <div className="space-y-3">
-            {/* نموذج لحدث أخير، سيتم استبداله مستقبلاً ببيانات السجل */}
             <div className="flex justify-between items-center p-3 border border-slate-800 rounded-lg">
               <div>
                 <p className="text-sm font-medium text-white">System Status</p>

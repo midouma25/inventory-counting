@@ -3,13 +3,16 @@
     "search": "Search...",
     "superAdmin": "Super Admin",
     "systemOwner": "System Owner",
-    "noResults": "No results found."
+    "noResults": "No results found.",
+    "success": "Operation successful",
+    "cancel": "Cancel"
   },
   "sidebar": {
     "dashboard": "Dashboard",
     "suppliers": "Suppliers",
     "hr": "HR & Staff",
     "expenses": "Expenses",
+    "payroll": "Payroll",
     "agenda": "Agenda"
   },
   "dashboard": {
@@ -24,9 +27,7 @@
     },
     "charts": {
       "topCreditors": "Top 5 Creditors",
-      "expensesDist": "Expenses Distribution",
-      "piePlaceholder": "Pie/Area Chart Area",
-      "barPlaceholder": "Bar Chart Area"
+      "expensesDist": "Expenses Distribution"
     },
     "lists": {
       "urgentAlerts": "Urgent Agenda Alerts",
@@ -56,80 +57,133 @@
       "view": "View Details",
       "pay": "Make Payment"
     },
+    "details": {
+      "caisse": "Caisse Source (Cashier)",
+      "caisseLabel": "Caisse: ",
+      "receipts": "Receipts",
+      "payments": "Payments",
+      "addReceipt": "Add Receipt",
+      "addPayment": "Make Payment",
+      "amount": "Amount",
+      "date": "Date",
+      "note": "Note"
+    },
     "modal": {
+      "selectEmployee": "-- Select Employee --",
       "nameLabel": "Supplier Name",
       "phoneLabel": "Phone Number",
       "debtLabel": "Initial Debt (DA)",
-      "saveBtn": "Save Supplier",
+      "saveBtn": "Save",
       "cancelBtn": "Cancel"
     }
   },
-"hr": {
-  "title": "HR & Staff",
-  "subtitle": "Manage attendance, shifts, and employee records",
-  "tabs": {
-    "attendance": "Daily Attendance",
-    "employees": "Manage Employees"
+  "payroll": {
+    "title": "Payroll & Advances",
+    "subtitle": "Manage work hours, advances, and weekly salary payments",
+    "tabs": {
+      "calculator": "Payroll Calculator",
+      "advances": "Advances Log",
+      "salaries": "Salaries Log"
+    },
+    "calculator": "Payroll Calculator",
+    "selectEmployee": "-- Select Employee --",
+    "selectCaisse": "-- Select Cashier --",
+    "caisse": "Cashier (Source)",
+    "period": "Period (From - To)",
+    "startDate": "From Date (Start of Week)",
+    "endDate": "To Date (End of Week)",
+    "hourlyRate": "Hourly Rate (DA)",
+    "calculateBtn": "Calculate Payroll",
+    "results": "Final Result",
+    "totalHours": "Total Hours",
+    "grossSalary": "Gross Salary",
+    "deductions": "Deductions (Advances)",
+    "netSalary": "Net to Pay",
+    "negativeSalaryError": "Cannot confirm payment: Net salary is negative. Deductions exceed gross salary.",
+    "payBtn": "Confirm & Pay Salary",
+    "advancesTitle": "Advances Log",
+    "addAdvance": "Add Advance",
+    "noAdvances": "No advances recorded",
+    "statusPending": "Pending",
+    "statusPaid": "Deducted",
+    "amount": "Amount",
+    "date": "Date",
+    "rolloverConfirm": "Net salary is negative! Do you want to confirm the record?\n(The salary will be logged, no cash will be paid, and the remaining debt will automatically roll over as a new advance for next week.)",
+    "standardConfirm": "Are you sure you want to confirm and pay this salary?",
+    "rolloverBtn": "Confirm Record & Rollover Debt",
+    "rolloverNote": "Debt rollover after salary deduction ({{start}} to {{end}})",
+    "expenseNote": "{{name}}'s Salary (Week: {{start}} to {{end}})",
+    "note": "Note"
   },
-  "scanner": {
-    "title": "Check-In / Out",
-    "placeholder": "Enter PIN or scan barcode...",
-    "submit": "Record"
-  },
-  "kpi": {
-    "present": "Present Today",
-    "absent": "Absent"
-  },
-  "table": {
-    "name": "Employee Name",
-    "timeIn": "Time In",
-    "timeOut": "Time Out",
-    "status": "Status",
-    "empty": "No records for today",
-    "loading": "Loading..."
-  },
-  "status": {
-    "present": "Present",
-    "departed": "Departed"
-  },
-  "employees": {
-    "addBtn": "New Employee",
-    "search": "Search employee...",
-    "empty": "No employees found",
+  "hr": {
+    "title": "HR & Staff",
+    "subtitle": "Manage attendance, shifts, and employee records",
+    "attendanceLog": "Attendance & Departure Log",
+    "tabs": {
+      "attendance": "Daily Attendance",
+      "employees": "Manage Employees"
+    },
+    "scanner": {
+      "title": "Check-In / Out",
+      "placeholder": "Enter PIN or scan barcode...",
+      "submit": "Record"
+    },
+    "kpi": {
+      "present": "Present Today",
+      "absent": "Absent"
+    },
     "table": {
       "name": "Employee Name",
-      "role": "Position",
+      "nameWithRole": "Employee Name (Position)",
+      "timeIn": "Time In",
+      "timeOut": "Time Out",
       "status": "Status",
-      "actions": "Actions"
+      "empty": "No records for today",
+      "emptyRecord": "No records found for this date",
+      "loading": "Loading..."
     },
     "status": {
-      "active": "Active"
+      "present": "Present Now",
+      "departed": "Departed"
+    },
+    "employees": {
+      "addBtn": "New Employee",
+      "search": "Search employee...",
+      "empty": "No employees found",
+      "table": {
+        "name": "Employee Name",
+        "role": "Position",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "status": {
+        "active": "Active"
+      }
+    },
+    "dialog": {
+      "title": "Add New Employee",
+      "desc": "Enter employee details and a unique PIN code.",
+      "name": "Full Name",
+      "namePlaceholder": "e.g. John Doe",
+      "role": "Position",
+      "rolePlaceholder": "e.g. Cashier",
+      "pin": "PIN Code",
+      "cancel": "Cancel",
+      "save": "Save Employee"
+    },
+    "messages": {
+      "checkIn": "Checked IN",
+      "checkOut": "Checked OUT",
+      "error": "Error occurred. PIN might be in use."
     }
   },
-  "dialog": {
-    "title": "Add New Employee",
-    "desc": "Enter employee details and a unique PIN code.",
-    "name": "Full Name",
-    "namePlaceholder": "e.g. John Doe",
-    "role": "Position",
-    "rolePlaceholder": "e.g. Cashier",
-    "pin": "PIN Code",
-    "cancel": "Cancel",
-    "save": "Save Employee"
-  },
-  "messages": {
-    "checkIn": "Checked IN",
-    "checkOut": "Checked OUT",
-    "error": "Error occurred. PIN might be in use."
-  }
-},
-"expenses": {
+  "expenses": {
     "title": "Expenses & Advances",
     "subtitle": "Track daily store expenses and employee salary advances",
     "addExpense": "Add Expense",
     "editExpense": "Edit Expense",
     "saveChanges": "Save Changes",
-    "deleteConfirm": "Are you sure you want to delete this expense? This action cannot be undone.",
+    "deleteConfirm": "Are you sure you want to delete this expense?",
     "searchPlaceholder": "Search by description...",
     "kpi": {
       "today": "Today's Expenses",
@@ -146,10 +200,12 @@
       "utilities": "Utilities & Bills",
       "maintenance": "Maintenance",
       "supplies": "Store Supplies",
-      "advance": "Employee Advance"
+      "advance": "Employee Advance",
+      "salaries": "Salaries",
+      "رواتب": "Salaries"
     }
   },
-"agenda": {
+  "agenda": {
     "title": "Store Agenda",
     "subtitle": "Manage scheduled deliveries, upcoming payments, and tasks",
     "addTask": "New Task",
@@ -174,7 +230,7 @@
       "timeLabel": "Time",
       "saveBtn": "Add Task",
       "cancelBtn": "Cancel"
-}
+    }
   },
   "login": {
     "title": "Welcome Back",
@@ -186,6 +242,4 @@
     "error": "Invalid username or password",
     "serverError": "Database connection error"
   }
-  
-
 }
