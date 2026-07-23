@@ -99,6 +99,49 @@ ipcMain.on('show-notification', (event, data) => {
 });
 
 
+
+
+
+// دالة لجلب ملخص الحركات المالية ليوم محدد
+ipcMain.handle('get-daily-summary', (event, date) => {
+  try {
+    // 1. حساب إجمالي المصاريف العامة لذلك اليوم
+    const expensesRow = db.prepare(`SELECT SUM(amount) as total FROM expenses WHERE date = ?`).get(date);
+    const totalExpenses = expensesRow.total || 0;
+
+    // 2. حساب إجمالي دفعات الموردين لذلك اليوم
+    // ملاحظة: تأكد من اسم الجدول الخاص بالدفعات في قاعدة بياناتك (مثلا payments أو supplier_payments)
+    const paymentsRow = db.prepare(`SELECT SUM(amount) as total FROM payments WHERE payment_date = ?`).get(date);
+    const totalPayments = paymentsRow.total || 0;
+
+    // 3. حساب إجمالي سلف العمال لذلك اليوم
+    // ملاحظة: تأكد من اسم جدول السلف (مثلا advances أو employee_advances)
+    const advancesRow = db.prepare(`SELECT SUM(amount) as total FROM advances WHERE date = ?`).get(date);
+    const totalAdvances = advancesRow.total || 0;
+
+    // إجمالي الأموال الخارجة من الصندوق
+    const totalOut = totalExpenses + totalPayments + totalAdvances;
+
+    return {
+      success: true,
+      date: date,
+      data: {
+        expenses: totalExpenses,
+        supplierPayments: totalPayments,
+        advances: totalAdvances,
+        totalOut: totalOut
+      }
+    };
+  } catch (error) {
+    console.error("خطأ أثناء جلب ملخص اليوم:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+
+
+
+
 app.whenReady().then(() => {
   initDatabase();
   setupIpcHandlers();

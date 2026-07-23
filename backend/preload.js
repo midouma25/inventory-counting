@@ -35,10 +35,12 @@ paySalary: (data) => ipcRenderer.invoke('pay-salary', data),
   addAgendaTask: (data) => ipcRenderer.invoke('add-agenda-task', data),
   toggleAgendaTaskStatus: (id, status) => ipcRenderer.invoke('toggle-agenda-task-status', id, status),
   getDueThisWeek: () => ipcRenderer.invoke('get-due-this-week'),
-  
+
+  // أضف هذا السطر مع باقي الدوال
+  getDailySummary: (date) => ipcRenderer.invoke('get-daily-summary', date),
 
   deleteAgendaTask: (id) => ipcRenderer.invoke('delete-agenda-task', id),
   rescheduleAgendaTask: (id, newDate) => ipcRenderer.invoke('reschedule-agenda-task', id, newDate),
   showNotification: (title, body) => ipcRenderer.send('show-notification', { title, body })
-
+  
 });

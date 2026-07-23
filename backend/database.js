@@ -58,6 +58,34 @@ function initDatabase() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP, 
       FOREIGN KEY (employee_id) REFERENCES employees(id)
     )`).run();
+    
+
+
+    db.exec(`
+  CREATE TABLE IF NOT EXISTS end_of_day (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    caisse_id INTEGER DEFAULT 1,       -- To identify the cash register (useful if we later add a Multi-Caisse feature)
+    date TEXT UNIQUE,                  -- Closing date (UNIQUE to prevent creating more than one close for the same day)
+    expected_amount REAL DEFAULT 0,    -- Expected amount (calculated within the application)
+    actual_amount REAL DEFAULT 0,      -- Actual amount (entered manually by the manager)
+    difference REAL DEFAULT 0,         -- Difference between expected and actual
+    closed_by TEXT,                    -- Name or ID of the person who performed the close
+    status TEXT DEFAULT 'Pending',     -- Status (Pending / Closed)
+    notes TEXT,                        -- Additional notes (for example, justification for any shortage)
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+
+// Add this code after creating the table to verify its existence
+const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='end_of_day'").get();
+
+if (tableCheck) {
+  console.log("✅ End-of-day table (end_of_day) created successfully!");
+} else {
+  console.log("❌ Table was not created.");
+}
+
 
     console.log('تمت تهيئة قاعدة البيانات بنجاح');
   } catch (error) {
