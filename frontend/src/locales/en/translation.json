@@ -8,13 +8,35 @@
     "errorScheduling": "Error scheduling payment",
     "cancel": "Cancel"
   },
+  "currency": "DZD",
+  "eod": {
+    "title": "Close Shift",
+    "open_shift_title": "Open New Shift",
+    "open_shift_desc": "Enter opening balance to start shift for:",
+    "open_shift_btn": "Start Shift",
+    "active_shift": "Active Shift",
+    "closure_date": "Closure Date",
+    "total_expenses": "Total Expenses",
+    "supplier_payments": "Supplier Payments",
+    "advances": "Employee Advances",
+    "opening_balance": "Opening Balance",
+    "actual_cash": "Actual Cash (in drawer)",
+    "total_deducted": "Total Deductions (Out)",
+    "today_sales": "Collected Income (Net Sales)",
+    "notes": "Closure Notes",
+    "save_btn": "Confirm & Close Shift",
+    "confirmClose": "Are you sure you want to end this shift and close the register?",
+    "closeSuccess": "Shift closed successfully."
+  },
   "sidebar": {
     "dashboard": "Dashboard",
     "suppliers": "Suppliers",
-    "hr": "HR & Staff",
+    "hr": "Human Resources",
     "expenses": "Expenses",
     "payroll": "Payroll",
-    "agenda": "Agenda"
+    "agenda": "Agenda",
+    "end_of_day": "End of Day",
+    "settings": "Users & Settings"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -82,6 +104,7 @@
     },
     "modal": {
       "selectEmployee": "-- Select Employee --",
+      "selectSupplier": "-- Select Supplier --",
       "nameLabel": "Supplier Name",
       "phoneLabel": "Phone Number",
       "debtLabel": "Initial Debt (DA)",
@@ -204,20 +227,26 @@
       "today": "Today's Expenses",
       "month": "This Month (Total)"
     },
+    "prefixes": {
+      "advance": "Advance",
+      "supplier": "Supplier Payment"
+    },
     "table": {
       "date": "Date",
       "description": "Description",
       "category": "Category",
       "amount": "Amount",
-      "actions": "Actions"
+      "actions": "Actions",
+      "locked": "Locked",
+      "managedElsewhere": "Cannot edit here. Manage via Payroll or Suppliers page for data integrity."
     },
     "categories": {
       "utilities": "Utilities & Bills",
       "maintenance": "Maintenance",
       "supplies": "Store Supplies",
       "advance": "Employee Advance",
-      "salaries": "Salaries",
-      "رواتب": "Salaries"
+      "supplier_payment": "Supplier Payment",
+      "salaries": "Salaries"
     }
   },
   "agenda": {

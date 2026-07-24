@@ -18,12 +18,18 @@ export default function ExpensesPieChart() {
             return acc;
           }, {});
 
-          // تحويل البيانات لشكل يقبله Recharts مع دمج الترجمة
-          const formattedData = Object.keys(grouped).map(key => ({
-            name: t(`expenses.categories.${key}`), 
-            value: grouped[key],
-            category: key
-          }));
+          // تحويل البيانات لشكل يقبله Recharts مع دمج الترجمة الذكية
+          const formattedData = Object.keys(grouped).map(key => {
+            const translated = t(`expenses.categories.${key}`);
+            // تخطي مفتاح الترجمة إذا لم يكن موجوداً (مثل كلمة "رواتب" القديمة)
+            const finalName = translated.includes('expenses.categories') ? key : translated;
+            
+            return {
+              name: finalName, 
+              value: grouped[key],
+              category: key
+            };
+          });
 
           setChartData(formattedData);
         }
@@ -33,16 +39,19 @@ export default function ExpensesPieChart() {
     };
     
     loadData();
-  }, [t]);
+  }, [t]); // إضافة t لتحديث المخطط فور تغيير اللغة
 
-  // الألوان المخصصة حسب التصنيف
+  // الألوان المخصصة حسب التصنيف (بما في ذلك التصنيفات الجديدة)
   const getCategoryColor = (category) => {
     switch (category) {
-      case 'advance': return '#a855f7'; // Purple-500
-      case 'utilities': return '#3b82f6'; // Blue-500
-      case 'maintenance': return '#f59e0b'; // Amber-500
-      case 'supplies': return '#10b981'; // Emerald-500
-      default: return '#64748b'; // Slate-500
+      case 'advance': return '#a855f7'; // Purple
+      case 'supplier_payment': return '#f97316'; // Orange
+      case 'utilities': return '#3b82f6'; // Blue
+      case 'maintenance': return '#f59e0b'; // Amber
+      case 'supplies': return '#10b981'; // Emerald
+      case 'salaries':
+      case 'رواتب': return '#ef4444'; // Red
+      default: return '#64748b'; // Slate
     }
   };
 

@@ -9,12 +9,34 @@
     "cancel": "إلغاء"
   },
   "sidebar": {
-    "dashboard": "لوحة القيادة",
+"dashboard": "لوحة التحكم",
     "suppliers": "الموردين",
     "hr": "الموارد البشرية",
     "expenses": "المصاريف",
-    "payroll": "الرواتب والسلفيات",
-    "agenda": "الأجندة"
+    "payroll": "الرواتب",
+    "agenda": "الأجندة",
+    "end_of_day": "إغلاق الوردية",
+    "settings": "إدارة الحسابات"
+  },
+  "currency": "د.ج",
+  "eod": {
+    "title": "إغلاق الوردية",
+    "open_shift_title": "فتح وردية جديدة",
+    "open_shift_desc": "أدخل الصرف الافتتاحي لبدء وردية:",
+    "open_shift_btn": "بدء الوردية",
+    "active_shift": "الوردية النشطة",
+    "closure_date": "تاريخ الإغلاق",
+    "total_expenses": "إجمالي المصاريف",
+    "supplier_payments": "دفعات الموردين",
+    "advances": "سلف العمال",
+    "opening_balance": "الرصيد الافتتاحي (الصرف)",
+    "actual_cash": "النقد الفعلي (الموجود في الدرج)",
+    "total_deducted": "إجمالي المبالغ الخارجة",
+    "today_sales": "المداخيل المحصلة (صافي المبيعات)",
+    "notes": "ملاحظات الإغلاق",
+    "save_btn": "تأكيد وإغلاق الوردية",
+    "confirmClose": "هل أنت متأكد من إنهاء هذه الوردية وإغلاق الصندوق؟",
+    "closeSuccess": "تم إغلاق الوردية بنجاح وتسجيل المبيعات."
   },
   "dashboard": {
     "title": "لوحة القيادة",
@@ -82,6 +104,7 @@
     },
     "modal": {
       "selectEmployee": "-- حدد اسم العامل --",
+      "selectSupplier": "-- حدد اسم المورد --",
       "nameLabel": "اسم المورد",
       "phoneLabel": "رقم الهاتف",
       "debtLabel": "الدين الأولي (د.ج)",
@@ -204,20 +227,26 @@
       "today": "مصاريف اليوم",
       "month": "مصاريف هذا الشهر"
     },
+    "prefixes": {
+      "advance": "سلفة",
+      "supplier": "دفعة مورد"
+    },
     "table": {
       "date": "التاريخ",
       "description": "الوصف",
       "category": "التصنيف",
       "amount": "المبلغ",
-      "actions": "الإجراءات"
+      "actions": "الإجراءات",
+      "locked": "مقفلة",
+      "managedElsewhere": "لا يمكن التعديل من هنا. يجب الذهاب إلى صفحة السلف أو الموردين لضمان دقة الحسابات."
     },
     "categories": {
       "utilities": "فواتير ومرافق",
       "maintenance": "صيانة",
       "supplies": "مستلزمات المتجر",
       "advance": "سلفة عامل",
-      "salaries": "رواتب",
-      "رواتب": "رواتب"
+      "supplier_payment": "تسديد دفعة مورد",
+      "salaries": "رواتب"
     }
   },
   "agenda": {

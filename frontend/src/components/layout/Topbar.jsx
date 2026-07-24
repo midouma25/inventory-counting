@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bell, Search, UserCircle, Globe, LogOut } from 'lucide-react';
-import useAuthStore from '../../../store/authStore';
+import useAuthStore from '../../store/authStore';
 import { useNavigate } from 'react-router-dom';
 
 export default function Topbar() {

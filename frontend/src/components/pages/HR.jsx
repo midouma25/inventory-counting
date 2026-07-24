@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Search, Plus, MoreHorizontal, UserCheck, AlertCircle, ScanLine, Users, X, Clock } from "lucide-react";
 
-import useEmployeeStore from "../../../store/employeeStore";
-import useAttendanceStore from "../../../store/attendanceStore";
+import useEmployeeStore from "../../store/employeeStore";
+import useAttendanceStore from "../../store/attendanceStore";
 
 const HR = () => {
   const { t, i18n } = useTranslation();

@@ -59,33 +59,25 @@ function initDatabase() {
       FOREIGN KEY (employee_id) REFERENCES employees(id)
     )`).run();
     
+    // 1. إضافة جدول الورديات (Shifts)
+    db.prepare(`CREATE TABLE IF NOT EXISTS shifts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      cashier_name TEXT NOT NULL,
+      opening_balance REAL NOT NULL,
+      start_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+      end_time DATETIME,
+      actual_cash REAL,
+      difference REAL,
+      status TEXT DEFAULT 'open',
+      note TEXT
+    )`).run();
 
-
-    db.exec(`
-  CREATE TABLE IF NOT EXISTS end_of_day (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    caisse_id INTEGER DEFAULT 1,       -- To identify the cash register (useful if we later add a Multi-Caisse feature)
-    date TEXT UNIQUE,                  -- Closing date (UNIQUE to prevent creating more than one close for the same day)
-    expected_amount REAL DEFAULT 0,    -- Expected amount (calculated within the application)
-    actual_amount REAL DEFAULT 0,      -- Actual amount (entered manually by the manager)
-    difference REAL DEFAULT 0,         -- Difference between expected and actual
-    closed_by TEXT,                    -- Name or ID of the person who performed the close
-    status TEXT DEFAULT 'Pending',     -- Status (Pending / Closed)
-    notes TEXT,                        -- Additional notes (for example, justification for any shortage)
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
-
-
-// Add this code after creating the table to verify its existence
-const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='end_of_day'").get();
-
-if (tableCheck) {
-  console.log("✅ End-of-day table (end_of_day) created successfully!");
-} else {
-  console.log("❌ Table was not created.");
-}
-
+    const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='shifts'").get();
+    if (tableCheck) {
+      console.log("✅ Shifts table created successfully!");
+    } else {
+      console.log("❌ Shifts table was not created.");
+    }
 
     console.log('تمت تهيئة قاعدة البيانات بنجاح');
   } catch (error) {
@@ -93,15 +85,125 @@ if (tableCheck) {
   }
 }
 
-function getExpenses() { return db.prepare('SELECT * FROM expenses ORDER BY date DESC, id DESC').all(); }
+// الدالة المعدلة لجلب المصاريف بشكل موحد
+function getExpenses() {
+  return db.prepare(`
+    SELECT id, description, category, amount, date, 'expense' as source 
+    FROM expenses 
+    UNION ALL 
+    SELECT a.id, e.name || (CASE WHEN a.note != '' THEN ' - ' || a.note ELSE '' END) as description, 'advance' as category, a.amount, a.date, 'advance' as source 
+    FROM advances a
+    JOIN employees e ON a.employee_id = e.id
+    UNION ALL
+    SELECT p.id, s.name || (CASE WHEN p.note != '' THEN ' - ' || p.note ELSE '' END) as description, 'supplier_payment' as category, p.amount, p.date, 'supplier_payment' as source 
+    FROM payments p
+    JOIN suppliers s ON p.supplier_id = s.id
+    ORDER BY date DESC, id DESC
+  `).all();
+}
+
+// 2. دوال التحكم في الورديات الجديدة
+function openShift(data) {
+  const activeShift = db.prepare("SELECT * FROM shifts WHERE cashier_name = ? AND status = 'open'").get(data.cashierName);
+  if (activeShift) return { success: false, message: 'لديك وردية مفتوحة بالفعل.' };
+
+  const info = db.prepare('INSERT INTO shifts (cashier_name, opening_balance) VALUES (?, ?)').run(data.cashierName, data.openingBalance);
+  return { success: true, shiftId: info.lastInsertRowid };
+}
+
+function getActiveShift(cashierName) {
+  return db.prepare("SELECT * FROM shifts WHERE cashier_name = ? AND status = 'open'").get(cashierName);
+}
+
+function closeShift(data) {
+  const endTime = new Date().toISOString();
+  db.prepare(`
+    UPDATE shifts 
+    SET end_time = ?, actual_cash = ?, difference = ?, status = 'closed', note = ?
+    WHERE id = ?
+  `).run(endTime, data.actualCash, data.difference, data.note, data.shiftId);
+  return { success: true };
+}
+
+
+
+function getShiftSummary(cashierName, startTime) {
+  try {
+    let paymentsRow, advancesRow;
+    const expensesRow = db.prepare("SELECT SUM(amount) as total FROM expenses WHERE created_at >= ?").get(startTime);
+
+    // إذا كان المستخدم هو المدير العام، نجمع كل الأموال الخارجة بغض النظر عن الكاشير
+    if (cashierName === 'المدير العام' || cashierName === 'Super Admin' || cashierName === 'admin') {
+      paymentsRow = db.prepare("SELECT SUM(amount) as total FROM payments WHERE created_at >= ?").get(startTime);
+      advancesRow = db.prepare("SELECT SUM(amount) as total FROM advances WHERE created_at >= ?").get(startTime);
+    } else {
+      // إذا كان كاشير عادي، نجمع مبالغه هو فقط
+      paymentsRow = db.prepare("SELECT SUM(amount) as total FROM payments WHERE caisse_source = ? AND created_at >= ?").get(cashierName, startTime);
+      advancesRow = db.prepare("SELECT SUM(amount) as total FROM advances WHERE caisse_source = ? AND created_at >= ?").get(cashierName, startTime);
+    }
+
+    const totalExp = expensesRow.total || 0;
+    const totalPay = paymentsRow.total || 0;
+    const totalAdv = advancesRow.total || 0;
+
+    return {
+      success: true,
+      data: {
+        expenses: totalExp,
+        supplierPayments: totalPay,
+        advances: totalAdv,
+        totalOut: totalExp + totalPay + totalAdv
+      }
+    };
+  } catch (error) {
+    console.error("Database Error in getShiftSummary:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+
+
+function getUsers() {
+  return db.prepare("SELECT id, username, role FROM users").all();
+}
+
+
+function addUser(data) {
+  try {
+    const info = db.prepare("INSERT INTO users (username, password, role) VALUES (?, ?, ?)").run(data.username, data.password, data.role || 'cashier');
+    return { success: true, id: info.lastInsertRowid };
+  } catch (error) {
+    return { success: false, message: 'اسم المستخدم موجود بالفعل' };
+  }
+}
+
+
+
+function deleteUser(id) {
+  try {
+    // نمنع حذف حساب الأدمن الأساسي لحماية النظام
+    db.prepare("DELETE FROM users WHERE id = ? AND username != 'admin'").run(id);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+
+
+
+
 function addExpense(expense) {
   const stmt = db.prepare('INSERT INTO expenses (description, category, amount, date) VALUES (?, ?, ?, ?)');
   const date = expense.date || new Date().toISOString().split('T')[0];
   const info = stmt.run(expense.description, expense.category, expense.amount, date);
   return { success: true, id: info.lastInsertRowid };
 }
+
 function deleteExpense(id) { return { success: db.prepare('DELETE FROM expenses WHERE id = ?').run(id).changes > 0 }; }
+
 function updateExpense(id, expense) { return { success: db.prepare('UPDATE expenses SET description = ?, category = ?, amount = ? WHERE id = ?').run(expense.description, expense.category, expense.amount, id).changes > 0 }; }
+
 function verifyLogin(username, password) {
   try {
     const user = db.prepare("SELECT * FROM users WHERE username = ? AND password = ?").get(username, password);
@@ -109,11 +211,14 @@ function verifyLogin(username, password) {
     return { success: false, message: 'Invalid username or password' };
   } catch (error) { return { success: false, message: error.message }; }
 }
+
 function getEmployees() { return db.prepare('SELECT * FROM employees').all(); }
+
 function addEmployee(employeeData) {
   const info = db.prepare(`INSERT INTO employees (name, role, pin_code) VALUES (?, ?, ?)`).run(employeeData.name, employeeData.role, employeeData.pinCode);
   return db.prepare("SELECT * FROM employees WHERE id = ?").get(info.lastInsertRowid);
 }
+
 function handlePinEntry(pinCode) {
   const employee = db.prepare("SELECT * FROM employees WHERE pin_code = ?").get(pinCode);
   if (!employee) return { success: false, message: 'رمز PIN غير صحيح' };
@@ -130,6 +235,7 @@ function handlePinEntry(pinCode) {
     return { success: false, message: `الموظف ${employee.name} أتم تسجيل الحضور والانصراف اليوم` };
   }
 }
+
 function getTodayAttendance(date) { 
   return db.prepare(`
     SELECT a.*, e.name as employee_name, e.role 
@@ -139,12 +245,15 @@ function getTodayAttendance(date) {
     ORDER BY a.time_in DESC
   `).all(date); 
 }
+
 function getSuppliers() { return db.prepare("SELECT * FROM suppliers ORDER BY id DESC").all(); }
+
 function addSupplier(supplierData) {
   const status = supplierData.initialDebt > 0 ? 'indebted' : 'clear';
   const info = db.prepare(`INSERT INTO suppliers (name, phone, initial_debt, total_debt, status) VALUES (?, ?, ?, ?, ?)`).run(supplierData.name, supplierData.phone, supplierData.initialDebt, supplierData.initialDebt, status);
   return db.prepare("SELECT * FROM suppliers WHERE id = ?").get(info.lastInsertRowid);
 }
+
 function getSupplierDetails(supplierId) {
   const supplier = db.prepare('SELECT * FROM suppliers WHERE id = ?').get(supplierId);
   if (!supplier) return null;
@@ -153,8 +262,6 @@ function getSupplierDetails(supplierId) {
   return { ...supplier, receipts, payments };
 }
 
-
-// دالة حذف المهمة
 function deleteAgendaTask(id) {
   try {
     db.prepare("DELETE FROM agenda_tasks WHERE id = ?").run(id);
@@ -165,7 +272,6 @@ function deleteAgendaTask(id) {
   }
 }
 
-// دالة تأجيل المهمة
 function rescheduleAgendaTask(id, newDate) {
   try {
     db.prepare("UPDATE agenda_tasks SET task_date = ? WHERE id = ?").run(newDate, id);
@@ -183,10 +289,7 @@ const addReceipt = db.transaction((data) => {
     const date = data.date || new Date().toISOString().split('T')[0];
     const note = data.note || '';
 
-    // إدخال الفاتورة
     const info = db.prepare('INSERT INTO receipts (supplier_id, amount, date, note) VALUES (?, ?, ?, ?)').run(supplierId, amount, date, note);
-    
-    // التعديل هنا: استخدام علامات التنصيص المفردة 'indebted' بدلاً من المزدوجة
     db.prepare("UPDATE suppliers SET total_debt = total_debt + ?, status = 'indebted' WHERE id = ?").run(amount, supplierId);
     
     return info.lastInsertRowid;
@@ -194,7 +297,6 @@ const addReceipt = db.transaction((data) => {
     throw error; 
   }
 });
-
 
 const addPayment = db.transaction((data) => {
   try {
@@ -213,7 +315,6 @@ function getAdvances(employeeId) {
   return db.prepare("SELECT a.*, e.name as employee_name FROM advances a JOIN employees e ON a.employee_id = e.id ORDER BY a.date DESC").all();
 }
 
-// التعديل هنا: استقبال وتسجيل مصدر الكاشير للسلفة
 function addAdvance(data) {
   const info = db.prepare('INSERT INTO advances (employee_id, amount, date, caisse_source, note) VALUES (?, ?, ?, ?, ?)').run(data.employeeId, data.amount, data.date, data.caisseSource || 'Admin', data.note || '');
   return { success: true, id: info.lastInsertRowid };
@@ -249,10 +350,8 @@ function calculateEmployeePayroll(employeeId, startDate, endDate, hourlyRate) {
   };
 }
 
-
 const paySalary = db.transaction((data) => {
   try {
-    // 1. تنظيف وتحويل كل البيانات لضمان عدم وجود undefined
     const empId = Number(data.employeeId);
     const tHours = Number(data.totalHours) || 0;
     const hRate = Number(data.hourlyRate) || 0;
@@ -262,15 +361,12 @@ const paySalary = db.transaction((data) => {
     const eDate = data.endDate || '';
     const pDate = data.date || new Date().toISOString().split('T')[0];
 
-    // 2. إدخال سجل الراتب
     db.prepare(`INSERT INTO salaries (employee_id, start_date, end_date, total_hours, hourly_rate, total_advances, net_salary, payment_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
       empId, sDate, eDate, tHours, hRate, tAdvances, nSalary, pDate
     );
     
-    // 3. تحديث السلفيات لتصبح مدفوعة
     db.prepare(`UPDATE advances SET status = 'paid' WHERE employee_id = ? AND status = 'pending'`).run(empId);
     
-    // 4. معالجة الراتب (بالسالب أو الموجب)
     if (nSalary < 0) {
       const remainingDebt = Math.abs(nSalary);
       const rollNote = data.rolloverNote || `ترحيل ديون سلفيات (${sDate} إلى ${eDate})`;
@@ -285,14 +381,9 @@ const paySalary = db.transaction((data) => {
     }
     return { success: true };
   } catch (error) {
-    // إرجاع الخطأ الدقيق للواجهة لكي نعرف السبب الحقيقي
     return { success: false, error: error.message };
   }
 });
-
-
-
-// --- دوال الأجندة والتنبيهات ---
 
 function getAgendaTasks() {
   return db.prepare("SELECT * FROM agenda_tasks ORDER BY task_date ASC, task_time ASC").all();
@@ -332,7 +423,33 @@ function getDueThisWeek() {
   return result.total || 0;
 }
 
+function getDailySummary(date) {
+  try {
+    const expensesRow = db.prepare(`SELECT SUM(amount) as total FROM expenses WHERE date = ?`).get(date);
+    const totalExpenses = expensesRow.total || 0;
 
+    const paymentsRow = db.prepare(`SELECT SUM(amount) as total FROM payments WHERE date = ?`).get(date);
+    const totalPayments = paymentsRow.total || 0;
+
+    const advancesRow = db.prepare(`SELECT SUM(amount) as total FROM advances WHERE date = ?`).get(date);
+    const totalAdvances = advancesRow.total || 0;
+
+    const totalOut = totalExpenses + totalPayments + totalAdvances;
+
+    return {
+      success: true,
+      data: {
+        expenses: totalExpenses,
+        supplierPayments: totalPayments,
+        advances: totalAdvances,
+        totalOut: totalOut
+      }
+    };
+  } catch (error) {
+    console.error("Database Error in getDailySummary:", error);
+    return { success: false, error: error.message };
+  }
+}
 
 module.exports = {
   initDatabase, verifyLogin, getSuppliers, addSupplier, getEmployees, addEmployee, 
@@ -340,6 +457,6 @@ module.exports = {
   getSupplierDetails, addReceipt, addPayment, getAdvances, addAdvance, 
   getSalaries, calculateEmployeePayroll, paySalary,
   getAgendaTasks, addAgendaTask, toggleAgendaTaskStatus, getDueThisWeek , deleteAgendaTask,
-  rescheduleAgendaTask
-  // <-- تمت إضافتها هنا
+  rescheduleAgendaTask , getDailySummary,
+  openShift, getActiveShift, closeShift, getShiftSummary // دوال الورديات الجديدة المصدرة
 };

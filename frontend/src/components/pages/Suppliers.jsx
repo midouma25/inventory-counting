@@ -12,8 +12,8 @@ import {
   FileText, Banknote, ArrowUpRight, ArrowDownRight, MoreHorizontal, Calendar 
 } from 'lucide-react';
 
-import useSupplierStore from '../../../store/supplierStore';
-import useEmployeeStore from '../../../store/employeeStore'; 
+import useSupplierStore from '../../store/supplierStore';
+import useEmployeeStore from '../../store/employeeStore'; 
 import Modal from '../ui/Modal';
 
 export default function Suppliers() {

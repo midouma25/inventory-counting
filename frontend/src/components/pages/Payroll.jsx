@@ -5,8 +5,8 @@ import {
   MinusCircle, CheckCircle, Plus, AlertCircle, FileText
 } from 'lucide-react';
 
-import useEmployeeStore from '../../../store/employeeStore';
-import usePayrollStore from '../../../store/payrollStore';
+import useEmployeeStore from '../../store/employeeStore';
+import usePayrollStore from '../../store/payrollStore';
 import Modal from '../ui/Modal';
 
 export default function Payroll() {

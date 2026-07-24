@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Lock, User, AlertCircle, ShieldCheck } from 'lucide-react';
-import useAuthStore from '../../../store/authStore';
+import useAuthStore from '../../store/authStore';
 
 export default function Login() {
   const { t, i18n } = useTranslation();
