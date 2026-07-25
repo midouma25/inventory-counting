@@ -44,4 +44,16 @@ contextBridge.exposeInMainWorld('api', {
   getUsers: () => ipcRenderer.invoke('get-users'),
   addUser: (data) => ipcRenderer.invoke('add-user', data),
   deleteUser: (id) => ipcRenderer.invoke('delete-user', id),
+
+  updateEmployee: (id, data) => ipcRenderer.invoke('update-employee', id, data),
+  deleteEmployee: (id) => ipcRenderer.invoke('delete-employee', id),
+
+  getAuditLogs: () => ipcRenderer.invoke('get-audit-logs'),
+  deleteExpense: (id, username) => ipcRenderer.invoke('delete-expense', id, username),
+  
+  // Database Management
+  backupDatabase: () => ipcRenderer.invoke('backup-database'),
+  restoreDatabase: () => ipcRenderer.invoke('restore-database'),
+
+  
 });

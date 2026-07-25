@@ -60,7 +60,8 @@ export default function Expenses() {
     if (window.confirm(t('expenses.deleteConfirm'))) {
       try {
         if (window.api && window.api.deleteExpense) {
-          const result = await window.api.deleteExpense(id);
+          // قمنا بتمرير user?.username هنا لكي يتم تسجيله في قاعدة البيانات
+          const result = await window.api.deleteExpense(id, user?.username || 'Unknown');
           if (result && result.success) {
             setExpenses(prev => prev.filter(exp => !(exp.id === id && exp.source === 'expense')));
           }
@@ -70,7 +71,6 @@ export default function Expenses() {
       }
     }
   };
-
   // دالة تحديد اسم الكاشير (الدافع) بذكاء
   const getCaisseName = () => {
     if (user?.role === 'superadmin' || user?.username === 'admin') {

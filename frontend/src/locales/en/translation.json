@@ -59,6 +59,7 @@
     "lists": {
       "urgentAlerts": "Urgent Agenda Alerts",
       "recentAudit": "Recent Audit Logs",
+      "noAuditLogs": "No activities recorded yet.",
       "comingSoon": "Coming Soon",
       "auditDesc": "Will be activated later to monitor accountant activity",
       "inDevelopment": "In Development"
@@ -196,18 +197,31 @@
       },
       "status": {
         "active": "Active"
-      }
+      },
+      "actions": {
+        "edit": "Edit",
+        "delete": "Delete"
+      },
+      "deleteConfirm": "Are you sure you want to delete employee {{name}}?"
+    },
+    "roles": {
+      "cashier": "Cashier / Seller",
+      "scale": "Balance worker",
+      "stock": "Stock Merchandiser",
+      "admin": "Admin"
     },
     "dialog": {
       "title": "Add New Employee",
+      "editTitle": "Edit Employee Details",
       "desc": "Enter employee details and a unique PIN code.",
       "name": "Full Name",
       "namePlaceholder": "e.g. John Doe",
       "role": "Position",
-      "rolePlaceholder": "e.g. Cashier",
+      "rolePlaceholder": "-- Select Position --",
       "pin": "PIN Code",
       "cancel": "Cancel",
-      "save": "Save Employee"
+      "save": "Save Employee",
+      "saveChanges": "Save Changes"
     },
     "messages": {
       "checkIn": "Checked IN",
@@ -288,5 +302,61 @@
     "loading": "Authenticating...",
     "error": "Invalid username or password",
     "serverError": "Database connection error"
+  },
+  "settings": {
+    "title": "Users & Permissions",
+    "subtitle": "Add and manage system accounts (Cashier / Admin)",
+    "newUser": "New User",
+    "errorFillFields": "Please enter a username and password",
+    "username": "Username",
+    "usernamePlaceholder": "e.g. cashier1",
+    "password": "Password",
+    "passwordPlaceholder": "••••••••",
+    "role": "Role (Permission Level)",
+    "roleCashier": "Cashier (Limited Permissions)",
+    "roleAdmin": "Admin (Full Permissions)",
+    "addAccountBtn": "Add Account",
+    "table": {
+      "username": "Username",
+      "role": "Role",
+      "actions": "Actions"
+    },
+    "badges": {
+      "admin": "Super Admin",
+      "cashier": "Cashier"
+    },
+    "deleteAlert": "You cannot delete your current account or the main admin account.",
+    "deleteConfirm": "Are you sure you want to delete the account ({{name}})?",
+    "deleteTooltip": "Delete Account",
+    "noUsers": "No users found.",
+    "loading": "Loading...",
+    "accessDenied": "Sorry, you do not have permission to access this page.",
+    "addError": "Error adding user",
+    "deleteError": "Error deleting user"
+  },
+  "database": {
+    "title": "Database Management",
+    "backup": "Create Backup",
+    "restore": "Restore Data",
+    "backupDesc": "Save a copy of all system data (expenses, employees, settings) to an external file to prevent loss.",
+    "restoreDesc": "Restore system data from a previous backup file.",
+    "messages": {
+      "backupSuccess": "Backup saved successfully!",
+      "restoreSuccess": "Data restored successfully! The system will restart.",
+      "restoreConfirm": "WARNING: Restoring data will overwrite all current data. Are you sure?",
+      "error": "An error occurred during the process. Please try again."
+    }
+  },
+  "audit": {
+    "actions": {
+      "DELETE_EXPENSE": "Delete Expense",
+      "ADD_EXPENSE": "Add Expense",
+      "UPDATE_EXPENSE": "Update Expense"
+    },
+    "details": {
+      "ADD_EXPENSE": "Added expense: {{desc}} for {{amount}} DA",
+      "DELETE_EXPENSE": "Deleted expense: {{desc}} for {{amount}} DA",
+      "UPDATE_EXPENSE": "Updated expense: {{desc}}"
+    }
   }
 }

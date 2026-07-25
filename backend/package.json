@@ -30,7 +30,8 @@
     "asar": true
   },
   "dependencies": {
-    "better-sqlite3": "^12.11.1"
+    "better-sqlite3": "^12.11.1",
+    "exceljs": "^4.4.0"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.2.0",

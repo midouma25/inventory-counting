@@ -1,6 +1,8 @@
-const { app, BrowserWindow, ipcMain , Notification } = require('electron');
+const { app, BrowserWindow, ipcMain , Notification, dialog } = require('electron');
 const db = require('./database'); 
 const path = require('path');
+const fs = require('fs');
+
 const { 
   initDatabase, verifyLogin, getSuppliers, addSupplier, getEmployees, 
   addEmployee, handlePinEntry, getExpenses, addExpense, deleteExpense, 
@@ -8,8 +10,10 @@ const {
   getSupplierDetails, addReceipt, addPayment, getAdvances, addAdvance, 
   getSalaries, calculateEmployeePayroll, paySalary , getAgendaTasks, addAgendaTask, toggleAgendaTaskStatus, getDueThisWeek , deleteAgendaTask,
   rescheduleAgendaTask , getDailySummary,
-  openShift, getActiveShift, closeShift, getShiftSummary // الدوال الجديدة
+  openShift, getActiveShift, closeShift, getShiftSummary,
+  getUsers, addUser, deleteUser, updateEmployee, deleteEmployee ,logAudit , getAuditLogs, backupDatabase, generateExcelBackup // أضفنا هذه الدوال هنا
 } = require('./database');
+
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -45,7 +49,6 @@ function setupIpcHandlers() {
 
   ipcMain.handle('get-expenses', () => getExpenses());
   ipcMain.handle('add-expense', (event, data) => addExpense(data));
-  ipcMain.handle('delete-expense', (event, id) => deleteExpense(id));
   ipcMain.handle('update-expense', (event, data) => updateExpense(data.id, data.expense));
 
   ipcMain.handle('get-employees', () => getEmployees());
@@ -97,11 +100,21 @@ ipcMain.on('show-notification', (event, data) => {
   }
 });
 
-ipcMain.handle('get-users', () => db.getUsers());
-  ipcMain.handle('add-user', (event, data) => db.addUser(data));
-  ipcMain.handle('delete-user', (event, id) => db.deleteUser(id));
+ipcMain.handle('get-users', () => getUsers());
+  ipcMain.handle('add-user', (event, data) => addUser(data));
+  ipcMain.handle('delete-user', (event, id) => deleteUser(id));
 
+
+  ipcMain.handle('update-employee', (event, id, data) => updateEmployee(id, data));
+  ipcMain.handle('delete-employee', (event, id) => deleteEmployee(id));
+
+  ipcMain.handle('get-audit-logs', () => getAuditLogs());
+
+  ipcMain.handle('delete-expense', (event, id, username) => deleteExpense(id, username));
   
+  
+
+
 app.whenReady().then(() => {
   initDatabase();
   setupIpcHandlers();
@@ -110,6 +123,63 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
+
+ipcMain.handle('backup-database', async (event) => {
+  try {
+    const defaultName = `POS_Backup_${new Date().toISOString().split('T')[0]}`;
+    
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      title: 'حفظ النسخة الاحتياطية (قاعدة البيانات + تقرير الإكسيل)',
+      defaultPath: defaultName,
+      buttonLabel: 'حفظ (Save)'
+    });
+
+    if (canceled || !filePath) return { success: false, canceled: true };
+
+    // تنظيف المسار لضمان إنشاء ملفين بنفس الاسم
+    const basePath = filePath.replace(/\.[^/.]+$/, ""); 
+    const dbOutputPath = `${basePath}.db`;
+    const excelOutputPath = `${basePath}.xlsx`;
+
+    // 1. توليد نسخة قاعدة البيانات (الطريقة الآمنة المخصصة لـ SQLite)
+    await backupDatabase(dbOutputPath);
+
+    // 2. توليد وحفظ تقرير الإكسيل
+    await generateExcelBackup(excelOutputPath);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Backup Error:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+  // 2. استعادة البيانات
+  ipcMain.handle('restore-database', async () => {
+    const dbPath = path.join(app.getPath('userData'), 'pos_manager2.db');
+    
+    // فتح نافذة للمستخدم لاختيار ملف النسخة الاحتياطية
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      title: 'اختيار ملف النسخة الاحتياطية',
+      properties: ['openFile'],
+      filters: [{ name: 'SQLite Database', extensions: ['sqlite'] }]
+    });
+
+    if (canceled || filePaths.length === 0) return { success: false, canceled: true };
+
+    try {
+      const sourcePath = filePaths[0];
+      fs.copyFileSync(sourcePath, dbPath);
+      // يجب إعادة تشغيل التطبيق ليقرأ قاعدة البيانات الجديدة
+      app.relaunch();
+      app.exit(0);
+      return { success: true };
+    } catch (error) {
+      console.error('Restore Error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();

@@ -1,8 +1,8 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 const { app } = require('electron');
-
-const dbPath = path.join(app.getPath('userData'), 'pos_manager1.db');
+const ExcelJS = require('exceljs');
+const dbPath = path.join(app.getPath('userData'), 'pos_manager2.db');
 const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 
@@ -71,6 +71,17 @@ function initDatabase() {
       status TEXT DEFAULT 'open',
       note TEXT
     )`).run();
+    
+
+    db.prepare(`CREATE TABLE IF NOT EXISTS audit_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, 
+      username TEXT NOT NULL, 
+      action TEXT NOT NULL, 
+      details TEXT, 
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`).run();
+
+
 
     const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='shifts'").get();
     if (tableCheck) {
@@ -168,17 +179,40 @@ function getUsers() {
 }
 
 
+// دالة إضافة مستخدم (تلقائياً تضيفه كعامل في الموارد البشرية)
 function addUser(data) {
   try {
-    const info = db.prepare("INSERT INTO users (username, password, role) VALUES (?, ?, ?)").run(data.username, data.password, data.role || 'cashier');
-    return { success: true, id: info.lastInsertRowid };
+    // 1. التحقق مما إذا كان رقم السري (PIN) مستخدماً من قبل عامل آخر (لأنه يجب أن يكون فريداً)
+    const existingPin = db.prepare("SELECT * FROM employees WHERE pin_code = ?").get(data.password);
+    if (existingPin) {
+      return { success: false, message: 'The password (PIN) is already in use for another agent, please choose a different password.' };
+    }
+
+    // 2. استخدام Transaction لضمان إنشاء الحساب وملف العامل معاً
+    const insertTx = db.transaction(() => {
+      // إضافة حساب الدخول
+      const userStmt = db.prepare("INSERT INTO users (username, password, role) VALUES (?, ?, ?)");
+      const userInfo = userStmt.run(data.username, data.password, data.role || 'cashier');
+      
+      // إضافة ملف الموارد البشرية بنفس الاسم وكلمة المرور كـ PIN
+      const empStmt = db.prepare("INSERT INTO employees (name, role, pin_code) VALUES (?, ?, ?)");
+      empStmt.run(data.username, data.role || 'cashier', data.password);
+
+      return userInfo.lastInsertRowid;
+    });
+
+    const newId = insertTx();
+    return { success: true, id: newId };
   } catch (error) {
-    return { success: false, message: 'اسم المستخدم موجود بالفعل' };
+    if (error.message.includes('UNIQUE')) {
+      return { success: false, message: 'The username already exists' };
+    }
+    return { success: false, message: error.message };
   }
 }
 
 
-
+// دالة حذف مستخدم من النظام
 function deleteUser(id) {
   try {
     // نمنع حذف حساب الأدمن الأساسي لحماية النظام
@@ -191,12 +225,217 @@ function deleteUser(id) {
 
 
 
+// دالة تعديل بيانات عامل (جديدة)
+function updateEmployee(id, data) {
+  try {
+    db.prepare("UPDATE employees SET name = ?, role = ?, pin_code = ? WHERE id = ?")
+      .run(data.name, data.role, data.pinCode, id);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+// دالة حذف عامل (جديدة)
+function deleteEmployee(id) {
+  try {
+    db.prepare("DELETE FROM employees WHERE id = ?").run(id);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+
+// دالة توليد ملف الإكسيل الشامل (يحتوي على جميع جداول قاعدة البيانات)
+async function generateExcelBackup(outputPath) {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'POS Manager System';
+  workbook.created = new Date();
+
+  // 1. ورقة المصاريف (Expenses)
+  const expensesSheet = workbook.addWorksheet('المصاريف - Expenses');
+  expensesSheet.columns = [
+    { header: 'الرقم | ID', key: 'id', width: 10 },
+    { header: 'الوصف | Description', key: 'description', width: 35 },
+    { header: 'التصنيف | Category', key: 'category', width: 25 },
+    { header: 'المبلغ | Amount', key: 'amount', width: 15 },
+    { header: 'التاريخ | Date', key: 'date', width: 15 },
+    { header: 'تاريخ الإنشاء | Created At', key: 'created_at', width: 25 }
+  ];
+  expensesSheet.addRows(db.prepare('SELECT * FROM expenses').all());
+  expensesSheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  expensesSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0070C0' } }; // أزرق
+
+  // 2. ورقة الموردين (Suppliers)
+  const suppliersSheet = workbook.addWorksheet('الموردين - Suppliers');
+  suppliersSheet.columns = [
+    { header: 'الرقم | ID', key: 'id', width: 10 },
+    { header: 'الاسم | Name', key: 'name', width: 30 },
+    { header: 'الهاتف | Phone', key: 'phone', width: 20 },
+    { header: 'الدين الأولي | Initial Debt', key: 'initial_debt', width: 20 },
+    { header: 'الدين الإجمالي | Total Debt', key: 'total_debt', width: 20 },
+    { header: 'الحالة | Status', key: 'status', width: 15 },
+    { header: 'تاريخ الإنشاء | Created At', key: 'created_at', width: 25 }
+  ];
+  suppliersSheet.addRows(db.prepare('SELECT * FROM suppliers').all());
+  suppliersSheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  suppliersSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00B050' } }; // أخضر
+
+  // 3. ورقة فواتير الموردين (Receipts)
+  const receiptsSheet = workbook.addWorksheet('فواتير الموردين - Receipts');
+  receiptsSheet.columns = [
+    { header: 'الرقم | ID', key: 'id', width: 10 },
+    { header: 'رقم المورد | Supplier ID', key: 'supplier_id', width: 20 },
+    { header: 'المبلغ | Amount', key: 'amount', width: 15 },
+    { header: 'التاريخ | Date', key: 'date', width: 15 },
+    { header: 'ملاحظة | Note', key: 'note', width: 30 },
+    { header: 'تاريخ الإنشاء | Created At', key: 'created_at', width: 25 }
+  ];
+  receiptsSheet.addRows(db.prepare('SELECT * FROM receipts').all());
+  receiptsSheet.getRow(1).font = { bold: true };
+  receiptsSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF92D050' } }; // أخضر فاتح
+
+  // 4. ورقة مدفوعات الموردين (Supplier Payments)
+  const paymentsSheet = workbook.addWorksheet('مدفوعات الموردين - Payments');
+  paymentsSheet.columns = [
+    { header: 'الرقم | ID', key: 'id', width: 10 },
+    { header: 'رقم المورد | Supplier ID', key: 'supplier_id', width: 20 },
+    { header: 'المبلغ | Amount', key: 'amount', width: 15 },
+    { header: 'التاريخ | Date', key: 'date', width: 15 },
+    { header: 'المصدر | Caisse Source', key: 'caisse_source', width: 20 },
+    { header: 'ملاحظة | Note', key: 'note', width: 30 }
+  ];
+  paymentsSheet.addRows(db.prepare('SELECT * FROM payments').all());
+  paymentsSheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  paymentsSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF385D8A' } }; // أزرق داكن
+
+  // 5. ورقة العمال (Employees)
+  const employeesSheet = workbook.addWorksheet('العمال - Employees');
+  employeesSheet.columns = [
+    { header: 'الرقم | ID', key: 'id', width: 10 },
+    { header: 'الاسم | Name', key: 'name', width: 30 },
+    { header: 'المنصب | Role', key: 'role', width: 20 },
+    { header: 'الرمز السري | PIN', key: 'pin_code', width: 15 },
+    { header: 'الحالة | Status', key: 'status', width: 15 },
+    { header: 'تاريخ الإنشاء | Created At', key: 'created_at', width: 25 }
+  ];
+  employeesSheet.addRows(db.prepare('SELECT * FROM employees').all());
+  employeesSheet.getRow(1).font = { bold: true };
+  employeesSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFA500' } }; // برتقالي
+
+  // 6. ورقة الحضور (Attendance)
+  const attendanceSheet = workbook.addWorksheet('الحضور - Attendance');
+  attendanceSheet.columns = [
+    { header: 'الرقم | ID', key: 'id', width: 10 },
+    { header: 'رقم العامل | Employee ID', key: 'employee_id', width: 20 },
+    { header: 'التاريخ | Date', key: 'date', width: 15 },
+    { header: 'وقت الدخول | Time In', key: 'time_in', width: 15 },
+    { header: 'وقت الخروج | Time Out', key: 'time_out', width: 15 },
+    { header: 'الحالة | Status', key: 'status', width: 15 }
+  ];
+  attendanceSheet.addRows(db.prepare('SELECT * FROM attendance').all());
+  attendanceSheet.getRow(1).font = { bold: true };
+  attendanceSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFC000' } }; // أصفر
+
+  // 7. ورقة السلفيات (Advances)
+  const advancesSheet = workbook.addWorksheet('السلفيات - Advances');
+  advancesSheet.columns = [
+    { header: 'الرقم | ID', key: 'id', width: 10 },
+    { header: 'رقم العامل | Employee ID', key: 'employee_id', width: 20 },
+    { header: 'المبلغ | Amount', key: 'amount', width: 15 },
+    { header: 'التاريخ | Date', key: 'date', width: 15 },
+    { header: 'ملاحظة | Note', key: 'note', width: 30 },
+    { header: 'الحالة | Status', key: 'status', width: 15 }
+  ];
+  advancesSheet.addRows(db.prepare('SELECT * FROM advances').all());
+  advancesSheet.getRow(1).font = { bold: true };
+  advancesSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2EFDA' } }; 
+
+  // 8. ورقة الرواتب (Salaries)
+  const salariesSheet = workbook.addWorksheet('الرواتب - Salaries');
+  salariesSheet.columns = [
+    { header: 'الرقم | ID', key: 'id', width: 10 },
+    { header: 'رقم العامل | Emp ID', key: 'employee_id', width: 15 },
+    { header: 'من | Start Date', key: 'start_date', width: 15 },
+    { header: 'إلى | End Date', key: 'end_date', width: 15 },
+    { header: 'إجمالي الساعات | Total Hours', key: 'total_hours', width: 20 },
+    { header: 'سعر الساعة | Hourly Rate', key: 'hourly_rate', width: 20 },
+    { header: 'إجمالي السلف | Total Advances', key: 'total_advances', width: 25 },
+    { header: 'الصافي | Net Salary', key: 'net_salary', width: 20 },
+    { header: 'تاريخ الدفع | Payment Date', key: 'payment_date', width: 20 }
+  ];
+  salariesSheet.addRows(db.prepare('SELECT * FROM salaries').all());
+  salariesSheet.getRow(1).font = { bold: true };
+  salariesSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF4B084' } };
+
+  // 9. ورقة الورديات (Shifts)
+  const shiftsSheet = workbook.addWorksheet('الورديات - Shifts');
+  shiftsSheet.columns = [
+    { header: 'الرقم | ID', key: 'id', width: 10 },
+    { header: 'الكاشير | Cashier', key: 'cashier_name', width: 25 },
+    { header: 'الافتتاحي | Opening Balance', key: 'opening_balance', width: 25 },
+    { header: 'وقت البدء | Start Time', key: 'start_time', width: 25 },
+    { header: 'وقت الانتهاء | End Time', key: 'end_time', width: 25 },
+    { header: 'النقود الفعلية | Actual Cash', key: 'actual_cash', width: 20 },
+    { header: 'الفارق | Difference', key: 'difference', width: 15 },
+    { header: 'الحالة | Status', key: 'status', width: 15 }
+  ];
+  shiftsSheet.addRows(db.prepare('SELECT * FROM shifts').all());
+  shiftsSheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  shiftsSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF7030A0' } }; // بنفسجي
+
+  // 10. ورقة الأجندة (Agenda Tasks)
+  const agendaSheet = workbook.addWorksheet('الأجندة - Agenda');
+  agendaSheet.columns = [
+    { header: 'الرقم | ID', key: 'id', width: 10 },
+    { header: 'العنوان | Title', key: 'title', width: 30 },
+    { header: 'النوع | Type', key: 'type', width: 15 },
+    { header: 'المبلغ | Amount', key: 'amount', width: 15 },
+    { header: 'التاريخ | Date', key: 'task_date', width: 15 },
+    { header: 'الوقت | Time', key: 'task_time', width: 15 },
+    { header: 'الحالة | Status', key: 'status', width: 15 }
+  ];
+  agendaSheet.addRows(db.prepare('SELECT * FROM agenda_tasks').all());
+  agendaSheet.getRow(1).font = { bold: true };
+  agendaSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF66CC' } }; // وردي
+
+  // 11. ورقة حسابات الدخول (Users)
+  const usersSheet = workbook.addWorksheet('المستخدمين - Users');
+  usersSheet.columns = [
+    { header: 'الرقم | ID', key: 'id', width: 10 },
+    { header: 'اسم المستخدم | Username', key: 'username', width: 25 },
+    { header: 'كلمة المرور | Password', key: 'password', width: 25 },
+    { header: 'الصلاحية | Role', key: 'role', width: 20 }
+  ];
+  usersSheet.addRows(db.prepare('SELECT * FROM users').all());
+  usersSheet.getRow(1).font = { bold: true };
+  usersSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBFBFBF' } }; // رمادي
+
+  // 12. ورقة سجل الحركات (Audit Logs)
+  const auditSheet = workbook.addWorksheet('سجل الحركات - Audit Logs');
+  auditSheet.columns = [
+    { header: 'الرقم | ID', key: 'id', width: 10 },
+    { header: 'المستخدم | Username', key: 'username', width: 25 },
+    { header: 'الإجراء | Action', key: 'action', width: 25 },
+    { header: 'التفاصيل | Details', key: 'details', width: 50 },
+    { header: 'الوقت والتاريخ | Created At', key: 'created_at', width: 25 }
+  ];
+  auditSheet.addRows(db.prepare('SELECT * FROM audit_logs').all());
+  auditSheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  auditSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC00000' } }; // أحمر
+
+  // حفظ الملف الشامل
+  await workbook.xlsx.writeFile(outputPath);
+}
 
 
 function addExpense(expense) {
   const stmt = db.prepare('INSERT INTO expenses (description, category, amount, date) VALUES (?, ?, ?, ?)');
   const date = expense.date || new Date().toISOString().split('T')[0];
   const info = stmt.run(expense.description, expense.category, expense.amount, date);
+  const detailsObj = { desc: data.description, amount: data.amount };
+  logAudit(data.username || 'System', 'ADD_EXPENSE', JSON.stringify(detailsObj));
   return { success: true, id: info.lastInsertRowid };
 }
 
@@ -451,12 +690,54 @@ function getDailySummary(date) {
   }
 }
 
+
+// دالة لتسجيل أي حركة حساسة في النظام
+function logAudit(username, action, details) {
+  try {
+    db.prepare("INSERT INTO audit_logs (username, action, details) VALUES (?, ?, ?)")
+      .run(username, action, details || '');
+  } catch (error) {
+    console.error("Audit Log Error:", error);
+  }
+}
+
+// دالة لجلب آخر 100 حركة للسوبر أدمن
+function getAuditLogs() {
+  return db.prepare("SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 100").all();
+}
+
+function deleteExpense(id, username) { 
+  const expense = db.prepare('SELECT * FROM expenses WHERE id = ?').get(id);
+  if (expense) {
+    // نقوم بتخزين المتغيرات فقط في كائن JSON
+    const detailsObj = { desc: expense.description, amount: expense.amount };
+    logAudit(username || 'Unknown', 'DELETE_EXPENSE', JSON.stringify(detailsObj));
+  }
+  return { success: db.prepare('DELETE FROM expenses WHERE id = ?').run(id).changes > 0 }; 
+}
+
+// دالة النسخ الاحتياطي الآمن لقاعدة البيانات
+async function backupDatabase(destPath) {
+  try {
+    await db.backup(destPath);
+    return { success: true };
+  } catch (error) {
+    console.error('Error backing up database:', error);
+    throw error;
+  }
+}
+
+
 module.exports = {
   initDatabase, verifyLogin, getSuppliers, addSupplier, getEmployees, addEmployee, 
   handlePinEntry, getExpenses, addExpense, deleteExpense, updateExpense, getTodayAttendance,
   getSupplierDetails, addReceipt, addPayment, getAdvances, addAdvance, 
   getSalaries, calculateEmployeePayroll, paySalary,
-  getAgendaTasks, addAgendaTask, toggleAgendaTaskStatus, getDueThisWeek , deleteAgendaTask,
-  rescheduleAgendaTask , getDailySummary,
-  openShift, getActiveShift, closeShift, getShiftSummary // دوال الورديات الجديدة المصدرة
+  getAgendaTasks, addAgendaTask, toggleAgendaTaskStatus, getDueThisWeek, deleteAgendaTask,
+  rescheduleAgendaTask, getDailySummary,
+  openShift, getActiveShift, closeShift, getShiftSummary,
+  
+  getUsers, addUser, deleteUser,
+  
+  updateEmployee, deleteEmployee,logAudit, getAuditLogs, generateExcelBackup , backupDatabase
 };

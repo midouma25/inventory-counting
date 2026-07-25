@@ -35,6 +35,52 @@ const useExpenseStore = create((set) => ({
       console.error("Error adding expense:", err);
       return false;
     }
+  },
+  
+addEmployee: async (employeeData) => {
+    try {
+      if (window.api && window.api.addEmployee) {
+        await window.api.addEmployee(employeeData);
+        get().fetchEmployees(); // إعادة الجلب لتحديث القائمة
+        return true; 
+      }
+      return false;
+    } catch (error) {
+      set({ error: error.message });
+      return false; 
+    }
+  },
+
+  // الدالة الجديدة للتعديل
+  updateEmployee: async (id, employeeData) => {
+    try {
+      if (window.api && window.api.updateEmployee) {
+        const res = await window.api.updateEmployee(id, employeeData);
+        if (res.success) {
+          get().fetchEmployees();
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      return false;
+    }
+  },
+
+  // الدالة الجديدة للحذف
+  deleteEmployee: async (id) => {
+    try {
+      if (window.api && window.api.deleteEmployee) {
+        const res = await window.api.deleteEmployee(id);
+        if (res.success) {
+          get().fetchEmployees();
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      return false;
+    }
   }
 }));
 

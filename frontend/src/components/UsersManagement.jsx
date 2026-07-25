@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Shield, UserPlus, Trash2, Users, Key, AlertCircle } from 'lucide-react';
+import { Shield, UserPlus, Trash2, Users, Key, AlertCircle, Save, Upload } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 
-export default function Settings() {
-  const { t } = useTranslation();
+export default function UsersManagement() {
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.dir() === 'rtl';
   const currentUser = useAuthStore(state => state.user);
   
   const [users, setUsers] = useState([]);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('cashier'); // الافتراضي هو كاشير
+  const [role, setRole] = useState('cashier');
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -38,7 +39,7 @@ export default function Settings() {
     setError('');
     
     if (!username || !password) {
-      setError('يرجى إدخال اسم المستخدم وكلمة المرور');
+      setError(t('settings.errorFillFields'));
       return;
     }
 
@@ -51,28 +52,28 @@ export default function Settings() {
           setRole('cashier');
           fetchUsers();
         } else {
-          setError(res.message || 'حدث خطأ أثناء إضافة المستخدم');
+          setError(res.message || t('settings.addError'));
         }
       }
     } catch (err) {
-      setError('خطأ في الاتصال بقاعدة البيانات');
+      setError(t('settings.addError'));
     }
   };
 
   const handleDeleteUser = async (id, name) => {
     if (name === 'admin' || name === currentUser?.username) {
-      alert('لا يمكنك حذف حسابك الحالي أو حساب المدير الأساسي.');
+      alert(t('settings.deleteAlert'));
       return;
     }
     
-    if (window.confirm(`هل أنت متأكد من حذف حساب (${name})؟`)) {
+    if (window.confirm(t('settings.deleteConfirm', { name }))) {
       try {
         if (window.api && window.api.deleteUser) {
           const res = await window.api.deleteUser(id);
           if (res.success) {
             fetchUsers();
           } else {
-            alert(res.error || 'حدث خطأ أثناء الحذف');
+            alert(res.error || t('settings.deleteError'));
           }
         }
       } catch (err) {
@@ -81,22 +82,52 @@ export default function Settings() {
     }
   };
 
-  // حماية الصفحة: لا نسمح بدخول غير المدير
   if (currentUser?.role !== 'admin' && currentUser?.role !== 'superadmin') {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-950 text-red-500 text-xl font-bold gap-3">
-        <AlertCircle size={32} /> عذراً، ليس لديك صلاحية للوصول إلى هذه الصفحة.
+        <AlertCircle size={32} /> {t('settings.accessDenied')}
       </div>
     );
   }
+
+  const handleBackup = async () => {
+    try {
+      const result = await window.api.backupDatabase();
+      if (result.success) {
+        alert(t('database.messages.backupSuccess'));
+      } else if (!result.canceled) {
+        alert(t('database.messages.error') + "\n" + (result.error || ''));
+      }
+    } catch (error) {
+      console.error(error);
+      alert(t('database.messages.error'));
+    }
+  };
+
+  const handleRestore = async () => {
+    if (window.confirm(t('database.messages.restoreConfirm'))) {
+      try {
+        const result = await window.api.restoreDatabase();
+        if (result.success) {
+          alert(t('database.messages.restoreSuccess'));
+        } else if (!result.canceled) {
+          alert(t('database.messages.error') + "\n" + (result.error || ''));
+        }
+      } catch (error) {
+        console.error(error);
+        alert(t('database.messages.error'));
+      }
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
-          <Shield className="text-blue-500" /> إدارة الحسابات والصلاحيات
+          <Shield className="text-blue-500" /> {t('settings.title')}
         </h1>
-        <p className="text-slate-500">إضافة وتعديل حسابات النظام (كاشير / مدير)</p>
+        <p className="text-slate-500">{t('settings.subtitle')}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -105,77 +136,82 @@ export default function Settings() {
         <div className="lg:col-span-1">
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg">
             <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-              <UserPlus size={20} className="text-emerald-500" /> مستخدم جديد
+              <UserPlus size={20} className="text-emerald-500" /> {t('settings.newUser')}
             </h2>
             
             {error && (
-              <div className="bg-red-900/30 border border-red-500/50 text-red-400 p-3 rounded-lg mb-4 text-sm">
+              <div className="bg-red-900/30 border border-red-500/50 text-red-400 p-3 rounded-lg mb-4 text-sm text-start">
                 {error}
               </div>
             )}
 
-            <form onSubmit={handleAddUser} className="space-y-4">
+            <form onSubmit={handleAddUser} className="space-y-4 text-start">
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">اسم المستخدم</label>
+                <label className="block text-sm font-medium text-slate-400 mb-2">{t('settings.username')}</label>
                 <div className="relative">
                   <Users size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-500" />
                   <input 
                     type="text" 
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg py-3 ps-10 pe-4 text-white focus:outline-none focus:border-blue-500"
-                    placeholder="مثال: cashier1"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg py-3 ps-10 pe-4 text-white focus:outline-none focus:border-blue-500 text-start"
+                    placeholder={t('settings.usernamePlaceholder')}
+                    dir={isRTL ? "rtl" : "ltr"}
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">كلمة المرور</label>
+                <label className="block text-sm font-medium text-slate-400 mb-2">{t('settings.password')}</label>
                 <div className="relative">
                   <Key size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-500" />
                   <input 
                     type="password" 
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg py-3 ps-10 pe-4 text-white focus:outline-none focus:border-blue-500"
-                    placeholder="••••••••"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg py-3 ps-10 pe-4 text-white focus:outline-none focus:border-blue-500 text-start"
+                    placeholder={t('settings.passwordPlaceholder')}
+                    dir="ltr"
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">الصلاحية (الرتبة)</label>
+                <label className="block text-sm font-medium text-slate-400 mb-2">{t('settings.role')}</label>
                 <select 
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-blue-500"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-blue-500 text-start"
+                  dir={isRTL ? "rtl" : "ltr"}
                 >
-                  <option value="cashier">كاشير (صلاحيات محدودة)</option>
-                  <option value="admin">مدير (صلاحيات كاملة)</option>
+                  <option value="cashier">{t('settings.roleCashier')}</option>
+                  <option value="admin">{t('settings.roleAdmin')}</option>
                 </select>
               </div>
 
               <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors mt-4">
-                إضافة الحساب
+                {t('settings.addAccountBtn')}
               </button>
             </form>
           </div>
         </div>
+        
+
 
         {/* جدول المستخدمين */}
         <div className="lg:col-span-2">
           <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-lg overflow-hidden">
             {isLoading ? (
-              <div className="p-8 text-center text-slate-500">جاري التحميل...</div>
+              <div className="p-8 text-center text-slate-500">{t('settings.loading')}</div>
             ) : (
-              <table className="w-full text-sm text-left">
+              <table className="w-full text-sm text-start">
                 <thead className="text-xs text-slate-400 bg-slate-950/50 uppercase border-b border-slate-800">
                   <tr>
-                    <th className="px-6 py-4 text-start">اسم المستخدم</th>
-                    <th className="px-6 py-4 text-start">الرتبة</th>
-                    <th className="px-6 py-4 text-center">الإجراءات</th>
+                    <th className="px-6 py-4 text-start">{t('settings.table.username')}</th>
+                    <th className="px-6 py-4 text-start">{t('settings.table.role')}</th>
+                    <th className="px-6 py-4 text-center">{t('settings.table.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -185,13 +221,17 @@ export default function Settings() {
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${u.role === 'admin' ? 'bg-blue-900/50 text-blue-400' : 'bg-emerald-900/50 text-emerald-400'}`}>
                           {u.username.charAt(0).toUpperCase()}
                         </div>
-                        {u.username}
+                        <span dir="ltr">{u.username}</span>
                       </td>
                       <td className="px-6 py-4 text-start">
                         {u.role === 'admin' ? (
-                          <span className="bg-blue-500/10 text-blue-400 px-3 py-1 rounded-full text-xs font-medium border border-blue-500/20">مدير عام</span>
+                          <span className="bg-blue-500/10 text-blue-400 px-3 py-1 rounded-full text-xs font-medium border border-blue-500/20">
+                            {t('settings.badges.admin')}
+                          </span>
                         ) : (
-                          <span className="bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full text-xs font-medium border border-emerald-500/20">كاشير</span>
+                          <span className="bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full text-xs font-medium border border-emerald-500/20">
+                            {t('settings.badges.cashier')}
+                          </span>
                         )}
                       </td>
                       <td className="px-6 py-4 text-center">
@@ -199,7 +239,7 @@ export default function Settings() {
                           onClick={() => handleDeleteUser(u.id, u.username)}
                           disabled={u.username === 'admin' || u.username === currentUser?.username}
                           className="text-slate-500 hover:text-red-500 disabled:opacity-30 disabled:hover:text-slate-500 transition-colors"
-                          title="حذف الحساب"
+                          title={t('settings.deleteTooltip')}
                         >
                           <Trash2 size={18} className="mx-auto" />
                         </button>
@@ -208,7 +248,7 @@ export default function Settings() {
                   ))}
                   {users.length === 0 && (
                     <tr>
-                      <td colSpan="3" className="px-6 py-8 text-center text-slate-500">لا يوجد مستخدمين.</td>
+                      <td colSpan="3" className="px-6 py-8 text-center text-slate-500">{t('settings.noUsers')}</td>
                     </tr>
                   )}
                 </tbody>
@@ -217,6 +257,52 @@ export default function Settings() {
           </div>
         </div>
 
+        {/* قسم إدارة قاعدة البيانات والنسخ الاحتياطي */}
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 mt-6">
+          <h2 className="text-xl font-bold text-white mb-6 border-b border-slate-800 pb-4">
+            {t('database.title')}
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* بطاقة النسخ الاحتياطي */}
+            <div className="bg-slate-950/50 border border-slate-800 rounded-lg p-5 flex flex-col items-center text-center">
+              <div className="w-14 h-14 bg-blue-500/10 rounded-full flex items-center justify-center mb-4">
+                {/* استورد أيقونة Save من lucide-react */}
+                <Save className="text-blue-500" size={28} />
+              </div>
+              <h3 className="text-lg font-bold text-white mb-2">{t('database.backup')}</h3>
+              <p className="text-sm text-slate-400 mb-6 flex-1">
+                {t('database.backupDesc')}
+              </p>
+              <button 
+                onClick={handleBackup}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg transition-colors font-medium flex justify-center items-center gap-2"
+              >
+                <Save size={18} />
+                {t('database.backup')}
+              </button>
+            </div>
+
+            {/* بطاقة استعادة البيانات */}
+            <div className="bg-slate-950/50 border border-slate-800 rounded-lg p-5 flex flex-col items-center text-center">
+              <div className="w-14 h-14 bg-red-500/10 rounded-full flex items-center justify-center mb-4">
+                 {/* استورد أيقونة Upload من lucide-react */}
+                <Upload className="text-red-500" size={28} />
+              </div>
+              <h3 className="text-lg font-bold text-white mb-2">{t('database.restore')}</h3>
+              <p className="text-sm text-slate-400 mb-6 flex-1">
+                {t('database.restoreDesc')}
+              </p>
+              <button 
+                onClick={handleRestore}
+                className="w-full bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-lg transition-colors font-medium flex justify-center items-center gap-2"
+              >
+                <Upload size={18} />
+                {t('database.restore')}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

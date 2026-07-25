@@ -14,20 +14,23 @@ export default function Login() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async (e) => {
+const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
     try {
       if (window.api && window.api.login) {
-        const user = await window.api.login({ username, password });
+        // غيّرنا اسم المتغير إلى response ليكون أوضح
+        const response = await window.api.login({ username, password });
         
-        if (user) {
-          login(user);
+        // يجب أن نتحقق من response.success
+        if (response && response.success) {
+          login(response.user); // تمرير بيانات المستخدم فقط!
           navigate('/');
         } else {
-          setError(t('login.error'));
+          // عرض رسالة الخطأ القادمة من السيرفر أو الرسالة الافتراضية
+          setError(response.message || t('login.error'));
         }
       } else {
         if(username === 'admin' && password === 'admin123') {
@@ -44,6 +47,7 @@ export default function Login() {
     }
   };
 
+  
   const toggleLanguage = () => {
     const newLang = i18n.language.startsWith('en') ? 'ar' : 'en';
     i18n.changeLanguage(newLang);

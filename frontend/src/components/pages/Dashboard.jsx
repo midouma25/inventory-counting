@@ -4,6 +4,9 @@ import { TrendingUp, AlertCircle, Users, Wallet, Plus, ArrowLeft, ArrowRight } f
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import ExpensesPieChart from '../ExpensesPieChart';
+import useAuditStore from '../../store/auditStore';
+import { Activity } from 'lucide-react'; 
+
 
 export default function Dashboard() {
   const { t, i18n } = useTranslation();
@@ -19,6 +22,25 @@ export default function Dashboard() {
     dueThisWeek: 0,
   });
   
+const { logs, fetchLogs } = useAuditStore();
+
+  useEffect(() => {
+    fetchLogs(); // جلب السجل عند فتح لوحة القيادة
+  }, [fetchLogs]);
+
+// دالة لترجمة التفاصيل من JSON إلى نص مقروء
+  const renderAuditDetails = (log) => {
+    try {
+      // نحاول تحويل النص المحفوظ في القاعدة إلى كائن
+      const parsedDetails = JSON.parse(log.details);
+      // نمرر الكائن إلى i18n لتعويض المتغيرات {{desc}} و {{amount}}
+      return t(`audit.details.${log.action}`, parsedDetails);
+    } catch (e) {
+      // في حال كان النص قديماً وليس JSON، نعرضه كما هو
+      return log.details;
+    }
+  };
+
 
 useEffect(() => {
     const fetchAndNotifyUrgentData = async () => {
@@ -253,18 +275,28 @@ if (urgent.length > 0) {
           </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <h3 className="text-lg font-medium text-white mb-4">{t('dashboard.lists.recentAudit')} ({t('dashboard.lists.comingSoon')})</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center p-3 border border-slate-800 rounded-lg border-dashed">
-              <div>
-                <p className="text-sm font-medium text-slate-400">System Status</p>
-                <p className="text-xs text-slate-500">{t('dashboard.lists.auditDesc')}</p>
+<div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+            {logs.length === 0 ? (
+              <div className="text-center p-4 text-slate-500 text-sm border border-dashed border-slate-800 rounded-lg">
+                {t('dashboard.lists.noAuditLogs')}
               </div>
-              <span className="text-sm text-amber-400 border border-amber-900/50 bg-amber-950/30 px-2 py-1 rounded">{t('dashboard.lists.inDevelopment')}</span>
-            </div>
+            ) : (
+              logs.slice(0, 8).map(log => (
+                <div key={log.id} className="flex justify-between items-center p-3 border border-slate-800 rounded-lg bg-slate-950/50">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-slate-300">{renderAuditDetails(log)}</p>
+                    <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                      <span className="text-blue-400 font-bold">{log.username}</span> 
+                      • {new Date(log.created_at).toLocaleString(i18n.language, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
+                    </p>
+                  </div>
+                  <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded">
+                    {t(`audit.actions.${log.action}`, { defaultValue: log.action })}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
-        </div>
       </div>
 
     </div>
