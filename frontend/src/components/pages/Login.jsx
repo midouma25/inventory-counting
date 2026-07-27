@@ -21,21 +21,29 @@ const handleLogin = async (e) => {
 
     try {
       if (window.api && window.api.login) {
-        // غيّرنا اسم المتغير إلى response ليكون أوضح
         const response = await window.api.login({ username, password });
         
-        // يجب أن نتحقق من response.success
         if (response && response.success) {
-          login(response.user); // تمرير بيانات المستخدم فقط!
-          navigate('/');
+          login(response.user); // تسجيل بيانات المستخدم في حالة التطبيق (Zustand)
+          
+          // التوجيه الذكي بعد تسجيل الدخول بناءً على الصلاحية
+          if (response.user.role === 'admin' || response.user.role === 'superadmin') {
+            navigate('/'); // توجيه المدير إلى لوحة القيادة
+          } else {
+            navigate('/end-of-day'); // توجيه الكاشير إجبارياً إلى منصته
+          }
+          
         } else {
-          // عرض رسالة الخطأ القادمة من السيرفر أو الرسالة الافتراضية
           setError(response.message || t('login.error'));
         }
       } else {
+        // وضع الاختبار (Fallback)
         if(username === 'admin' && password === 'admin123') {
            login({ username: 'admin', role: 'superadmin' });
            navigate('/');
+        } else if (username === 'cashier' && password === '123') { // اختبار دخول كاشير
+           login({ username: 'cashier', role: 'cashier' });
+           navigate('/end-of-day');
         } else {
            setError(t('login.error'));
         }

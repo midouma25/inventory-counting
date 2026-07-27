@@ -358,5 +358,23 @@
       "DELETE_EXPENSE": "Deleted expense: {{desc}} for {{amount}} DA",
       "UPDATE_EXPENSE": "Updated expense: {{desc}}"
     }
+  },
+"print": {
+    "payslipTitle": "Payslip",
+    "receiptTicket": "Receipt Ticket",
+    "paymentTicket": "Payment Ticket",
+    "thankYou": "Thank you for your business",
+    "date": "Date",
+    "employeeName": "Employee Name",
+    "period": "Pay Period",
+    "description": "Note / Details",
+    "hours": "Hours",
+    "rate": "Rate/Hr",
+    "amount": "Total Amount",
+    "grossSalary": "Gross Salary",
+    "deductions": "Deductions (Advances)",
+    "netSalary": "Net Salary",
+    "employeeSignature": "Employee Signature",
+    "managerSignature": "Manager Signature"
   }
 }

@@ -358,5 +358,23 @@
       "DELETE_EXPENSE": "حذف مصروف: {{desc}} بقيمة {{amount}} د.ج",
       "UPDATE_EXPENSE": "تعديل مصروف: {{desc}}"
     }
+  },
+"print": {
+    "payslipTitle": "كشف راتب",
+    "receiptTicket": "وصل استلام بضاعة",
+    "paymentTicket": "وصل تسديد دفعة",
+    "thankYou": "شكراً لتعاملكم معنا",
+    "date": "التاريخ",
+    "employeeName": "اسم الموظف",
+    "period": "فترة العمل",
+    "description": "البيان / ملاحظة",
+    "hours": "الساعات",
+    "rate": "الأجر/ساعة",
+    "amount": "المبلغ الإجمالي",
+    "grossSalary": "الراتب الأساسي",
+    "deductions": "الخصومات (سلفيات)",
+    "netSalary": "الصافي للدفع",
+    "employeeSignature": "توقيع الموظف",
+    "managerSignature": "توقيع الإدارة"
   }
 }
