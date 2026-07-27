@@ -281,12 +281,32 @@ export default function Payroll() {
         </div>
       )}
 
-      {activeTab === 'salaries' && (
+{activeTab === 'salaries' && (
         <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
-          <div className="p-4 border-b border-slate-800 bg-slate-950/30">
-            <h3 className="font-bold text-white flex items-center gap-2"><FileText size={18} className="text-blue-400" /> {t('payroll.tabs.salaries')}</h3>
+          <div className="p-4 border-b border-slate-800 bg-slate-950/30 flex justify-between items-center">
+            <h3 className="font-bold text-white flex items-center gap-2">
+              <FileText size={18} className="text-blue-400" /> {t('payroll.tabs.salaries')}
+            </h3>
+            
+            {/* زر طباعة التقرير الشامل الجديد */}
+            <button 
+              onClick={() => {
+                if(salaries.length === 0) return alert('لا توجد رواتب لطباعتها!');
+                navigate('/preview', {
+                  state: {
+                    type: 'all-salaries',
+                    salaries: salaries
+                  }
+                });
+              }}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-md"
+            >
+              <Printer size={16} /> طباعة التقرير الشامل
+            </button>
           </div>
+          
           <div className="overflow-x-auto">
+             {/* بقية الجدول كما هو في الكود الأصلي الخاص بك */}
             <table className="w-full text-start border-collapse min-w-[800px]">
               <thead>
                 <tr className="border-b border-slate-800 bg-slate-950/80">

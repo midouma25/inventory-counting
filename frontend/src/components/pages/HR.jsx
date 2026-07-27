@@ -279,17 +279,22 @@ const HR = () => {
                         >
                           <Edit size={18} />
                         </button>
-                        <button 
-                          onClick={async () => {
-                            if(window.confirm(t('hr.employees.deleteConfirm', { name: emp.name }))) {
-                              await useEmployeeStore.getState().deleteEmployee(emp.id);
-                            }
-                          }} 
-                          className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors" 
-                          title={t('hr.employees.actions.delete')}
-                        >
-                          <Trash2 size={18} />
-                        </button>
+<button 
+  onClick={async () => {
+    if(window.confirm(t('hr.employees.deleteConfirm', { name: emp.name }))) {
+      const store = useEmployeeStore.getState();
+      if(store.deleteEmployee) {
+        await store.deleteEmployee(emp.id);
+      } else {
+        alert("دالة الحذف غير موجودة");
+      }
+    }
+  }} 
+  className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors" 
+  title={t('hr.employees.actions.delete', 'حذف')}
+>
+  <Trash2 size={18} />
+</button>
                       </td>
                     </tr>
                   ))
@@ -299,15 +304,17 @@ const HR = () => {
           </div>
 
           {/* نافذة إضافة / تعديل الموظف */}
+
           {isDialogOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
               <div className="bg-slate-950 border border-slate-800 rounded-xl w-full max-w-md p-6 shadow-2xl">
                 <div className="flex justify-between items-center mb-6">
                   <div>
+                    {/* إضافة الترجمة الافتراضية بالعربية هنا لحل مشكلة اللغة */}
                     <h2 className="text-xl font-bold text-white">
-                      {editingEmployee ? t('hr.dialog.editTitle') : t('hr.dialog.title')}
+                      {editingEmployee ? t('hr.dialog.editTitle', 'تعديل بيانات الموظف') : t('hr.dialog.title', 'إضافة موظف جديد')}
                     </h2>
-                    <p className="text-sm text-slate-400 mt-1">{t('hr.dialog.desc')}</p>
+                    <p className="text-sm text-slate-400 mt-1">{t('hr.dialog.desc', 'أدخل بيانات الموظف ورمز PIN السري')}</p>
                   </div>
                   <button onClick={() => setIsDialogOpen(false)} className="text-slate-500 hover:text-white"><X size={20}/></button>
                 </div>
@@ -316,30 +323,41 @@ const HR = () => {
                   onSubmit={async (e) => {
                     e.preventDefault();
                     if (!formData.name || !formData.pinCode) return;
+                    
+                    // استدعاء الدوال بشكل صحيح من الـ Store
+                    const store = useEmployeeStore.getState();
                     let success;
+                    
                     if (editingEmployee) {
-                       success = await useEmployeeStore.getState().updateEmployee(editingEmployee.id, formData);
+                       // في حالة التعديل
+                       if (store.updateEmployee) {
+                         success = await store.updateEmployee(editingEmployee.id, formData);
+                       } else {
+                         alert("حدث خطأ: دالة updateEmployee غير موجودة في employeeStore");
+                         return;
+                       }
                     } else {
-                       success = await addEmployee(formData);
+                       // في حالة الإضافة
+                       success = await store.addEmployee(formData);
                     }
 
                     if (success) {
                       setIsDialogOpen(false);
                       setFormData({ name: "", role: "", pinCode: "" });
                       setEditingEmployee(null);
+                      store.fetchEmployees(); // تحديث القائمة
                     } else {
-                      alert(t('hr.messages.error'));
+                      alert(t('hr.messages.error', 'حدث خطأ أثناء حفظ البيانات!'));
                     }
                   }} 
                   className="flex flex-col gap-4 text-start"
                 >
-                  {/* ... (نفس حقول الإدخال السابقة: الاسم، المنصب، رمز PIN) ... */}
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-1">{t('hr.dialog.name')}</label>
-                    <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 text-start" placeholder={t('hr.dialog.namePlaceholder')} dir={isRTL ? "rtl" : "ltr"} required />
+                    <label className="block text-sm font-medium text-slate-300 mb-1">{t('hr.dialog.name', 'الاسم الكامل')}</label>
+                    <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 text-start" placeholder={t('hr.dialog.namePlaceholder', 'اسم الموظف')} dir={isRTL ? "rtl" : "ltr"} required />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-1">{t('hr.dialog.role')}</label>
+                    <label className="block text-sm font-medium text-slate-300 mb-1">{t('hr.dialog.role', 'المنصب / الصلاحية')}</label>
                     <select 
                       value={formData.role} 
                       onChange={(e) => setFormData({...formData, role: e.target.value})} 
@@ -347,24 +365,24 @@ const HR = () => {
                       dir={isRTL ? "rtl" : "ltr"} 
                       required
                     >
-                      <option value="" disabled>{t('hr.dialog.rolePlaceholder')}</option>
-                      <option value="cashier">{t('hr.roles.cashier')}</option>
-                      <option value="scale">{t('hr.roles.scale')}</option>
-                      <option value="stock">{t('hr.roles.stock')}</option>
-                      <option value="admin">{t('hr.roles.admin')}</option>
+                      <option value="" disabled>{t('hr.dialog.rolePlaceholder', 'اختر المنصب')}</option>
+                      <option value="cashier">{t('hr.roles.cashier', 'كاشير (أمين صندوق)')}</option>
+                      <option value="scale">{t('hr.roles.scale', 'عامل ميزان')}</option>
+                      <option value="stock">{t('hr.roles.stock', 'عامل مخزن')}</option>
+                      <option value="admin">{t('hr.roles.admin', 'مدير')}</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-1">{t('hr.dialog.pin')}</label>
+                    <label className="block text-sm font-medium text-slate-300 mb-1">{t('hr.dialog.pin', 'الرقم السري (PIN)')}</label>
                     <input type="password" value={formData.pinCode} onChange={(e) => setFormData({...formData, pinCode: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 tracking-widest text-start" placeholder="****" required />
                   </div>
 
                   <div className="mt-6 flex justify-end gap-3">
                     <button type="button" onClick={() => setIsDialogOpen(false)} className="px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-800 transition-colors">
-                      {t('hr.dialog.cancel')}
+                      {t('hr.dialog.cancel', 'إلغاء')}
                     </button>
                     <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
-                      {editingEmployee ? t('hr.dialog.saveChanges') : t('hr.dialog.save')}
+                      {editingEmployee ? t('hr.dialog.saveChanges', 'حفظ التغييرات') : t('hr.dialog.save', 'إضافة الموظف')}
                     </button>
                   </div>
                 </form>

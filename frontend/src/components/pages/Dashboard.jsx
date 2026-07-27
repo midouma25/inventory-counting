@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { TrendingUp, AlertCircle, Users, Wallet, Plus, ArrowLeft, ArrowRight } from 'lucide-react';
+import { TrendingUp, AlertCircle, Users, Wallet, Plus, ArrowLeft, ArrowRight, Settings, Activity } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import ExpensesPieChart from '../ExpensesPieChart';
 import useAuditStore from '../../store/auditStore';
-import { Activity } from 'lucide-react'; 
-
+import Modal from '../ui/Modal'; // استيراد نافذة المودال
 
 export default function Dashboard() {
   const { t, i18n } = useTranslation();
@@ -22,32 +21,38 @@ export default function Dashboard() {
     dueThisWeek: 0,
   });
   
-const { logs, fetchLogs } = useAuditStore();
+  const { logs, fetchLogs } = useAuditStore();
 
   useEffect(() => {
-    fetchLogs(); // جلب السجل عند فتح لوحة القيادة
+    fetchLogs();
   }, [fetchLogs]);
 
-// دالة لترجمة التفاصيل من JSON إلى نص مقروء
   const renderAuditDetails = (log) => {
     try {
-      // نحاول تحويل النص المحفوظ في القاعدة إلى كائن
       const parsedDetails = JSON.parse(log.details);
-      // نمرر الكائن إلى i18n لتعويض المتغيرات {{desc}} و {{amount}}
       return t(`audit.details.${log.action}`, parsedDetails);
     } catch (e) {
-      // في حال كان النص قديماً وليس JSON، نعرضه كما هو
       return log.details;
     }
   };
 
+  // --- حالات إعدادات المحل ---
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [storeName, setStoreName] = useState(localStorage.getItem('storeName') || 'GHERBI.AI');
 
-useEffect(() => {
+  const handleSaveStoreName = (e) => {
+    e.preventDefault();
+    localStorage.setItem('storeName', storeName);
+    setIsSettingsOpen(false);
+    alert('تم حفظ اسم المحل بنجاح! سيظهر الآن في جميع المطبوعات.');
+  };
+  // -------------------------
+
+  useEffect(() => {
     const fetchAndNotifyUrgentData = async () => {
       try {
         if (window.api && window.api.getAgendaTasks) {
           const tasks = await window.api.getAgendaTasks();
-          
           const todayString = new Date().toISOString().split('T')[0];
           
           const urgent = tasks.filter(task => 
@@ -58,38 +63,29 @@ useEffect(() => {
           
           setUrgentTasks(urgent);
 
-if (urgent.length > 0) {
-  const hasNotified = sessionStorage.getItem('notified_urgent_tasks');
-  
-  if (!hasNotified && window.api.showNotification) {
-    // تجهيز النصوص صراحة لضمان عدم إرسال قيم فارغة
-    const notifTitle = t('dashboard.alerts.systemTitle') || 'تنبيهات عاجلة';
-    const notifBody = t('dashboard.alerts.urgentBody', { count: urgent.length }) || `لديك ${urgent.length} مهام متأخرة اليوم!`;
+          if (urgent.length > 0) {
+            const hasNotified = sessionStorage.getItem('notified_urgent_tasks');
+            if (!hasNotified && window.api.showNotification) {
+              const notifTitle = t('dashboard.alerts.systemTitle') || 'تنبيهات عاجلة';
+              const notifBody = t('dashboard.alerts.urgentBody', { count: urgent.length }) || `لديك ${urgent.length} مهام متأخرة اليوم!`;
 
-    window.api.showNotification({
-      title: String(notifTitle),
-      body: String(notifBody)
-    });
-    sessionStorage.setItem('notified_urgent_tasks', 'true');
-  }
-}
+              window.api.showNotification({ title: String(notifTitle), body: String(notifBody) });
+              sessionStorage.setItem('notified_urgent_tasks', 'true');
+            }
+          }
         }
       } catch (error) {
         console.error("Error fetching urgent tasks:", error);
       }
     };
-
     fetchAndNotifyUrgentData();
-  }, [t]); // أضفنا t كمراقب ليتحدث الإشعار إذا تغيرت اللغة
-
-
+  }, [t]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         if (window.api) {
           const todayString = new Date().toISOString().split('T')[0];
-          
           const [suppliers, expenses, attendance, dueAmount] = await Promise.all([
             window.api.getSuppliers(),
             window.api.getExpenses(),
@@ -98,7 +94,6 @@ if (urgent.length > 0) {
           ]);
 
           const totalDebts = suppliers.reduce((sum, s) => sum + (s.total_debt || s.totalDebt || 0), 0);
-          
           const topCreditors = [...suppliers]
             .filter(s => (s.total_debt || s.totalDebt || 0) > 0)
             .sort((a, b) => (b.total_debt || b.totalDebt || 0) - (a.total_debt || a.totalDebt || 0))
@@ -115,33 +110,20 @@ if (urgent.length > 0) {
              totalEmployees = empArray.length;
           }
 
-          setStats({
-            totalDebts,
-            totalExpenses,
-            presentEmployees,
-            totalEmployees,
-            topCreditors,
-            dueThisWeek: dueAmount || 0,
-          });
+          setStats({ totalDebts, totalExpenses, presentEmployees, totalEmployees, topCreditors, dueThisWeek: dueAmount || 0 });
         }
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
       }
     };
-
     fetchDashboardData();
   }, [t]);
 
   const customTooltipStyle = {
-    backgroundColor: '#0f172a',
-    borderColor: '#1e293b',
-    color: '#f8fafc',
-    borderRadius: '0.5rem',
-    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)'
+    backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc', borderRadius: '0.5rem', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)'
   };
 
   return (
-
     <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans">
       
       <div className="flex justify-between items-center mb-8">
@@ -149,13 +131,24 @@ if (urgent.length > 0) {
           <h1 className="text-3xl font-bold text-white">{t('dashboard.title')}</h1>
           <p className="text-sm text-slate-500 mt-1">{t('dashboard.subtitle')}</p>
         </div>
-        <button 
-          onClick={() => navigate('/expenses')}
-          className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-md font-medium hover:bg-slate-200 transition-colors"
-        >
-          <Plus size={18} />
-          <span>{t('dashboard.quickActionExpense')}</span>
-        </button>
+        <div className="flex items-center gap-3">
+          {/* زر إعدادات المحل */}
+          <button 
+            onClick={() => setIsSettingsOpen(true)}
+            className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-md font-medium hover:bg-slate-700 transition-colors"
+          >
+            <Settings size={18} />
+            <span>إعدادات النظام</span>
+          </button>
+          
+          <button 
+            onClick={() => navigate('/expenses')}
+            className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-md font-medium hover:bg-slate-200 transition-colors"
+          >
+            <Plus size={18} />
+            <span>{t('dashboard.quickActionExpense')}</span>
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -163,13 +156,9 @@ if (urgent.length > 0) {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-sm text-slate-400">{t('dashboard.kpi.totalDebts')}</p>
-              <h3 className="text-2xl font-bold text-white mt-1">
-                {stats.totalDebts.toLocaleString()} DA
-              </h3>
+              <h3 className="text-2xl font-bold text-white mt-1">{stats.totalDebts.toLocaleString()} DA</h3>
             </div>
-            <div className="p-2 bg-slate-800 rounded-lg text-slate-400">
-              <TrendingUp size={20} />
-            </div>
+            <div className="p-2 bg-slate-800 rounded-lg text-slate-400"><TrendingUp size={20} /></div>
           </div>
         </div>
 
@@ -177,13 +166,9 @@ if (urgent.length > 0) {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-sm text-slate-400">{t('dashboard.kpi.dueThisWeek')}</p>
-              <h3 className="text-2xl font-bold text-red-400 mt-1">
-                {stats.dueThisWeek.toLocaleString()} DA 
-              </h3>
+              <h3 className="text-2xl font-bold text-red-400 mt-1">{stats.dueThisWeek.toLocaleString()} DA</h3>
             </div>
-            <div className="p-2 bg-red-950/50 rounded-lg text-red-400">
-              <AlertCircle size={20} />
-            </div>
+            <div className="p-2 bg-red-950/50 rounded-lg text-red-400"><AlertCircle size={20} /></div>
           </div>
         </div>
 
@@ -191,13 +176,9 @@ if (urgent.length > 0) {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-sm text-slate-400">{t('dashboard.kpi.activeEmployees')}</p>
-              <h3 className="text-2xl font-bold text-white mt-1">
-                {stats.presentEmployees} / {stats.totalEmployees || 0}
-              </h3>
+              <h3 className="text-2xl font-bold text-white mt-1">{stats.presentEmployees} / {stats.totalEmployees || 0}</h3>
             </div>
-            <div className="p-2 bg-slate-800 rounded-lg text-slate-400">
-              <Users size={20} />
-            </div>
+            <div className="p-2 bg-slate-800 rounded-lg text-slate-400"><Users size={20} /></div>
           </div>
         </div>
 
@@ -205,13 +186,9 @@ if (urgent.length > 0) {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-sm text-slate-400">{t('dashboard.kpi.expenses')}</p>
-              <h3 className="text-2xl font-bold text-white mt-1">
-                {stats.totalExpenses.toLocaleString()} DA
-              </h3>
+              <h3 className="text-2xl font-bold text-white mt-1">{stats.totalExpenses.toLocaleString()} DA</h3>
             </div>
-            <div className="p-2 bg-slate-800 rounded-lg text-slate-400">
-              <Wallet size={20} />
-            </div>
+            <div className="p-2 bg-slate-800 rounded-lg text-slate-400"><Wallet size={20} /></div>
           </div>
         </div>
       </div>
@@ -231,32 +208,23 @@ if (urgent.length > 0) {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-slate-500">
-                {t('common.noResults')}
-              </div>
+              <div className="h-full flex items-center justify-center text-slate-500">{t('common.noResults')}</div>
             )}
           </div>
         </div>
 
         <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5 min-h-[300px] flex flex-col">
           <h3 className="text-lg font-medium text-white mb-2">{t('dashboard.charts.expensesDist')}</h3>
-          <div className="flex-1 w-full h-full relative">
-             <ExpensesPieChart />
-          </div>
+          <div className="flex-1 w-full h-full relative"><ExpensesPieChart /></div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <h3 className="text-lg font-bold text-white mb-4">
-            {t('dashboard.lists.urgentAlerts')}
-          </h3>
-          
+          <h3 className="text-lg font-bold text-white mb-4">{t('dashboard.lists.urgentAlerts')}</h3>
           <div className="space-y-3">
             {urgentTasks.length === 0 ? (
-              <p className="text-slate-500 text-sm">
-                {t('dashboard.alerts.noTasks')}
-              </p>
+              <p className="text-slate-500 text-sm">{t('dashboard.alerts.noTasks')}</p>
             ) : (
               urgentTasks.slice(0, 5).map(task => (
                 <div key={task.id} className="p-3 bg-red-950/20 border border-red-900/50 rounded-lg flex justify-between items-center">
@@ -264,40 +232,57 @@ if (urgent.length > 0) {
                     <p className="font-medium text-red-200 text-sm">{task.title}</p>
                     <p className="text-xs text-red-400 mt-1">{task.date || task.task_date}</p>
                   </div>
-                  {task.amount > 0 && (
-                    <span className="font-bold text-slate-300 text-sm">
-                      {task.amount.toLocaleString()} DA
-                    </span>
-                  )}
+                  {task.amount > 0 && <span className="font-bold text-slate-300 text-sm">{task.amount.toLocaleString()} DA</span>}
                 </div>
               ))
             )}
           </div>
         </div>
 
-<div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
-            {logs.length === 0 ? (
-              <div className="text-center p-4 text-slate-500 text-sm border border-dashed border-slate-800 rounded-lg">
-                {t('dashboard.lists.noAuditLogs')}
-              </div>
-            ) : (
-              logs.slice(0, 8).map(log => (
-                <div key={log.id} className="flex justify-between items-center p-3 border border-slate-800 rounded-lg bg-slate-950/50">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-slate-300">{renderAuditDetails(log)}</p>
-                    <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-                      <span className="text-blue-400 font-bold">{log.username}</span> 
-                      • {new Date(log.created_at).toLocaleString(i18n.language, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
-                    </p>
-                  </div>
-                  <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded">
-                    {t(`audit.actions.${log.action}`, { defaultValue: log.action })}
-                  </span>
+        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+          {logs.length === 0 ? (
+            <div className="text-center p-4 text-slate-500 text-sm border border-dashed border-slate-800 rounded-lg">
+              {t('dashboard.lists.noAuditLogs')}
+            </div>
+          ) : (
+            logs.slice(0, 8).map(log => (
+              <div key={log.id} className="flex justify-between items-center p-3 border border-slate-800 rounded-lg bg-slate-950/50">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-slate-300">{renderAuditDetails(log)}</p>
+                  <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                    <span className="text-blue-400 font-bold">{log.username}</span> 
+                    • {new Date(log.created_at).toLocaleString(i18n.language, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
+                  </p>
                 </div>
-              ))
-            )}
-          </div>
+                <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded">
+                  {t(`audit.actions.${log.action}`, { defaultValue: log.action })}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
       </div>
+
+      {/* نافذة تغيير الاسم */}
+      <Modal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} title="إعدادات النظام والطباعة">
+        <form onSubmit={handleSaveStoreName} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-400 mb-2">اسم المحل (يظهر بجانب علامتنا التجارية في المطبوعات)</label>
+            <input 
+              type="text" 
+              value={storeName} 
+              onChange={e => setStoreName(e.target.value)} 
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500" 
+              placeholder="مثال: سوبر ماركت الهدى"
+              required
+            />
+          </div>
+          <div className="flex justify-end gap-3 mt-6">
+            <button type="button" onClick={() => setIsSettingsOpen(false)} className="px-4 py-2 text-slate-300 hover:bg-slate-800 rounded-lg">إلغاء</button>
+            <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold">حفظ التغييرات</button>
+          </div>
+        </form>
+      </Modal>
 
     </div>
   );

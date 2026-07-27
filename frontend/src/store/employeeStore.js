@@ -18,7 +18,41 @@ const useEmployeeStore = create((set) => ({
       set({ error: error.message, isLoading: false });
     }
   },
+ 
+  // أضف هذه الدوال داخل الـ store إذا لم تكن موجودة
+  updateEmployee: async (id, updatedData) => {
+    try {
+      // نفترض أن لديك دالة في الـ backend باسم updateEmployee
+      const success = await window.api.updateEmployee(id, updatedData);
+      if (success) {
+        set((state) => ({
+          employees: state.employees.map((emp) => (emp.id === id ? { ...emp, ...updatedData } : emp)),
+        }));
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error updating employee:", error);
+      return false;
+    }
+  },
 
+  deleteEmployee: async (id) => {
+    try {
+      // نفترض أن لديك دالة في الـ backend باسم deleteEmployee
+      const success = await window.api.deleteEmployee(id);
+      if (success) {
+        set((state) => ({ employees: state.employees.filter((emp) => emp.id !== id) }));
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error deleting employee:", error);
+      return false;
+    }
+  },
+
+  
   addEmployee: async (employeeData) => {
     try {
       if (window.api && window.api.addEmployee) {

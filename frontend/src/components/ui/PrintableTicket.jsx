@@ -4,22 +4,30 @@ import { useTranslation } from 'react-i18next';
 export default function PrintableTicket({ data }) {
   const { t, i18n } = useTranslation();
   
+  // قراءة اسم المحل
+  const currentStoreName = localStorage.getItem('storeName') || 'GHERBI.AI';
+  
   if (!data) return null;
 
   const { type, item, supplierName } = data;
   const isReceipt = type === 'receipt';
 
   return (
-    // أضفنا print:shadow-none و print:border-none لتنظيفها وقت الطباعة
     <div className="w-[80mm] mx-auto bg-white text-black p-4 font-sans text-sm shadow-2xl border border-gray-300 print:shadow-none print:border-none print:m-0" dir={i18n.dir()}>
       
+      {/* الترويسة المزدوجة */}
       <div className="text-center border-b-2 border-black pb-4 mb-4 border-dashed">
         <h1 className="text-3xl font-extrabold tracking-widest text-black">
           GHERBI.AI
         </h1>
-        <p className="text-[10px] mt-1 tracking-widest uppercase font-bold">
+        <p className="text-[10px] mt-1 tracking-widest uppercase font-bold text-gray-600">
           Code • Multimedia • Algo
         </p>
+        
+        {/* اسم محل العميل */}
+        <div className="mt-3 pt-3 border-t border-gray-300 border-dashed">
+          <h2 className="text-xl font-bold text-black">{currentStoreName}</h2>
+        </div>
       </div>
 
       <div className="text-center mb-4">
@@ -62,7 +70,7 @@ export default function PrintableTicket({ data }) {
       <div className="mt-8 text-center">
         <p className="font-bold mb-6 text-xs">{t('print.managerSignature', 'توقيع الإدارة')}</p>
         <p>_______________________</p>
-        <p className="text-xs font-bold mt-2 uppercase">Gherbi Mohamed Cherif</p>
+        <p className="text-xs font-bold mt-2 uppercase">Dev: Gherbi Mohamed Cherif</p>
         <p className="text-[10px] mt-4 border-t border-black pt-2 border-dashed">
           {t('print.thankYou', 'شكراً لتعاملكم معنا')}
         </p>
