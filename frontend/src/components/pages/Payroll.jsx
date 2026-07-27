@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom'; // إضافة استيراد useNavigate
 import { 
   Calculator, Banknote, Clock, Users, Calendar, 
-  MinusCircle, CheckCircle, Plus, AlertCircle, FileText, Printer
+  MinusCircle, CheckCircle, Plus, AlertCircle, FileText, Printer, Eye
 } from 'lucide-react';
 
 import useEmployeeStore from '../../store/employeeStore';
 import usePayrollStore from '../../store/payrollStore';
 import Modal from '../ui/Modal';
-import PrintablePayslip from '../ui/PrintableTicket';
 
 export default function Payroll() {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.dir() === 'rtl';
+  const navigate = useNavigate(); // تهيئة دالة الانتقال
 
   const [activeTab, setActiveTab] = useState('calculator');
 
@@ -101,10 +102,32 @@ export default function Payroll() {
     }
   };
 
+  // --- دالة الانتقال إلى صفحة المعاينة الذكية ---
+  const handlePrintPayslip = () => {
+    if (!payrollResult) return;
+    
+    const employeeData = employees.find(e => e.id === Number(selectedEmployee));
+    
+    navigate('/preview', {
+      state: {
+        type: 'payslip', // لتتعرف عليها صفحة المعاينة ككشف راتب A4
+        employeeName: employeeData?.name || '',
+        period: `${startDate} - ${endDate}`,
+        date: today.toISOString().split('T')[0],
+        hours: payrollResult.totalHours,
+        rate: hourlyRate,
+        grossSalary: payrollResult.grossSalary,
+        deductions: payrollResult.totalAdvances,
+        netSalary: payrollResult.netSalary
+      }
+    });
+  };
+  // ---------------------------------------------
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans flex flex-col gap-6">
       
-      <div className="flex justify-between items-end print:hidden">
+      <div className="flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-bold text-white flex items-center gap-3 mb-2">
             <Banknote className="text-emerald-500" />
@@ -114,7 +137,7 @@ export default function Payroll() {
         </div>
       </div>
 
-      <div className="flex bg-slate-900 border border-slate-800 rounded-lg w-fit p-1 overflow-x-auto print:hidden">
+      <div className="flex bg-slate-900 border border-slate-800 rounded-lg w-fit p-1 overflow-x-auto">
         <button onClick={() => setActiveTab('calculator')} className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-medium transition-colors whitespace-nowrap ${activeTab === 'calculator' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
           <Calculator size={18} /> {t('payroll.tabs.calculator')}
         </button>
@@ -127,9 +150,9 @@ export default function Payroll() {
       </div>
 
       {activeTab === 'calculator' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:block">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg h-fit print:hidden">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg h-fit">
             <h2 className="text-xl font-bold text-white mb-6">{t('payroll.calculator')}</h2>
             <form onSubmit={handleCalculate} className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
@@ -160,7 +183,7 @@ export default function Payroll() {
           </div>
 
           {payrollResult && (
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg border-t-4 border-t-emerald-500 animate-in fade-in h-fit print:hidden">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg border-t-4 border-t-emerald-500 animate-in fade-in h-fit">
               <h2 className="text-xl font-bold text-white mb-6">{t('payroll.results')}</h2>
               <div className="grid grid-cols-2 gap-4 mb-8">
                 <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 text-center">
@@ -198,30 +221,23 @@ export default function Payroll() {
                   {payrollResult.netSalary < 0 ? t('payroll.rolloverBtn') : t('payroll.payBtn')}
                 </button>
 
+                {/* استبدال زر الطباعة المباشرة بزر الانتقال لصفحة المعاينة */}
                 <button 
-                  onClick={() => window.print()} 
+                  onClick={handlePrintPayslip} 
                   className="bg-slate-800 hover:bg-slate-700 text-white py-4 px-6 rounded-lg font-bold transition-colors flex items-center justify-center gap-2"
+                  title="معاينة كشف الراتب للطباعة"
                 >
-                  <Printer size={24} />
+                  <Eye size={24} />
                 </button>
               </div>
             </div>
-          )}
-          
-          {/* المكون الخاص بالطباعة يظهر فقط عند الضغط على زر الطباعة */}
-          {payrollResult && (
-            <PrintablePayslip 
-              result={{...payrollResult, date: today.toISOString().split('T')[0]}} 
-              employeeName={employees.find(e => e.id === Number(selectedEmployee))?.name} 
-            />
           )}
 
         </div>
       )}
 
-      {/* باقي التبويبات (Advances و Salaries) مخفية في وضع الطباعة */}
       {activeTab === 'advances' && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg print:hidden">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
           <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/30">
             <h3 className="font-bold text-white flex items-center gap-2"><MinusCircle size={18} className="text-red-400" /> {t('payroll.tabs.advances')}</h3>
             <button onClick={() => setIsAdvanceModalOpen(true)} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-md transition-colors">
@@ -266,7 +282,7 @@ export default function Payroll() {
       )}
 
       {activeTab === 'salaries' && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg print:hidden">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
           <div className="p-4 border-b border-slate-800 bg-slate-950/30">
             <h3 className="font-bold text-white flex items-center gap-2"><FileText size={18} className="text-blue-400" /> {t('payroll.tabs.salaries')}</h3>
           </div>
