@@ -52,7 +52,7 @@ export default function Suppliers() {
     fetchEmployees(); 
   }, [fetchSuppliers, fetchEmployees]);
 
-  
+
   // دالة فتح المعاينة بدلاً من الطباعة المباشرة
   const handlePreview = (type, item) => {
     // الانتقال للصفحة الجديدة وتمرير البيانات في الـ state
@@ -339,8 +339,46 @@ export default function Suppliers() {
             </div>
           </form>
         </Modal>
+        
 
-        {/* ... بقية النوافذ مثل Schedule Modal تبقى كما هي ... */}
+<Modal isOpen={isScheduleModalOpen} onClose={() => setIsScheduleModalOpen(false)} title={t('suppliers.modal.scheduleTitle', 'جدولة دفعة قادمة')}>
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            try {
+               await window.api.addAgendaTask({
+                 title: t('agenda.scheduledPaymentDesc', { name: currentSupplier.name, amount: scheduleData.amount, date: scheduleData.date }) || `تسديد دفعة لمورد: ${currentSupplier.name}`,
+                 type: 'payment',
+                 date: scheduleData.date,
+                 time: scheduleData.time,
+                 amount: Number(scheduleData.amount)
+               });
+               setIsScheduleModalOpen(false);
+               alert(t('common.success'));
+            } catch(error) {
+               console.error(error);
+            }
+          }} className="space-y-4 text-start">
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.amount')} (DA)</label>
+              <input type="number" required value={scheduleData.amount} onChange={e => setScheduleData({...scheduleData, amount: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-start" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.date')}</label>
+              <input type="date" required value={scheduleData.date} onChange={e => setScheduleData({...scheduleData, date: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-start" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.time', 'الوقت')} ({t('common.optional', 'اختياري')})</label>
+              <input type="time" value={scheduleData.time} onChange={e => setScheduleData({...scheduleData, time: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-start" />
+            </div>
+            <div className="pt-4 flex justify-end gap-3 mt-6">
+              <button type="button" onClick={() => setIsScheduleModalOpen(false)} className="px-4 py-2 text-slate-300 hover:bg-slate-800 rounded-lg">{t('common.cancel')}</button>
+              <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">{t('suppliers.modal.confirmScheduleBtn', 'تأكيد الجدولة')}</button>
+            </div>
+          </form>
+        </Modal>
+
+
+       
 
       </div>
     );

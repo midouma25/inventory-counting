@@ -133,14 +133,15 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-3">
           {/* زر إعدادات المحل */}
+{/* زر إعدادات المحل */}
           <button 
             onClick={() => setIsSettingsOpen(true)}
             className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-md font-medium hover:bg-slate-700 transition-colors"
           >
             <Settings size={18} />
-            <span>إعدادات النظام</span>
+            <span>{t('sidebar.settings')}</span>
           </button>
-          
+
           <button 
             onClick={() => navigate('/expenses')}
             className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-md font-medium hover:bg-slate-200 transition-colors"
@@ -263,23 +264,29 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* نافذة تغيير الاسم */}
-      <Modal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} title="إعدادات النظام والطباعة">
-        <form onSubmit={handleSaveStoreName} className="space-y-4">
+{/* نافذة تغيير الاسم */}
+      <Modal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} title={t('settings.modal.title', 'إعدادات النظام والطباعة')}>
+        <form onSubmit={handleSaveStoreName} className="space-y-4 text-start">
           <div>
-            <label className="block text-sm font-medium text-slate-400 mb-2">اسم المحل (يظهر بجانب علامتنا التجارية في المطبوعات)</label>
+            <label className="block text-sm font-medium text-slate-400 mb-2">
+               {t('settings.modal.storeNameLabel', 'اسم المحل (يظهر بجانب علامتنا التجارية في المطبوعات)')}
+            </label>
             <input 
               type="text" 
               value={storeName} 
               onChange={e => setStoreName(e.target.value)} 
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500" 
-              placeholder="مثال: سوبر ماركت الهدى"
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 text-start" 
+              placeholder={t('settings.modal.storeNamePlaceholder', 'مثال: سوبر ماركت الهدى')}
               required
             />
           </div>
           <div className="flex justify-end gap-3 mt-6">
-            <button type="button" onClick={() => setIsSettingsOpen(false)} className="px-4 py-2 text-slate-300 hover:bg-slate-800 rounded-lg">إلغاء</button>
-            <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold">حفظ التغييرات</button>
+            <button type="button" onClick={() => setIsSettingsOpen(false)} className="px-4 py-2 text-slate-300 hover:bg-slate-800 rounded-lg">
+               {t('common.cancel', 'إلغاء')}
+            </button>
+            <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold">
+               {t('settings.modal.saveBtn', 'حفظ التغييرات')}
+            </button>
           </div>
         </form>
       </Modal>

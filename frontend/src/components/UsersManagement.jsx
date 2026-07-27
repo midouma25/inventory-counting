@@ -30,55 +30,41 @@ export default function UsersManagement() {
     }
   };
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  useEffect(() => { fetchUsers(); }, []);
 
   const handleAddUser = async (e) => {
     e.preventDefault();
     setError('');
-    
-    if (!username || !password) {
-      setError(t('settings.errorFillFields'));
-      return;
-    }
-
+    if (!username || !password) { setError(t('settings.errorFillFields')); return; }
     try {
       if (window.api && window.api.addUser) {
         const res = await window.api.addUser({ username, password, role });
         if (res.success) {
-          setUsername('');
-          setPassword('');
-          setRole('cashier');
+          setUsername(''); setPassword(''); setRole('cashier');
           fetchUsers();
         } else {
           setError(res.message || t('settings.addError'));
         }
       }
-    } catch (err) {
-      setError(t('settings.addError'));
-    }
+    } catch (err) { setError(t('settings.addError')); }
   };
 
   const handleDeleteUser = async (id, name) => {
     if (name === 'admin' || name === currentUser?.username) {
-      alert(t('settings.deleteAlert'));
-      return;
+      alert(t('settings.deleteAlert')); return;
     }
-    
     if (window.confirm(t('settings.deleteConfirm', { name }))) {
       try {
         if (window.api && window.api.deleteUser) {
           const res = await window.api.deleteUser(id);
           if (res.success) {
+            if (res.isSoftDeleted) {
+                alert(t('hr.employees.softDeleted', 'تم تعطيل الحساب بنجاح، لا يمكن حذفه نهائياً لوجود سجلات مالية لحمايتها.'));
+            }
             fetchUsers();
-          } else {
-            alert(res.error || t('settings.deleteError'));
-          }
+          } else { alert(res.error || t('settings.deleteError')); }
         }
-      } catch (err) {
-        console.error(err);
-      }
+      } catch (err) { console.error(err); }
     }
   };
 
@@ -93,33 +79,20 @@ export default function UsersManagement() {
   const handleBackup = async () => {
     try {
       const result = await window.api.backupDatabase();
-      if (result.success) {
-        alert(t('database.messages.backupSuccess'));
-      } else if (!result.canceled) {
-        alert(t('database.messages.error') + "\n" + (result.error || ''));
-      }
-    } catch (error) {
-      console.error(error);
-      alert(t('database.messages.error'));
-    }
+      if (result.success) { alert(t('database.messages.backupSuccess')); } 
+      else if (!result.canceled) { alert(t('database.messages.error') + "\n" + (result.error || '')); }
+    } catch (error) { alert(t('database.messages.error')); }
   };
 
   const handleRestore = async () => {
     if (window.confirm(t('database.messages.restoreConfirm'))) {
       try {
         const result = await window.api.restoreDatabase();
-        if (result.success) {
-          alert(t('database.messages.restoreSuccess'));
-        } else if (!result.canceled) {
-          alert(t('database.messages.error') + "\n" + (result.error || ''));
-        }
-      } catch (error) {
-        console.error(error);
-        alert(t('database.messages.error'));
-      }
+        if (result.success) { alert(t('database.messages.restoreSuccess')); } 
+        else if (!result.canceled) { alert(t('database.messages.error') + "\n" + (result.error || '')); }
+      } catch (error) { alert(t('database.messages.error')); }
     }
   };
-
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans">
@@ -132,33 +105,19 @@ export default function UsersManagement() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* فورم إضافة مستخدم جديد */}
         <div className="lg:col-span-1">
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg">
             <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
               <UserPlus size={20} className="text-emerald-500" /> {t('settings.newUser')}
             </h2>
-            
-            {error && (
-              <div className="bg-red-900/30 border border-red-500/50 text-red-400 p-3 rounded-lg mb-4 text-sm text-start">
-                {error}
-              </div>
-            )}
+            {error && <div className="bg-red-900/30 border border-red-500/50 text-red-400 p-3 rounded-lg mb-4 text-sm text-start">{error}</div>}
 
             <form onSubmit={handleAddUser} className="space-y-4 text-start">
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-2">{t('settings.username')}</label>
                 <div className="relative">
                   <Users size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                  <input 
-                    type="text" 
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg py-3 ps-10 pe-4 text-white focus:outline-none focus:border-blue-500 text-start"
-                    placeholder={t('settings.usernamePlaceholder')}
-                    dir={isRTL ? "rtl" : "ltr"}
-                    required
-                  />
+                  <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg py-3 ps-10 pe-4 text-white focus:outline-none focus:border-blue-500 text-start" required />
                 </div>
               </div>
 
@@ -166,28 +125,17 @@ export default function UsersManagement() {
                 <label className="block text-sm font-medium text-slate-400 mb-2">{t('settings.password')}</label>
                 <div className="relative">
                   <Key size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                  <input 
-                    type="password" 
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg py-3 ps-10 pe-4 text-white focus:outline-none focus:border-blue-500 text-start"
-                    placeholder={t('settings.passwordPlaceholder')}
-                    dir="ltr"
-                    required
-                  />
+                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg py-3 ps-10 pe-4 text-white focus:outline-none focus:border-blue-500 text-start" dir="ltr" required />
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-2">{t('settings.role')}</label>
-                <select 
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-blue-500 text-start"
-                  dir={isRTL ? "rtl" : "ltr"}
-                >
-                  <option value="cashier">{t('settings.roleCashier')}</option>
-                  <option value="admin">{t('settings.roleAdmin')}</option>
+                <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-blue-500 text-start" dir={isRTL ? "rtl" : "ltr"}>
+                  <option value="cashier">{t('hr.roles.cashier', 'بائع (كاشير)')}</option>
+                  <option value="scale">{t('hr.roles.scale', 'عامل ميزان')}</option>
+                  <option value="stock">{t('hr.roles.stock', 'ترتيبات')}</option>
+                  <option value="admin">{t('hr.roles.admin', 'مدير عام')}</option>
                 </select>
               </div>
 
@@ -197,10 +145,7 @@ export default function UsersManagement() {
             </form>
           </div>
         </div>
-        
 
-
-        {/* جدول المستخدمين */}
         <div className="lg:col-span-2">
           <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-lg overflow-hidden">
             {isLoading ? (
@@ -218,21 +163,15 @@ export default function UsersManagement() {
                   {users.map((u) => (
                     <tr key={u.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
                       <td className="px-6 py-4 font-medium text-white text-start flex items-center gap-2">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${u.role === 'admin' ? 'bg-blue-900/50 text-blue-400' : 'bg-emerald-900/50 text-emerald-400'}`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${u.role === 'admin' || u.role === 'superadmin' ? 'bg-blue-900/50 text-blue-400' : 'bg-emerald-900/50 text-emerald-400'}`}>
                           {u.username.charAt(0).toUpperCase()}
                         </div>
                         <span dir="ltr">{u.username}</span>
                       </td>
                       <td className="px-6 py-4 text-start">
-                        {u.role === 'admin' ? (
-                          <span className="bg-blue-500/10 text-blue-400 px-3 py-1 rounded-full text-xs font-medium border border-blue-500/20">
-                            {t('settings.badges.admin')}
+                         <span className="bg-slate-800 text-slate-300 px-3 py-1 rounded-full text-xs font-medium border border-slate-700">
+                            {t(`hr.roles.${u.role}`, u.role)}
                           </span>
-                        ) : (
-                          <span className="bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full text-xs font-medium border border-emerald-500/20">
-                            {t('settings.badges.cashier')}
-                          </span>
-                        )}
                       </td>
                       <td className="px-6 py-4 text-center">
                         <button 
@@ -247,9 +186,7 @@ export default function UsersManagement() {
                     </tr>
                   ))}
                   {users.length === 0 && (
-                    <tr>
-                      <td colSpan="3" className="px-6 py-8 text-center text-slate-500">{t('settings.noUsers')}</td>
-                    </tr>
+                    <tr><td colSpan="3" className="px-6 py-8 text-center text-slate-500">{t('settings.noUsers')}</td></tr>
                   )}
                 </tbody>
               </table>
@@ -264,41 +201,20 @@ export default function UsersManagement() {
           </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* بطاقة النسخ الاحتياطي */}
             <div className="bg-slate-950/50 border border-slate-800 rounded-lg p-5 flex flex-col items-center text-center">
-              <div className="w-14 h-14 bg-blue-500/10 rounded-full flex items-center justify-center mb-4">
-                {/* استورد أيقونة Save من lucide-react */}
-                <Save className="text-blue-500" size={28} />
-              </div>
+              <div className="w-14 h-14 bg-blue-500/10 rounded-full flex items-center justify-center mb-4"><Save className="text-blue-500" size={28} /></div>
               <h3 className="text-lg font-bold text-white mb-2">{t('database.backup')}</h3>
-              <p className="text-sm text-slate-400 mb-6 flex-1">
-                {t('database.backupDesc')}
-              </p>
-              <button 
-                onClick={handleBackup}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg transition-colors font-medium flex justify-center items-center gap-2"
-              >
-                <Save size={18} />
-                {t('database.backup')}
+              <p className="text-sm text-slate-400 mb-6 flex-1">{t('database.backupDesc')}</p>
+              <button onClick={handleBackup} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg transition-colors font-medium flex justify-center items-center gap-2">
+                <Save size={18} />{t('database.backup')}
               </button>
             </div>
-
-            {/* بطاقة استعادة البيانات */}
             <div className="bg-slate-950/50 border border-slate-800 rounded-lg p-5 flex flex-col items-center text-center">
-              <div className="w-14 h-14 bg-red-500/10 rounded-full flex items-center justify-center mb-4">
-                 {/* استورد أيقونة Upload من lucide-react */}
-                <Upload className="text-red-500" size={28} />
-              </div>
+              <div className="w-14 h-14 bg-red-500/10 rounded-full flex items-center justify-center mb-4"><Upload className="text-red-500" size={28} /></div>
               <h3 className="text-lg font-bold text-white mb-2">{t('database.restore')}</h3>
-              <p className="text-sm text-slate-400 mb-6 flex-1">
-                {t('database.restoreDesc')}
-              </p>
-              <button 
-                onClick={handleRestore}
-                className="w-full bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-lg transition-colors font-medium flex justify-center items-center gap-2"
-              >
-                <Upload size={18} />
-                {t('database.restore')}
+              <p className="text-sm text-slate-400 mb-6 flex-1">{t('database.restoreDesc')}</p>
+              <button onClick={handleRestore} className="w-full bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-lg transition-colors font-medium flex justify-center items-center gap-2">
+                <Upload size={18} />{t('database.restore')}
               </button>
             </div>
           </div>

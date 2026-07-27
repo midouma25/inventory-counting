@@ -10,14 +10,13 @@ const HR = () => {
   const isRTL = i18n.dir() === 'rtl';
   const [activeTab, setActiveTab] = useState('attendance');
   const [editingEmployee, setEditingEmployee] = useState(null);
-  // --- حالة الموظفين ---
+  
   const { employees, fetchEmployees, addEmployee, isLoading: empLoading } = useEmployeeStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({ name: "", role: "", pinCode: "" });
  
-  // --- حالة الحضور ---
-  const { todayRecords, fetchTodayRecords, submitPin, isLoading: attLoading } = useAttendanceStore();
+  const { submitPin, isLoading: attLoading } = useAttendanceStore();
   const [pinInput, setPinInput] = useState("");
   const [feedback, setFeedback] = useState(null);
   const inputRef = useRef(null);
@@ -26,7 +25,6 @@ const HR = () => {
   const [attendanceDate, setAttendanceDate] = useState(today);
   const [attendanceRecords, setAttendanceRecords] = useState([]);
 
-  // دالة لجلب الحضور حسب التاريخ المختار لجدول العرض
   const fetchAttendanceForDate = async (date) => {
     try {
       const data = await window.api.getTodayAttendance(date);
@@ -40,27 +38,14 @@ const HR = () => {
     fetchAttendanceForDate(attendanceDate);
   }, [attendanceDate]);
 
+  // إصلاح مشكلة التجميد (حذفنا المتغيرات من المصفوفة لمنع الـ Infinite Loop)
   useEffect(() => {
     fetchEmployees();
-    fetchTodayRecords(); // من أجل إحصائيات اليوم (KPIs)
-  }, [fetchEmployees, fetchTodayRecords]);
+  }, []);
 
   const filteredEmployees = employees.filter((emp) =>
     emp.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  const handleAddEmployee = async (e) => {
-    e.preventDefault();
-    if (!formData.name || !formData.pinCode) return;
-    const success = await addEmployee(formData);
-    if (success) {
-      setIsDialogOpen(false);
-      setFormData({ name: "", role: "", pinCode: "" });
-      fetchEmployees();
-    } else {
-      alert(t('hr.messages.error'));
-    }
-  };
 
   const handleAttendanceSubmit = async (e) => {
     e.preventDefault();
@@ -71,7 +56,6 @@ const HR = () => {
     if (result && result.success) {
        const actionText = result.action === 'check_in' ? t('hr.messages.checkIn') : t('hr.messages.checkOut');
        setFeedback({ type: 'success', message: `${actionText}: ${result.employeeName}` });
-       fetchTodayRecords(); // تحديث إحصائيات اليوم
        fetchAttendanceForDate(attendanceDate); // تحديث الجدول فوراً
     } else if (result) {
        setFeedback({ type: 'error', message: result.message });
@@ -82,13 +66,12 @@ const HR = () => {
     setTimeout(() => setFeedback(null), 4000);
   };
 
-  const presentCount = todayRecords.filter(r => !r.time_out).length;
-  const absentCount = employees.length - presentCount > 0 ? employees.length - presentCount : 0;
+  // إصلاح حساب عدد الحاضرين والغياب بناءً على تاريخ الجدول الحالي
+  const presentCount = attendanceRecords.filter(r => !r.time_out).length;
+  const absentCount = Math.max(0, employees.length - attendanceRecords.length);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-6 font-sans flex flex-col gap-6">
-      
-      {/* الترويسة العلوية */}
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">{t('hr.title')}</h1>
@@ -96,25 +79,15 @@ const HR = () => {
         </div>
       </div>
 
-      {/* التبويبات */}
       <div className="flex bg-slate-900 border border-slate-800 rounded-lg w-fit p-1">
-        <button 
-          onClick={() => setActiveTab('attendance')}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-medium transition-colors ${activeTab === 'attendance' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
-        >
-          <ScanLine size={18} />
-          {t('hr.tabs.attendance')}
+        <button onClick={() => setActiveTab('attendance')} className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-medium transition-colors ${activeTab === 'attendance' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
+          <ScanLine size={18} /> {t('hr.tabs.attendance')}
         </button>
-        <button 
-          onClick={() => setActiveTab('employees')}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-medium transition-colors ${activeTab === 'employees' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
-        >
-          <Users size={18} />
-          {t('hr.tabs.employees')}
+        <button onClick={() => setActiveTab('employees')} className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-medium transition-colors ${activeTab === 'employees' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
+          <Users size={18} /> {t('hr.tabs.employees')}
         </button>
       </div>
 
-      {/* تبويب الحضور */}
       {activeTab === 'attendance' && (
         <div className="flex flex-col lg:flex-row gap-6 w-full lg:h-[calc(100vh-220px)]">
           <div className="w-full lg:w-1/3 flex flex-col gap-6">
@@ -124,25 +97,10 @@ const HR = () => {
                 <h3 className="text-xl font-bold">{t('hr.scanner.title')}</h3>
               </div>
               <form onSubmit={handleAttendanceSubmit} className="flex flex-col gap-4">
-                <input
-                  ref={inputRef}
-                  type="password"
-                  placeholder={t('hr.scanner.placeholder')}
-                  value={pinInput}
-                  onChange={(e) => setPinInput(e.target.value)}
-                  className="w-full text-center text-xl py-6 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500 tracking-widest"
-                  autoFocus
-                />
-                <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white text-lg py-4 rounded-lg font-medium transition-colors">
-                  {t('hr.scanner.submit')}
-                </button>
+                <input ref={inputRef} type="password" placeholder={t('hr.scanner.placeholder')} value={pinInput} onChange={(e) => setPinInput(e.target.value)} className="w-full text-center text-xl py-6 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500 tracking-widest" autoFocus />
+                <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white text-lg py-4 rounded-lg font-medium transition-colors">{t('hr.scanner.submit')}</button>
               </form>
-              
-              {feedback && (
-                <div className={`mt-4 p-3 rounded-lg text-sm text-center border ${feedback.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
-                  {feedback.message}
-                </div>
-              )}
+              {feedback && <div className={`mt-4 p-3 rounded-lg text-sm text-center border ${feedback.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>{feedback.message}</div>}
             </div>
 
             <div className="flex gap-4">
@@ -159,20 +117,11 @@ const HR = () => {
             </div>
           </div>
 
-          {/* سجل الحضور بالتواريخ */}
           <div className="w-full lg:w-2/3 bg-slate-900/50 rounded-xl border border-slate-800 flex flex-col overflow-hidden shadow-lg">
             <div className="p-4 border-b border-slate-800 bg-slate-900 flex justify-between items-center">
-              <h3 className="font-bold flex items-center gap-2">
-                <Clock className="w-5 h-5 text-blue-400" /> {t('hr.attendanceLog')}
-              </h3>
-              <input 
-                type="date" 
-                value={attendanceDate}
-                onChange={(e) => setAttendanceDate(e.target.value)}
-                className="bg-slate-950 border border-slate-700 text-white px-4 py-2 rounded-lg text-sm focus:outline-none focus:border-blue-500"
-              />
+              <h3 className="font-bold flex items-center gap-2"><Clock className="w-5 h-5 text-blue-400" /> {t('hr.attendanceLog')}</h3>
+              <input type="date" value={attendanceDate} onChange={(e) => setAttendanceDate(e.target.value)} className="bg-slate-950 border border-slate-700 text-white px-4 py-2 rounded-lg text-sm focus:outline-none focus:border-blue-500" />
             </div>
-            
             <div className="flex-1 overflow-auto">
               <table className="w-full text-start border-collapse">
                 <thead>
@@ -193,7 +142,7 @@ const HR = () => {
                       <tr key={record.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
                         <td className="px-6 py-4 font-medium text-start text-white">
                           {record.employee_name || record.name} 
-                          {record.role && <span className="text-xs text-slate-500 ml-2">({record.role})</span>}
+                          {record.role && <span className="text-xs text-slate-500 mx-2">({t(`hr.roles.${record.role}`, record.role)})</span>}
                         </td>
                         <td className="px-6 py-4 text-center text-emerald-400 font-medium">{record.time_in || '--:--'}</td>
                         <td className="px-6 py-4 text-center text-orange-400 font-medium">{record.time_out || '--:--'}</td>
@@ -212,33 +161,15 @@ const HR = () => {
         </div>
       )}
 
-    
-{/* تبويب الموظفين */}
       {activeTab === 'employees' && (
         <div className="flex flex-col gap-6">
           <div className="flex justify-between items-center bg-slate-900/50 p-4 rounded-xl border border-slate-800 shadow-lg">
-            <button 
-              onClick={() => {
-                setFormData({ name: "", role: "", pinCode: "" });
-                setEditingEmployee(null); // تأكد من إضافة هذا الـ state: const [editingEmployee, setEditingEmployee] = useState(null);
-                setIsDialogOpen(true);
-              }}
-              className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 px-4 py-2.5 rounded-lg font-medium transition-colors"
-            >
-              <Plus size={18} />
-              {t('hr.employees.addBtn')}
+            <button onClick={() => { setFormData({ name: "", role: "", pinCode: "" }); setEditingEmployee(null); setIsDialogOpen(true); }} className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 px-4 py-2.5 rounded-lg font-medium transition-colors">
+              <Plus size={18} /> {t('hr.employees.addBtn')}
             </button>
-            
             <div className="relative w-1/3 text-start">
               <Search size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-500" />
-              <input
-                type="text"
-                placeholder={t('hr.employees.search')}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg ps-10 pe-4 py-2.5 text-white focus:outline-none focus:border-blue-500 text-start"
-                dir={isRTL ? "rtl" : "ltr"}
-              />
+              <input type="text" placeholder={t('hr.employees.search')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg ps-10 pe-4 py-2.5 text-white focus:outline-none focus:border-blue-500 text-start" dir={isRTL ? "rtl" : "ltr"} />
             </div>
           </div>
 
@@ -261,40 +192,24 @@ const HR = () => {
                   filteredEmployees.map((emp) => (
                     <tr key={emp.id} className="border-b border-slate-800/50 hover:bg-slate-800/20">
                       <td className="px-6 py-4 font-medium text-start text-white">{emp.name}</td>
-                      <td className="px-6 py-4 text-slate-400 text-start">
-  {t(`hr.roles.${emp.role}`, { defaultValue: emp.role })}
-</td>
+                      <td className="px-6 py-4 text-slate-400 text-start">{t(`hr.roles.${emp.role}`, { defaultValue: emp.role })}</td>
                       <td className="px-6 py-4 text-center">
                         <span className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{t('hr.employees.status.active')}</span>
                       </td>
                       <td className="px-6 py-4 text-center flex justify-center gap-2">
-                        <button 
-                          onClick={() => {
-                            setFormData({ name: emp.name, role: emp.role, pinCode: emp.pin_code });
-                            setEditingEmployee(emp);
-                            setIsDialogOpen(true);
-                          }} 
-                          className="p-2 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" 
-                          title={t('hr.employees.actions.edit')}
-                        >
-                          <Edit size={18} />
-                        </button>
-<button 
-  onClick={async () => {
-    if(window.confirm(t('hr.employees.deleteConfirm', { name: emp.name }))) {
-      const store = useEmployeeStore.getState();
-      if(store.deleteEmployee) {
-        await store.deleteEmployee(emp.id);
-      } else {
-        alert("دالة الحذف غير موجودة");
-      }
-    }
-  }} 
-  className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors" 
-  title={t('hr.employees.actions.delete', 'حذف')}
->
-  <Trash2 size={18} />
-</button>
+                        <button onClick={() => { setFormData({ name: emp.name, role: emp.role, pinCode: emp.pin_code }); setEditingEmployee(emp); setIsDialogOpen(true); }} className="p-2 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" title={t('hr.employees.actions.edit')}><Edit size={18} /></button>
+                        <button onClick={async () => {
+                          if(window.confirm(t('hr.employees.deleteConfirm', { name: emp.name }))) {
+                            const store = useEmployeeStore.getState();
+                            try {
+                              const res = await window.api.deleteEmployee(emp.id);
+                              if(res && res.success) {
+                                if (res.isSoftDeleted) alert(t('hr.employees.softDeleted', 'تم تعطيل الحساب، لا يمكن حذفه نهائياً لوجود سجلات مالية لحمايتها.'));
+                                store.fetchEmployees();
+                              } else alert(t('common.error'));
+                            } catch(e) { console.error(e); }
+                          }
+                        }} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors" title={t('hr.employees.actions.delete')}><Trash2 size={18} /></button>
                       </td>
                     </tr>
                   ))
@@ -303,87 +218,51 @@ const HR = () => {
             </table>
           </div>
 
-          {/* نافذة إضافة / تعديل الموظف */}
-
           {isDialogOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
               <div className="bg-slate-950 border border-slate-800 rounded-xl w-full max-w-md p-6 shadow-2xl">
                 <div className="flex justify-between items-center mb-6">
                   <div>
-                    {/* إضافة الترجمة الافتراضية بالعربية هنا لحل مشكلة اللغة */}
-                    <h2 className="text-xl font-bold text-white">
-                      {editingEmployee ? t('hr.dialog.editTitle', 'تعديل بيانات الموظف') : t('hr.dialog.title', 'إضافة موظف جديد')}
-                    </h2>
-                    <p className="text-sm text-slate-400 mt-1">{t('hr.dialog.desc', 'أدخل بيانات الموظف ورمز PIN السري')}</p>
+                    <h2 className="text-xl font-bold text-white">{editingEmployee ? t('hr.dialog.editTitle') : t('hr.dialog.title')}</h2>
+                    <p className="text-sm text-slate-400 mt-1">{t('hr.dialog.desc')}</p>
                   </div>
                   <button onClick={() => setIsDialogOpen(false)} className="text-slate-500 hover:text-white"><X size={20}/></button>
                 </div>
                 
-                <form 
-                  onSubmit={async (e) => {
+                <form onSubmit={async (e) => {
                     e.preventDefault();
                     if (!formData.name || !formData.pinCode) return;
-                    
-                    // استدعاء الدوال بشكل صحيح من الـ Store
                     const store = useEmployeeStore.getState();
                     let success;
-                    
                     if (editingEmployee) {
-                       // في حالة التعديل
-                       if (store.updateEmployee) {
-                         success = await store.updateEmployee(editingEmployee.id, formData);
-                       } else {
-                         alert("حدث خطأ: دالة updateEmployee غير موجودة في employeeStore");
-                         return;
-                       }
-                    } else {
-                       // في حالة الإضافة
-                       success = await store.addEmployee(formData);
-                    }
-
-                    if (success) {
-                      setIsDialogOpen(false);
-                      setFormData({ name: "", role: "", pinCode: "" });
-                      setEditingEmployee(null);
-                      store.fetchEmployees(); // تحديث القائمة
-                    } else {
-                      alert(t('hr.messages.error', 'حدث خطأ أثناء حفظ البيانات!'));
-                    }
-                  }} 
-                  className="flex flex-col gap-4 text-start"
-                >
+                       if (store.updateEmployee) success = await store.updateEmployee(editingEmployee.id, formData);
+                       else { alert("Error: updateEmployee not found"); return; }
+                    } else success = await store.addEmployee(formData);
+                    if (success) { setIsDialogOpen(false); setFormData({ name: "", role: "", pinCode: "" }); setEditingEmployee(null); store.fetchEmployees(); } 
+                    else alert(t('hr.messages.error'));
+                  }} className="flex flex-col gap-4 text-start">
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-1">{t('hr.dialog.name', 'الاسم الكامل')}</label>
-                    <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 text-start" placeholder={t('hr.dialog.namePlaceholder', 'اسم الموظف')} dir={isRTL ? "rtl" : "ltr"} required />
+                    <label className="block text-sm font-medium text-slate-300 mb-1">{t('hr.dialog.name')}</label>
+                    <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 text-start" required />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-1">{t('hr.dialog.role', 'المنصب / الصلاحية')}</label>
-                    <select 
-                      value={formData.role} 
-                      onChange={(e) => setFormData({...formData, role: e.target.value})} 
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 text-start" 
-                      dir={isRTL ? "rtl" : "ltr"} 
-                      required
-                    >
-                      <option value="" disabled>{t('hr.dialog.rolePlaceholder', 'اختر المنصب')}</option>
-                      <option value="cashier">{t('hr.roles.cashier', 'كاشير (أمين صندوق)')}</option>
-                      <option value="scale">{t('hr.roles.scale', 'عامل ميزان')}</option>
-                      <option value="stock">{t('hr.roles.stock', 'عامل مخزن')}</option>
-                      <option value="admin">{t('hr.roles.admin', 'مدير')}</option>
+                    <label className="block text-sm font-medium text-slate-300 mb-1">{t('hr.dialog.role')}</label>
+                    <select value={formData.role} onChange={(e) => setFormData({...formData, role: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 text-start" required>
+                      <option value="" disabled>{t('hr.dialog.rolePlaceholder')}</option>
+                      <option value="cashier">{t('hr.roles.cashier')}</option>
+                      <option value="scale">{t('hr.roles.scale')}</option>
+                      <option value="stock">{t('hr.roles.stock')}</option>
+                      <option value="admin">{t('hr.roles.admin')}</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-1">{t('hr.dialog.pin', 'الرقم السري (PIN)')}</label>
+                    <label className="block text-sm font-medium text-slate-300 mb-1">{t('hr.dialog.pin')}</label>
                     <input type="password" value={formData.pinCode} onChange={(e) => setFormData({...formData, pinCode: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 tracking-widest text-start" placeholder="****" required />
                   </div>
 
                   <div className="mt-6 flex justify-end gap-3">
-                    <button type="button" onClick={() => setIsDialogOpen(false)} className="px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-800 transition-colors">
-                      {t('hr.dialog.cancel', 'إلغاء')}
-                    </button>
-                    <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
-                      {editingEmployee ? t('hr.dialog.saveChanges', 'حفظ التغييرات') : t('hr.dialog.save', 'إضافة الموظف')}
-                    </button>
+                    <button type="button" onClick={() => setIsDialogOpen(false)} className="px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-800 transition-colors">{t('hr.dialog.cancel')}</button>
+                    <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">{editingEmployee ? t('hr.dialog.saveChanges') : t('hr.dialog.save')}</button>
                   </div>
                 </form>
               </div>

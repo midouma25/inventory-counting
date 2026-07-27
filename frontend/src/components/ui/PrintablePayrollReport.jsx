@@ -13,7 +13,6 @@ export default function PrintablePayrollReport({ data }) {
       dir={i18n.dir()}
     >
       
-      {/* الترويسة المزدوجة - تتكيف تلقائياً مع الاتجاه RTL / LTR */}
       <div className="flex justify-between items-center border-b-4 border-black pb-6 mb-6">
         <div>
           <h1 className="text-3xl font-extrabold tracking-widest text-black mb-1">GHERBI.AI</h1>
@@ -37,14 +36,12 @@ export default function PrintablePayrollReport({ data }) {
         </div>
       </div>
 
-      {/* حلقة التكرار لكل موظف */}
       {data.salaries.map((sal, index) => {
         const logs = sal.daily_logs || [];
 
         return (
           <div key={sal.id || index} className="mb-6 break-inside-avoid border-2 border-black p-3 rounded-lg">
             
-            {/* ملخص الموظف */}
             <div className="flex justify-between items-center bg-gray-100 p-2 border-b-2 border-black mb-3">
               <div>
                 <span className="font-bold text-base">{t('hr.table.employee', 'الموظف')}: </span>
@@ -60,7 +57,6 @@ export default function PrintablePayrollReport({ data }) {
               </div>
             </div>
 
-            {/* ملخص مالي للموظف */}
             <table className="w-full text-center border-collapse border border-gray-400 text-xs font-bold mb-3">
               <thead className="bg-gray-200">
                 <tr>
@@ -80,19 +76,19 @@ export default function PrintablePayrollReport({ data }) {
               </tbody>
             </table>
 
-            {/* سجل الحضور والانصراف (مدمج لتوفير المساحة) */}
             <div className="bg-gray-50 border border-dashed border-gray-400 p-2 rounded">
               <p className="text-[10px] font-extrabold text-gray-700 mb-1.5">
                 {t('payroll.dailyAttendanceDetail', 'تفاصيل الحضور والانصراف اليومي (دخول - خروج)')}:
               </p>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1.5" dir="ltr">
                 {logs.length > 0 ? logs.map((log, i) => (
                   <span key={i} className="text-[9px] border border-gray-300 bg-white px-1.5 py-0.5 rounded shadow-sm flex items-center gap-1">
                     <span className="font-bold text-blue-800">{log.date ? log.date.slice(-5) : ''}</span>
                     <span className="text-gray-500">|</span>
-                    <span className="text-emerald-700">{log.in || '--:--'}</span>
+                    {/* هنا تم إصلاح الأسماء الخاصة بوقت الدخول والخروج */}
+                    <span className="text-emerald-700">{log.time_in || '--:--'}</span>
                     <span className="text-gray-500">-</span>
-                    <span className="text-orange-600">{log.out || '--:--'}</span>
+                    <span className="text-orange-600">{log.time_out || '--:--'}</span>
                   </span>
                 )) : (
                   <span className="text-[9px] text-gray-500">
@@ -106,7 +102,6 @@ export default function PrintablePayrollReport({ data }) {
         );
       })}
 
-      {/* التذييل وحقوق المطور */}
       <div className="mt-12 text-center border-t-2 border-black pt-4">
         <div className="flex justify-around mb-8">
             <div>

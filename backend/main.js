@@ -181,6 +181,18 @@ ipcMain.handle('backup-database', async (event) => {
   });
 
 
+ipcMain.handle('update-receipt', (event, id, data) => {
+    try { return updateReceipt(id, data); } 
+    catch (e) { return { success: false, error: e.message }; }
+  });
+
+  
+  ipcMain.handle('update-payment', (event, id, data) => {
+    try { return updatePayment(id, data); } 
+    catch (e) { return { success: false, error: e.message }; }
+  });
+
+
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });

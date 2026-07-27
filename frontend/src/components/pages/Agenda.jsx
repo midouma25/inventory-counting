@@ -225,23 +225,33 @@ export default function Agenda() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         
         <div className="lg:col-span-1 space-y-6">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
+<div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
             <div className="flex items-center gap-2 mb-4 text-white font-medium border-b border-slate-800 pb-3 capitalize">
               <CalendarIcon size={18} className="text-blue-400" />
               {currentMonthName}
             </div>
             
-            <div className="grid grid-cols-7 gap-1 text-center text-sm">
-              {[...Array(daysInMonth)].map((_, i) => (
-                <div key={i} className={`p-1.5 rounded-md cursor-pointer hover:bg-slate-800 ${
-                  i + 1 === currentDay ? 'bg-blue-600 text-white font-bold' : 'text-slate-400'
-                }`}>
-                  {i + 1}
-                </div>
-              ))}
+            {/* فرض اتجاه LTR للمحافظة على بنية التقويم أيام الأسبوع بشكل سليم */}
+            <div dir="ltr">
+              <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold text-slate-500 mb-2">
+                 {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(day => <div key={day}>{day}</div>)}
+              </div>
+              
+              <div className="grid grid-cols-7 gap-1 text-center text-sm">
+                {[...Array(new Date(d.getFullYear(), d.getMonth(), 1).getDay())].map((_, i) => (
+                   <div key={`empty-${i}`} className="p-1.5 text-transparent">0</div>
+                ))}
+                
+                {[...Array(daysInMonth)].map((_, i) => (
+                  <div key={i} className={`p-1.5 rounded-md cursor-pointer hover:bg-slate-800 ${
+                    i + 1 === currentDay ? 'bg-blue-600 text-white font-bold' : 'text-slate-400'
+                  }`}>
+                    {i + 1}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col gap-2 shadow-lg">
             {['all', 'pending', 'completed'].map(f => (
               <button

@@ -51,6 +51,9 @@ contextBridge.exposeInMainWorld('api', {
   getAuditLogs: () => ipcRenderer.invoke('get-audit-logs'),
   deleteExpense: (id, username) => ipcRenderer.invoke('delete-expense', id, username),
   
+  updateReceipt: (id, data) => ipcRenderer.invoke('update-receipt', id, data),
+  updatePayment: (id, data) => ipcRenderer.invoke('update-payment', id, data),
+  
   // Database Management
   backupDatabase: () => ipcRenderer.invoke('backup-database'),
   restoreDatabase: () => ipcRenderer.invoke('restore-database'),
