@@ -4185,7 +4185,7 @@ module.exports = {
   rescheduleAgendaTask, getDailySummary,
   openShift, getActiveShift, closeShift, getShiftSummary,
   getUsers, addUser, deleteUser,
-  updateEmployee, deleteEmployee, logAudit, getAuditLogs, generateExcelBackup, backupDatabase, importSuppliersFromExcel, deleteSupplier, updateSupplier
+  updateEmployee, deleteEmployee, logAudit, getAuditLogs, generateExcelBackup, backupDatabase, importSuppliersFromExcel, deleteSupplier, updateSupplier , deleteReceipt, deletePayment
 };
 ```
 
@@ -8046,17 +8046,37 @@ export default function Suppliers() {
     } catch (error) { console.error("Error saving transaction:", error); }
   };
 
-  const handleDeleteTransaction = async (type, id) => {
-    if(window.confirm(t('common.cancel', 'هل أنت متأكد من حذف هذه المعاملة؟'))) {
-       try {
-         if (type === 'receipt') await window.api.deleteReceipt(id);
-         else await window.api.deletePayment(id);
-         fetchSupplierDetails(currentSupplier.id); 
-         fetchSuppliers(); 
-       } catch (error) { console.error(error); }
+const handleDeleteTransaction = async (type, id) => {
+    // 1. إصلاح مفتاح الترجمة لرسالة التأكيد
+    if (window.confirm(t('suppliers.actions.deleteConfirm'))) {
+      
+      // 2. حل مشكلة تجمّد الشاشة (Focus Bug)
+      setTimeout(() => window.focus(), 100); 
+
+      try {
+        let res;
+        // استدعاء الباك إند
+        if (type === 'receipt') {
+          res = await window.api.deleteReceipt(id);
+        } else {
+          res = await window.api.deletePayment(id);
+        }
+
+        // 3. التحقق من النجاح قبل تحديث الشاشة
+        if (res && res.success) {
+          fetchSupplierDetails(currentSupplier.id); 
+          fetchSuppliers(); 
+        } else {
+          // إظهار الخطأ إذا فشلت العملية
+          alert("حدث خطأ أثناء الحذف: " + (res?.error || "غير معروف"));
+        }
+      } catch (error) { 
+        console.error("Error deleting transaction:", error); 
+      }
     }
   };
 
+  
   const handleImportExcel = async () => {
     try {
       if (window.api && window.api.importSuppliersExcel) {
@@ -8412,7 +8432,7 @@ const executeDelete = async () => {
        </div>
      </div>
    </Modal>
-   
+
     </div>
   );
 }
