@@ -88,7 +88,22 @@
     },
     "actions": {
       "view": "View Details",
-      "pay": "Make Payment"
+      "pay": "Make Payment",
+      "importExcel": "Import Excel",
+      "importExcelTooltip": "File must contain columns in order: Name | Phone | Initial Debt",
+      "importSuccess": "Successfully imported {{count}} suppliers!",
+      "edit": "Edit",
+      "delete": "Delete",
+      "deleteConfirm": "Are you sure you want to permanently delete this supplier?",
+      "importError": "An error occurred during import:",
+      "cancel": "Cancel",
+      "confirmDeleteBtn": "Confirm Delete"
+    },
+    "messages": {
+      "editTitle": "Edit Supplier Details",
+      "deleteProtected": "System Protection: Cannot delete a supplier with existing bills or payments. Please delete their financial records first.",
+      "deleteError": "An error occurred during deletion",
+      "saveError": "An error occurred while saving"
     },
     "details": {
       "caisse": "Caisse Source",

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loading POSManager...</title>
+  <style>
+    /* جعل الخلفية الأساسية شفافة لكي تظهر الشاشة بدون إطار مربع */
+    body {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    /* الحاوية الرئيسية للشاشة */
+    .splash-container {
+      width: 650px;
+      height: 400px;
+      background-color: #020617; /* Slate 950 */
+      border-radius: 20px;
+      display: flex;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+      overflow: hidden;
+      border: 1px solid #1e293b;
+    }
+
+    /* القسم الأيسر (النصي) */
+    .left-pane {
+      flex: 1;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      color: #f8fafc;
+    }
+
+    /* القسم الأيمن (الرسومي التجريدي) */
+    .right-pane {
+      flex: 1;
+      position: relative;
+      background: linear-gradient(-45deg, #0ea5e9, #6366f1, #3b82f6, #020617);
+      background-size: 400% 400%;
+      animation: gradientBG 8s ease infinite;
+    }
+
+    @keyframes gradientBG {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* أشكال هندسية فوق الخلفية المتحركة */
+    .shape {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(5px);
+      border-radius: 50%;
+    }
+    .shape-1 { width: 150px; height: 150px; top: -20px; right: -20px; border: 1px solid rgba(255,255,255,0.2); }
+    .shape-2 { width: 200px; height: 200px; bottom: -50px; left: -50px; }
+    .shape-3 { width: 80px; height: 80px; top: 40%; right: 40%; background: rgba(255, 255, 255, 0.05); }
+
+    .brand h1 {
+      font-size: 32px;
+      margin: 0;
+      font-weight: 900;
+      letter-spacing: 2px;
+    }
+    .brand h1 span { color: #3b82f6; }
+    .brand p {
+      color: #94a3b8;
+      font-size: 11px;
+      margin-top: 5px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      font-weight: bold;
+    }
+
+    .loading-section { margin-top: auto; margin-bottom: 4px; }
+    
+    .loading-text {
+      font-size: 14px;
+      color: #cbd5e1;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* دائرة التحميل الدوارة */
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 3px solid rgba(59, 130, 246, 0.3);
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* شريط التحميل */
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background: #1e293b;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: #3b82f6;
+      animation: fillProgress 3s ease-in-out forwards;
+    }
+    @keyframes fillProgress {
+      0% { width: 0%; }
+      50% { width: 70%; }
+      100% { width: 100%; }
+    }
+
+    .footer {
+      font-size: 10px;
+      color: #64748b;
+      margin-top: 30px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .footer span { color: #cbd5e1; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="splash-container">
+    <div class="left-pane">
+      <div class="brand">
+        <h1>GHERBI<span>.AI</span></h1>
+        <p>Code • Multimedia • Algo Trading • AI</p>
+      </div>
+
+      <div>
+        <div class="loading-section">
+          <div class="loading-text">
+            <div class="spinner"></div>
+            Loading Database & Modules...
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill"></div>
+          </div>
+        </div>
+
+        <div class="footer">
+          Developed By <br><span>Gherbi Mohamed Cherif</span>
+        </div>
+      </div>
+    </div>
+    <div class="right-pane">
+      <div class="shape shape-1"></div>
+      <div class="shape shape-2"></div>
+      <div class="shape shape-3"></div>
+    </div>
+  </div>
+</body>
+</html>

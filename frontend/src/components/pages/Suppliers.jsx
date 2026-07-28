@@ -1,20 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useReactTable, getCoreRowModel, getFilteredRowModel, getSortedRowModel, flexRender } from '@tanstack/react-table';
-import { Plus, Search, ArrowUpDown, ArrowRight, ArrowLeft, FileText, Banknote, ArrowUpRight, ArrowDownRight, Calendar, Printer, Download, Eye, Edit, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import useSupplierStore from '../../store/supplierStore';
 import useEmployeeStore from '../../store/employeeStore'; 
 import Modal from '../ui/Modal';
 import PrintableTicket from '../ui/PrintableTicket';
-
+import { Plus, Search, ArrowUpDown, ArrowRight, ArrowLeft, FileText, Banknote, ArrowUpRight, ArrowDownRight, Calendar, Printer, Download, Eye, Edit, Trash2, Upload } from 'lucide-react';
 export default function Suppliers() {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.dir() === 'rtl';
   const navigate = useNavigate();
-  const { suppliers, fetchSuppliers, addSupplier, currentSupplier, fetchSupplierDetails, clearCurrentSupplier, addReceipt, addPayment } = useSupplierStore();
   const { employees, fetchEmployees } = useEmployeeStore();
-
+  const [supplierToDelete, setSupplierToDelete] = useState(null);
   const [globalFilter, setGlobalFilter] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   
@@ -36,7 +34,31 @@ export default function Suppliers() {
   const handlePreview = (type, item) => { navigate('/preview', { state: { type, item, supplierName: currentSupplier.name } }); };
   const executePrint = () => { setTimeout(() => { window.print(); }, 100); };
 
-  const handleSaveSupplier = async (e) => { e.preventDefault(); const success = await addSupplier(formData); if (success) { setIsAddModalOpen(false); setFormData({ name: '', phone: '', initialDebt: 0 }); } };
+  const handleSaveSupplier = async (e) => { 
+    e.preventDefault(); 
+    let res;
+    if (editingSupplier) {
+      res = await updateSupplier(editingSupplier.id, formData);
+    } else {
+      res = await addSupplier(formData); 
+    }
+
+    if (res && (res === true || res.success)) { 
+      setIsAddModalOpen(false); 
+      setEditingSupplier(null);
+      setFormData({ name: '', phone: '', initialDebt: 0 }); 
+      fetchSuppliers();
+    } else {
+      alert(t('suppliers.messages.saveError'));
+    }
+  };
+  // أضف الدوال الجديدة من المخزن
+  const { suppliers, fetchSuppliers, addSupplier, updateSupplier, deleteSupplier, currentSupplier, fetchSupplierDetails, clearCurrentSupplier, addReceipt, addPayment } = useSupplierStore();
+  
+  // أضف هذه الحالة
+  const [editingSupplier, setEditingSupplier] = useState(null);
+
+
 
   // فتح نافذة المعاملات للإضافة
   const openTransactionModal = (type) => {
@@ -71,14 +93,52 @@ export default function Suppliers() {
     } catch (error) { console.error("Error saving transaction:", error); }
   };
 
-  const handleDeleteTransaction = async (type, id) => {
-    if(window.confirm(t('common.cancel', 'هل أنت متأكد من حذف هذه المعاملة؟'))) {
-       try {
-         if (type === 'receipt') await window.api.deleteReceipt(id);
-         else await window.api.deletePayment(id);
-         fetchSupplierDetails(currentSupplier.id); 
-         fetchSuppliers(); 
-       } catch (error) { console.error(error); }
+const handleDeleteTransaction = async (type, id) => {
+    // 1. إصلاح مفتاح الترجمة لرسالة التأكيد
+    if (window.confirm(t('suppliers.actions.deleteConfirm'))) {
+      
+      // 2. حل مشكلة تجمّد الشاشة (Focus Bug)
+      setTimeout(() => window.focus(), 100); 
+
+      try {
+        let res;
+        // استدعاء الباك إند
+        if (type === 'receipt') {
+          res = await window.api.deleteReceipt(id);
+        } else {
+          res = await window.api.deletePayment(id);
+        }
+
+        // 3. التحقق من النجاح قبل تحديث الشاشة
+        if (res && res.success) {
+          fetchSupplierDetails(currentSupplier.id); 
+          fetchSuppliers(); 
+        } else {
+          // إظهار الخطأ إذا فشلت العملية
+          alert("حدث خطأ أثناء الحذف: " + (res?.error || "غير معروف"));
+        }
+      } catch (error) { 
+        console.error("Error deleting transaction:", error); 
+      }
+    }
+  };
+
+  
+  const handleImportExcel = async () => {
+    try {
+      if (window.api && window.api.importSuppliersExcel) {
+        const res = await window.api.importSuppliersExcel();
+        if (res && res.success) {
+          // استخدام دالة الترجمة وتمرير عدد الموردين المستوردين
+          alert(t('suppliers.actions.importSuccess', { count: res.count }));
+          fetchSuppliers(); 
+        } else if (res && !res.canceled) {
+          // استخدام الترجمة لرسالة الخطأ
+          alert(t('suppliers.actions.importError') + "\n" + res.error);
+        }
+      }
+    } catch (error) {
+      console.error(error);
     }
   };
 
@@ -87,10 +147,55 @@ export default function Suppliers() {
     { accessorKey: 'phone', header: t('suppliers.table.phone'), cell: (info) => <span className="text-slate-400">{info.getValue() || '-'}</span> },
     { accessorKey: 'total_debt', header: t('suppliers.table.totalDebt'), cell: (info) => { const amount = info.getValue() || 0; return <span className={`font-bold ${amount > 0 ? 'text-red-400' : 'text-emerald-400'}`}>{amount.toLocaleString()} DA</span>; } },
     { id: 'status', header: t('suppliers.table.status'), cell: ({ row }) => { const amount = row.original.total_debt || 0; const isClear = amount <= 0; return ( <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${isClear ? 'bg-emerald-950 text-emerald-400 border-emerald-900' : 'bg-red-950 text-red-400 border-red-900'}`}> {isClear ? t('suppliers.status.clear') : t('suppliers.status.indebted')} </span> ); } },
-    { id: 'actions', header: t('suppliers.table.actions'), cell: ({ row }) => ( <button onClick={() => fetchSupplierDetails(row.original.id)} className="text-xs bg-blue-600/20 text-blue-400 border border-blue-900/50 px-4 py-1.5 rounded hover:bg-blue-600 hover:text-white transition-colors"> {t('suppliers.actions.view')} </button> ) },
-  ], [t, fetchSupplierDetails]);
+  { 
+      id: 'actions', 
+      header: t('suppliers.table.actions'), 
+      cell: ({ row }) => ( 
+        <div className="flex items-center gap-2">
+          <button onClick={() => fetchSupplierDetails(row.original.id)} className="p-2 text-blue-400 hover:bg-blue-900/50 rounded-lg transition-colors" title={t('suppliers.actions.view')}>
+            <Eye size={18} />
+          </button>
+          <button onClick={() => openEditSupplierModal(row.original)} className="p-2 text-emerald-400 hover:bg-emerald-900/50 rounded-lg transition-colors" title={t('suppliers.actions.edit')}>
+            <Edit size={18} />
+          </button>
+<button onClick={() => confirmDeleteSupplier(row.original.id)} className="p-2 text-red-400 hover:bg-red-900/50 rounded-lg transition-colors" title={t('suppliers.actions.delete')}>
+  <Trash2 size={18} />
+</button>
+        </div>
+      ) 
+    }, ], [t, fetchSupplierDetails]);
 
   const table = useReactTable({ data: suppliers, columns, state: { globalFilter }, onGlobalFilterChange: setGlobalFilter, getCoreRowModel: getCoreRowModel(), getFilteredRowModel: getFilteredRowModel(), getSortedRowModel: getSortedRowModel() });
+  
+  const openEditSupplierModal = (supplier) => {
+    setEditingSupplier(supplier);
+    setFormData({ name: supplier.name, phone: supplier.phone || '', initialDebt: supplier.initial_debt || 0 });
+    setIsAddModalOpen(true);
+  };
+
+
+// هذه الدالة تفتح نافذة التأكيد فقط
+const confirmDeleteSupplier = (id) => {
+  setSupplierToDelete(id);
+};
+
+// هذه الدالة تنفذ الحذف الفعلي عند الضغط على "نعم"
+const executeDelete = async () => {
+  if (!supplierToDelete) return;
+
+  const res = await deleteSupplier(supplierToDelete);
+  if (res && res.success) {
+    fetchSuppliers();
+    setSupplierToDelete(null); // إغلاق النافذة بعد النجاح
+  } else {
+    // عرض رسالة الخطأ داخل الواجهة أفضل من استخدام alert
+    const errorMessage = res?.errorKey 
+      ? t(`suppliers.messages.${res.errorKey}`) 
+      : t('suppliers.messages.deleteError') + (res?.message ? `: ${res.message}` : '');
+    alert(errorMessage); // إذا استمر التجمّد بسبب هذه الـ alert، سنستبدلها بـ Toast لاحقاً
+    setSupplierToDelete(null);
+  }
+};
 
   if (currentSupplier) {
     return (
@@ -269,9 +374,22 @@ export default function Suppliers() {
           <h1 className="text-3xl font-bold text-white">{t('suppliers.title')}</h1>
           <p className="text-sm text-slate-500 mt-1">{t('suppliers.subtitle')}</p>
         </div>
-        <button onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-md font-medium hover:bg-slate-200 transition-colors shadow-sm">
-          <Plus size={18} /><span>{t('suppliers.addSupplier')}</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={handleImportExcel} 
+            className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-md font-medium hover:bg-emerald-700 transition-colors shadow-sm" 
+            title={t('suppliers.actions.importExcelTooltip')}
+          >
+            <Upload size={18} /><span>{t('suppliers.actions.importExcel')}</span>
+          </button>
+          
+          <button 
+            onClick={() => setIsAddModalOpen(true)} 
+            className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-md font-medium hover:bg-slate-200 transition-colors shadow-sm"
+          >
+            <Plus size={18} /><span>{t('suppliers.addSupplier')}</span>
+          </button>
+        </div>
       </div>
 
       <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
@@ -313,8 +431,12 @@ export default function Suppliers() {
         )}
       </div>
 
-      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title={t('suppliers.addSupplier')}>
-        <form onSubmit={handleSaveSupplier} className="space-y-4 text-start">
+<Modal 
+  isOpen={isAddModalOpen} 
+  onClose={() => { setIsAddModalOpen(false); setEditingSupplier(null); }} 
+  title={editingSupplier ? t('suppliers.messages.editTitle') : t('suppliers.addSupplier')}
+>
+          <form onSubmit={handleSaveSupplier} className="space-y-4 text-start">
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-2">{t('suppliers.modal.nameLabel')}</label>
             <input type="text" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start" />
@@ -333,6 +455,30 @@ export default function Suppliers() {
           </div>
         </form>
       </Modal>
+    
+    <Modal 
+     isOpen={!!supplierToDelete} 
+     onClose={() => setSupplierToDelete(null)} 
+     title={t('suppliers.actions.delete')}
+   >
+     <div className="p-4">
+       <p className="text-white mb-6 text-lg">{t('suppliers.actions.deleteConfirm')}</p>
+       <div className="flex items-center justify-end gap-3">
+         <button 
+           onClick={() => setSupplierToDelete(null)}
+           className="px-4 py-2 text-white bg-gray-600 rounded-md hover:bg-gray-700 transition-colors"
+         >
+           {t('suppliers.actions.cancel')}
+         </button>
+         <button 
+           onClick={executeDelete}
+           className="px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
+         >
+           {t('suppliers.actions.confirmDeleteBtn')}
+         </button>
+       </div>
+     </div>
+   </Modal>
 
     </div>
   );

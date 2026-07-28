@@ -16,7 +16,7 @@ const HR = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({ name: "", role: "", pinCode: "" });
  
-  const { submitPin, isLoading: attLoading } = useAttendanceStore();
+const { submitPin, fetchTodayRecords, isLoading: attLoading } = useAttendanceStore();
   const [pinInput, setPinInput] = useState("");
   const [feedback, setFeedback] = useState(null);
   const inputRef = useRef(null);

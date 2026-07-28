@@ -149,6 +149,78 @@ const updatePayment = db.transaction((id, data) => {
   return { success: true };
 });
 
+
+// دالة تعديل بيانات المورد
+function updateSupplier(id, data) {
+  try {
+    // جلب الدين الأولي القديم لمعرفة الفرق
+    const old = db.prepare('SELECT initial_debt, total_debt FROM suppliers WHERE id = ?').get(id);
+    if (!old) return { success: false, error: 'Not found' };
+
+    // حساب الفارق بين الدين الأولي القديم والجديد وتحديث إجمالي الدين
+    const diff = Number(data.initialDebt) - old.initial_debt;
+
+    db.prepare('UPDATE suppliers SET name = ?, phone = ?, initial_debt = ? WHERE id = ?')
+      .run(data.name, data.phone, data.initialDebt, id);
+    
+    // تحديث إجمالي الدين والحالة
+    db.prepare("UPDATE suppliers SET total_debt = total_debt + ?, status = CASE WHEN (total_debt + ?) <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?")
+      .run(diff, diff, id);
+
+    return { success: true };
+  } catch (error) { return { success: false, error: error.message }; }
+}
+
+// دالة حذف المورد (بحماية محاسبية)
+function deleteSupplier(id) {
+  try {
+    const receipts = db.prepare("SELECT COUNT(*) as c FROM receipts WHERE supplier_id = ?").get(id).c;
+    const payments = db.prepare("SELECT COUNT(*) as c FROM payments WHERE supplier_id = ?").get(id).c;
+    
+    if (receipts > 0 || payments > 0) {
+      // إرسال مفتاح الخطأ بدلاً من النص الثابت
+      return { success: false, errorKey: 'deleteProtected' };
+    }
+    
+    db.prepare('DELETE FROM suppliers WHERE id = ?').run(id);
+    return { success: true };
+  } catch (error) { 
+    return { success: false, error: error.message }; 
+  }
+}
+
+// حذف فاتورة استلام (يقلص دين المورد)
+function deleteReceipt(id) {
+  try {
+    const receipt = db.prepare('SELECT amount, supplier_id FROM receipts WHERE id = ?').get(id);
+    if (!receipt) return { success: false, error: 'Receipt not found' };
+
+    const transaction = db.transaction(() => {
+      db.prepare('UPDATE suppliers SET total_debt = total_debt - ? WHERE id = ?').run(receipt.amount, receipt.supplier_id);
+      db.prepare("UPDATE suppliers SET status = CASE WHEN total_debt <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?").run(receipt.supplier_id);
+      db.prepare('DELETE FROM receipts WHERE id = ?').run(id);
+    });
+    transaction();
+    return { success: true };
+  } catch (error) { return { success: false, error: error.message }; }
+}
+
+// حذف دفعة مسددة (يزيد دين المورد لأن الدفعة أُلغيت)
+function deletePayment(id) {
+  try {
+    const payment = db.prepare('SELECT amount, supplier_id FROM payments WHERE id = ?').get(id);
+    if (!payment) return { success: false, error: 'Payment not found' };
+
+    const transaction = db.transaction(() => {
+      db.prepare('UPDATE suppliers SET total_debt = total_debt + ? WHERE id = ?').run(payment.amount, payment.supplier_id);
+      db.prepare("UPDATE suppliers SET status = CASE WHEN total_debt <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?").run(payment.supplier_id);
+      db.prepare('DELETE FROM payments WHERE id = ?').run(id);
+    });
+    transaction();
+    return { success: true };
+  } catch (error) { return { success: false, error: error.message }; }
+}
+
 function deleteAgendaTask(id) { db.prepare("DELETE FROM agenda_tasks WHERE id = ?").run(id); return { success: true }; }
 function rescheduleAgendaTask(id, newDate) { db.prepare("UPDATE agenda_tasks SET task_date = ? WHERE id = ?").run(newDate, id); return { success: true }; }
 const addReceipt = db.transaction((data) => { const supplierId = Number(data.supplierId); const amount = Number(data.amount) || 0; const date = data.date || new Date().toISOString().split('T')[0]; const info = db.prepare('INSERT INTO receipts (supplier_id, amount, date, note) VALUES (?, ?, ?, ?)').run(supplierId, amount, date, data.note || ''); db.prepare("UPDATE suppliers SET total_debt = total_debt + ?, status = 'indebted' WHERE id = ?").run(amount, supplierId); return info.lastInsertRowid; });
@@ -167,6 +239,44 @@ function getAuditLogs() { return db.prepare("SELECT * FROM audit_logs ORDER BY c
 function deleteExpense(id, username) { const expense = db.prepare('SELECT * FROM expenses WHERE id = ?').get(id); if (expense) logAudit(username || 'Unknown', 'DELETE_EXPENSE', JSON.stringify({ desc: expense.description, amount: expense.amount })); return { success: db.prepare('DELETE FROM expenses WHERE id = ?').run(id).changes > 0 }; }
 async function backupDatabase(destPath) { try { await db.backup(destPath); return { success: true }; } catch (error) { throw error; } }
 
+// دالة استيراد الموردين من ملف الإكسيل
+async function importSuppliersFromExcel(filePath) {
+  try {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(filePath);
+    const worksheet = workbook.worksheets[0]; // قراءة الورقة الأولى فقط
+
+    let importedCount = 0;
+    const insertSupplier = db.prepare(`INSERT INTO suppliers (name, phone, initial_debt, total_debt, status) VALUES (?, ?, ?, ?, ?)`);
+
+    // نستخدم transaction لتسريع عملية الإدخال وحمايتها
+    db.transaction(() => {
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return; // تخطي السطر الأول (أسماء الأعمدة)
+
+        // جلب البيانات من الأعمدة (العمود 1: الاسم، 2: الهاتف، 3: الدين)
+        const name = row.getCell(1).value?.toString() || '';
+        const phone = row.getCell(2).value?.toString() || '';
+        const initialDebtStr = row.getCell(3).value?.toString() || '0';
+        
+        // تنظيف حقل الدين من أي نصوص أو فواصل وترك الأرقام فقط
+        const initialDebt = parseFloat(initialDebtStr.replace(/[^0-9.-]+/g, "")) || 0;
+
+        if (name.trim() !== '') {
+          const status = initialDebt > 0 ? 'indebted' : 'clear';
+          insertSupplier.run(name.trim(), phone.trim(), initialDebt, initialDebt, status);
+          importedCount++;
+        }
+      });
+    })();
+
+    return { success: true, count: importedCount };
+  } catch (error) {
+    console.error("Excel Import Error:", error);
+    return { success: false, error: error.message };
+  }
+}
+
 module.exports = {
   initDatabase, verifyLogin, getSuppliers, addSupplier, getEmployees, addEmployee, 
   handlePinEntry, getExpenses, addExpense, deleteExpense, updateExpense, getTodayAttendance,
@@ -176,5 +286,5 @@ module.exports = {
   rescheduleAgendaTask, getDailySummary,
   openShift, getActiveShift, closeShift, getShiftSummary,
   getUsers, addUser, deleteUser,
-  updateEmployee, deleteEmployee, logAudit, getAuditLogs, generateExcelBackup, backupDatabase
+  updateEmployee, deleteEmployee, logAudit, getAuditLogs, generateExcelBackup, backupDatabase, importSuppliersFromExcel, deleteSupplier, updateSupplier , deleteReceipt, deletePayment
 };

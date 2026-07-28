@@ -25,6 +25,7 @@ inventory-counting/
     ├── main.js
     ├── package.json
     ├── preload.js
+    ├── splash.html
 ├── frontend/
     ├── .oxlintrc.json
     ├── App.jsx
@@ -4047,6 +4048,78 @@ const updatePayment = db.transaction((id, data) => {
   return { success: true };
 });
 
+
+// دالة تعديل بيانات المورد
+function updateSupplier(id, data) {
+  try {
+    // جلب الدين الأولي القديم لمعرفة الفرق
+    const old = db.prepare('SELECT initial_debt, total_debt FROM suppliers WHERE id = ?').get(id);
+    if (!old) return { success: false, error: 'Not found' };
+
+    // حساب الفارق بين الدين الأولي القديم والجديد وتحديث إجمالي الدين
+    const diff = Number(data.initialDebt) - old.initial_debt;
+
+    db.prepare('UPDATE suppliers SET name = ?, phone = ?, initial_debt = ? WHERE id = ?')
+      .run(data.name, data.phone, data.initialDebt, id);
+    
+    // تحديث إجمالي الدين والحالة
+    db.prepare("UPDATE suppliers SET total_debt = total_debt + ?, status = CASE WHEN (total_debt + ?) <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?")
+      .run(diff, diff, id);
+
+    return { success: true };
+  } catch (error) { return { success: false, error: error.message }; }
+}
+
+// دالة حذف المورد (بحماية محاسبية)
+function deleteSupplier(id) {
+  try {
+    const receipts = db.prepare("SELECT COUNT(*) as c FROM receipts WHERE supplier_id = ?").get(id).c;
+    const payments = db.prepare("SELECT COUNT(*) as c FROM payments WHERE supplier_id = ?").get(id).c;
+    
+    if (receipts > 0 || payments > 0) {
+      // إرسال مفتاح الخطأ بدلاً من النص الثابت
+      return { success: false, errorKey: 'deleteProtected' };
+    }
+    
+    db.prepare('DELETE FROM suppliers WHERE id = ?').run(id);
+    return { success: true };
+  } catch (error) { 
+    return { success: false, error: error.message }; 
+  }
+}
+
+// حذف فاتورة استلام (يقلص دين المورد)
+function deleteReceipt(id) {
+  try {
+    const receipt = db.prepare('SELECT amount, supplier_id FROM receipts WHERE id = ?').get(id);
+    if (!receipt) return { success: false, error: 'Receipt not found' };
+
+    const transaction = db.transaction(() => {
+      db.prepare('UPDATE suppliers SET total_debt = total_debt - ? WHERE id = ?').run(receipt.amount, receipt.supplier_id);
+      db.prepare("UPDATE suppliers SET status = CASE WHEN total_debt <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?").run(receipt.supplier_id);
+      db.prepare('DELETE FROM receipts WHERE id = ?').run(id);
+    });
+    transaction();
+    return { success: true };
+  } catch (error) { return { success: false, error: error.message }; }
+}
+
+// حذف دفعة مسددة (يزيد دين المورد لأن الدفعة أُلغيت)
+function deletePayment(id) {
+  try {
+    const payment = db.prepare('SELECT amount, supplier_id FROM payments WHERE id = ?').get(id);
+    if (!payment) return { success: false, error: 'Payment not found' };
+
+    const transaction = db.transaction(() => {
+      db.prepare('UPDATE suppliers SET total_debt = total_debt + ? WHERE id = ?').run(payment.amount, payment.supplier_id);
+      db.prepare("UPDATE suppliers SET status = CASE WHEN total_debt <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?").run(payment.supplier_id);
+      db.prepare('DELETE FROM payments WHERE id = ?').run(id);
+    });
+    transaction();
+    return { success: true };
+  } catch (error) { return { success: false, error: error.message }; }
+}
+
 function deleteAgendaTask(id) { db.prepare("DELETE FROM agenda_tasks WHERE id = ?").run(id); return { success: true }; }
 function rescheduleAgendaTask(id, newDate) { db.prepare("UPDATE agenda_tasks SET task_date = ? WHERE id = ?").run(newDate, id); return { success: true }; }
 const addReceipt = db.transaction((data) => { const supplierId = Number(data.supplierId); const amount = Number(data.amount) || 0; const date = data.date || new Date().toISOString().split('T')[0]; const info = db.prepare('INSERT INTO receipts (supplier_id, amount, date, note) VALUES (?, ?, ?, ?)').run(supplierId, amount, date, data.note || ''); db.prepare("UPDATE suppliers SET total_debt = total_debt + ?, status = 'indebted' WHERE id = ?").run(amount, supplierId); return info.lastInsertRowid; });
@@ -4065,6 +4138,44 @@ function getAuditLogs() { return db.prepare("SELECT * FROM audit_logs ORDER BY c
 function deleteExpense(id, username) { const expense = db.prepare('SELECT * FROM expenses WHERE id = ?').get(id); if (expense) logAudit(username || 'Unknown', 'DELETE_EXPENSE', JSON.stringify({ desc: expense.description, amount: expense.amount })); return { success: db.prepare('DELETE FROM expenses WHERE id = ?').run(id).changes > 0 }; }
 async function backupDatabase(destPath) { try { await db.backup(destPath); return { success: true }; } catch (error) { throw error; } }
 
+// دالة استيراد الموردين من ملف الإكسيل
+async function importSuppliersFromExcel(filePath) {
+  try {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(filePath);
+    const worksheet = workbook.worksheets[0]; // قراءة الورقة الأولى فقط
+
+    let importedCount = 0;
+    const insertSupplier = db.prepare(`INSERT INTO suppliers (name, phone, initial_debt, total_debt, status) VALUES (?, ?, ?, ?, ?)`);
+
+    // نستخدم transaction لتسريع عملية الإدخال وحمايتها
+    db.transaction(() => {
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return; // تخطي السطر الأول (أسماء الأعمدة)
+
+        // جلب البيانات من الأعمدة (العمود 1: الاسم، 2: الهاتف، 3: الدين)
+        const name = row.getCell(1).value?.toString() || '';
+        const phone = row.getCell(2).value?.toString() || '';
+        const initialDebtStr = row.getCell(3).value?.toString() || '0';
+        
+        // تنظيف حقل الدين من أي نصوص أو فواصل وترك الأرقام فقط
+        const initialDebt = parseFloat(initialDebtStr.replace(/[^0-9.-]+/g, "")) || 0;
+
+        if (name.trim() !== '') {
+          const status = initialDebt > 0 ? 'indebted' : 'clear';
+          insertSupplier.run(name.trim(), phone.trim(), initialDebt, initialDebt, status);
+          importedCount++;
+        }
+      });
+    })();
+
+    return { success: true, count: importedCount };
+  } catch (error) {
+    console.error("Excel Import Error:", error);
+    return { success: false, error: error.message };
+  }
+}
+
 module.exports = {
   initDatabase, verifyLogin, getSuppliers, addSupplier, getEmployees, addEmployee, 
   handlePinEntry, getExpenses, addExpense, deleteExpense, updateExpense, getTodayAttendance,
@@ -4074,7 +4185,7 @@ module.exports = {
   rescheduleAgendaTask, getDailySummary,
   openShift, getActiveShift, closeShift, getShiftSummary,
   getUsers, addUser, deleteUser,
-  updateEmployee, deleteEmployee, logAudit, getAuditLogs, generateExcelBackup, backupDatabase
+  updateEmployee, deleteEmployee, logAudit, getAuditLogs, generateExcelBackup, backupDatabase, importSuppliersFromExcel, deleteSupplier, updateSupplier
 };
 ```
 
@@ -4087,7 +4198,8 @@ const { app, BrowserWindow, ipcMain , Notification, dialog } = require('electron
 const db = require('./database'); 
 const path = require('path');
 const fs = require('fs');
-
+// أضف هذا السطر لإخفاء تحذيرات الأمان أثناء التطوير
+process.env['ELECTRON_DISABLE_SECURITY_WARNINGS'] = 'true';
 const { 
   initDatabase, verifyLogin, getSuppliers, addSupplier, getEmployees, 
   addEmployee, handlePinEntry, getExpenses, addExpense, deleteExpense, 
@@ -4096,24 +4208,51 @@ const {
   getSalaries, calculateEmployeePayroll, paySalary , getAgendaTasks, addAgendaTask, toggleAgendaTaskStatus, getDueThisWeek , deleteAgendaTask,
   rescheduleAgendaTask , getDailySummary,
   openShift, getActiveShift, closeShift, getShiftSummary,
-  getUsers, addUser, deleteUser, updateEmployee, deleteEmployee ,logAudit , getAuditLogs, backupDatabase, generateExcelBackup // أضفنا هذه الدوال هنا
+  getUsers, addUser, deleteUser, updateEmployee, deleteEmployee ,logAudit , getAuditLogs, backupDatabase, generateExcelBackup, updateSupplier, deleteSupplier  // أضفنا هذه الدوال هنا
 } = require('./database');
 
 
 function createWindow() {
+  // 1. إنشاء شاشة الإقلاع أولاً
+  const splash = new BrowserWindow({
+    width: 650,
+    height: 400,
+    transparent: true, // الشفافية مفعلة لكي يظهر الحواف المنحنية فقط
+    frame: false,      // بدون إطار علوي (أزرار الإغلاق والتكبير)
+    alwaysOnTop: true, // تبقى فوق النوافذ الأخرى
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true
+    },
+  });
+
+  // تحميل ملف HTML الخاص بشاشة الإقلاع
+  splash.loadFile(path.join(__dirname, 'splash.html'));
+
+  // 2. إنشاء النافذة الرئيسية (في الخلفية ومخفية)
   const win = new BrowserWindow({
     width: 1200, height: 800, minWidth: 900, minHeight: 600,
+    show: false, // تبقى مخفية أثناء التحميل
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
     },
-    show: false,
   });
 
   win.setMenuBarVisibility(false);
-  win.loadURL('http://localhost:5173');
-  win.once('ready-to-show', () => win.show());
+  win.loadURL('http://localhost:5173'); // (قم بتغييرها للمسار المحلي لاحقاً عند عمل Build)
+
+  // 3. عندما تجهز النافذة الرئيسية تماماً
+  win.once('ready-to-show', () => {
+    // نضع تأخير زمني بسيط (3 ثوانٍ) لكي يستمتع العميل برؤية اللوجو الخاص بك واسمك
+    setTimeout(() => {
+      if (!splash.isDestroyed()) {
+        splash.close(); // إغلاق شاشة الإقلاع
+      }
+      win.show(); // إظهار البرنامج
+    }, 3000); // يمكنك تقليلها إلى 1000 إذا أردت تسريع الفتح
+  });
 }
 
 function setupIpcHandlers() {
@@ -4265,12 +4404,34 @@ ipcMain.handle('backup-database', async (event) => {
     }
   });
 
+ipcMain.handle('import-suppliers-excel', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      title: 'استيراد الموردين من ملف إكسيل',
+      properties: ['openFile'],
+      filters: [{ name: 'Excel Files', extensions: ['xlsx', 'xls'] }]
+    });
+
+    if (canceled || filePaths.length === 0) return { success: false, canceled: true };
+
+    return await db.importSuppliersFromExcel(filePaths[0]);
+  });
+
 
 ipcMain.handle('update-receipt', (event, id, data) => { try { return db.updateReceipt(id, data); } catch (e) { return { success: false, error: e.message }; }});
   ipcMain.handle('update-payment', (event, id, data) => { try { return db.updatePayment(id, data); } catch (e) { return { success: false, error: e.message }; }});
   ipcMain.handle('delete-receipt', (event, id) => { try { return db.deleteReceipt(id); } catch(e) { return {success: false, error: e.message}; }});
   ipcMain.handle('delete-payment', (event, id) => { try { return db.deletePayment(id); } catch(e) { return {success: false, error: e.message}; }});
 
+  ipcMain.handle('update-supplier', async (event, id, data) => {
+    return updateSupplier(id, data);
+  });
+
+  ipcMain.handle('delete-supplier', async (event, id) => {
+    return deleteSupplier(id);
+  });
+
+
+  
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
@@ -4387,13 +4548,189 @@ contextBridge.exposeInMainWorld('api', {
   updatePayment: (id, data) => ipcRenderer.invoke('update-payment', id, data),
   deleteReceipt: (id) => ipcRenderer.invoke('delete-receipt', id),
   deletePayment: (id) => ipcRenderer.invoke('delete-payment', id),
-  
+  importSuppliersExcel: () => ipcRenderer.invoke('import-suppliers-excel'),
   // Database Management
   backupDatabase: () => ipcRenderer.invoke('backup-database'),
   restoreDatabase: () => ipcRenderer.invoke('restore-database'),
-
+  updateSupplier: (id, data) => ipcRenderer.invoke('update-supplier', id, data),
+  deleteSupplier: (id) => ipcRenderer.invoke('delete-supplier', id),
   
 });
+```
+
+---
+
+## `backend\splash.html`
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loading POSManager...</title>
+  <style>
+    /* جعل الخلفية الأساسية شفافة لكي تظهر الشاشة بدون إطار مربع */
+    body {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    /* الحاوية الرئيسية للشاشة */
+    .splash-container {
+      width: 650px;
+      height: 400px;
+      background-color: #020617; /* Slate 950 */
+      border-radius: 20px;
+      display: flex;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+      overflow: hidden;
+      border: 1px solid #1e293b;
+    }
+
+    /* القسم الأيسر (النصي) */
+    .left-pane {
+      flex: 1;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      color: #f8fafc;
+    }
+
+    /* القسم الأيمن (الرسومي التجريدي) */
+    .right-pane {
+      flex: 1;
+      position: relative;
+      background: linear-gradient(-45deg, #0ea5e9, #6366f1, #3b82f6, #020617);
+      background-size: 400% 400%;
+      animation: gradientBG 8s ease infinite;
+    }
+
+    @keyframes gradientBG {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* أشكال هندسية فوق الخلفية المتحركة */
+    .shape {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(5px);
+      border-radius: 50%;
+    }
+    .shape-1 { width: 150px; height: 150px; top: -20px; right: -20px; border: 1px solid rgba(255,255,255,0.2); }
+    .shape-2 { width: 200px; height: 200px; bottom: -50px; left: -50px; }
+    .shape-3 { width: 80px; height: 80px; top: 40%; right: 40%; background: rgba(255, 255, 255, 0.05); }
+
+    .brand h1 {
+      font-size: 32px;
+      margin: 0;
+      font-weight: 900;
+      letter-spacing: 2px;
+    }
+    .brand h1 span { color: #3b82f6; }
+    .brand p {
+      color: #94a3b8;
+      font-size: 11px;
+      margin-top: 5px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      font-weight: bold;
+    }
+
+    .loading-section { margin-top: auto; margin-bottom: 4px; }
+    
+    .loading-text {
+      font-size: 14px;
+      color: #cbd5e1;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* دائرة التحميل الدوارة */
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 3px solid rgba(59, 130, 246, 0.3);
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* شريط التحميل */
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background: #1e293b;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: #3b82f6;
+      animation: fillProgress 3s ease-in-out forwards;
+    }
+    @keyframes fillProgress {
+      0% { width: 0%; }
+      50% { width: 70%; }
+      100% { width: 100%; }
+    }
+
+    .footer {
+      font-size: 10px;
+      color: #64748b;
+      margin-top: 30px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .footer span { color: #cbd5e1; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="splash-container">
+    <div class="left-pane">
+      <div class="brand">
+        <h1>GHERBI<span>.AI</span></h1>
+        <p>Code • Multimedia • Algo Trading • AI</p>
+      </div>
+
+      <div>
+        <div class="loading-section">
+          <div class="loading-text">
+            <div class="spinner"></div>
+            Loading Database & Modules...
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill"></div>
+          </div>
+        </div>
+
+        <div class="footer">
+          Developed By <br><span>Gherbi Mohamed Cherif</span>
+        </div>
+      </div>
+    </div>
+    <div class="right-pane">
+      <div class="shape shape-1"></div>
+      <div class="shape shape-2"></div>
+      <div class="shape shape-3"></div>
+    </div>
+  </div>
+</body>
+</html>
 ```
 
 ---
@@ -6735,7 +7072,7 @@ const HR = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({ name: "", role: "", pinCode: "" });
  
-  const { submitPin, isLoading: attLoading } = useAttendanceStore();
+const { submitPin, fetchTodayRecords, isLoading: attLoading } = useAttendanceStore();
   const [pinInput, setPinInput] = useState("");
   const [feedback, setFeedback] = useState(null);
   const inputRef = useRef(null);
@@ -7617,20 +7954,18 @@ export default function PrintPreview() {
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useReactTable, getCoreRowModel, getFilteredRowModel, getSortedRowModel, flexRender } from '@tanstack/react-table';
-import { Plus, Search, ArrowUpDown, ArrowRight, ArrowLeft, FileText, Banknote, ArrowUpRight, ArrowDownRight, Calendar, Printer, Download, Eye, Edit, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import useSupplierStore from '../../store/supplierStore';
 import useEmployeeStore from '../../store/employeeStore'; 
 import Modal from '../ui/Modal';
 import PrintableTicket from '../ui/PrintableTicket';
-
+import { Plus, Search, ArrowUpDown, ArrowRight, ArrowLeft, FileText, Banknote, ArrowUpRight, ArrowDownRight, Calendar, Printer, Download, Eye, Edit, Trash2, Upload } from 'lucide-react';
 export default function Suppliers() {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.dir() === 'rtl';
   const navigate = useNavigate();
-  const { suppliers, fetchSuppliers, addSupplier, currentSupplier, fetchSupplierDetails, clearCurrentSupplier, addReceipt, addPayment } = useSupplierStore();
   const { employees, fetchEmployees } = useEmployeeStore();
-
+  const [supplierToDelete, setSupplierToDelete] = useState(null);
   const [globalFilter, setGlobalFilter] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   
@@ -7652,7 +7987,31 @@ export default function Suppliers() {
   const handlePreview = (type, item) => { navigate('/preview', { state: { type, item, supplierName: currentSupplier.name } }); };
   const executePrint = () => { setTimeout(() => { window.print(); }, 100); };
 
-  const handleSaveSupplier = async (e) => { e.preventDefault(); const success = await addSupplier(formData); if (success) { setIsAddModalOpen(false); setFormData({ name: '', phone: '', initialDebt: 0 }); } };
+  const handleSaveSupplier = async (e) => { 
+    e.preventDefault(); 
+    let res;
+    if (editingSupplier) {
+      res = await updateSupplier(editingSupplier.id, formData);
+    } else {
+      res = await addSupplier(formData); 
+    }
+
+    if (res && (res === true || res.success)) { 
+      setIsAddModalOpen(false); 
+      setEditingSupplier(null);
+      setFormData({ name: '', phone: '', initialDebt: 0 }); 
+      fetchSuppliers();
+    } else {
+      alert(t('suppliers.messages.saveError'));
+    }
+  };
+  // أضف الدوال الجديدة من المخزن
+  const { suppliers, fetchSuppliers, addSupplier, updateSupplier, deleteSupplier, currentSupplier, fetchSupplierDetails, clearCurrentSupplier, addReceipt, addPayment } = useSupplierStore();
+  
+  // أضف هذه الحالة
+  const [editingSupplier, setEditingSupplier] = useState(null);
+
+
 
   // فتح نافذة المعاملات للإضافة
   const openTransactionModal = (type) => {
@@ -7698,15 +8057,78 @@ export default function Suppliers() {
     }
   };
 
+  const handleImportExcel = async () => {
+    try {
+      if (window.api && window.api.importSuppliersExcel) {
+        const res = await window.api.importSuppliersExcel();
+        if (res && res.success) {
+          // استخدام دالة الترجمة وتمرير عدد الموردين المستوردين
+          alert(t('suppliers.actions.importSuccess', { count: res.count }));
+          fetchSuppliers(); 
+        } else if (res && !res.canceled) {
+          // استخدام الترجمة لرسالة الخطأ
+          alert(t('suppliers.actions.importError') + "\n" + res.error);
+        }
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   const columns = useMemo(() => [
     { accessorKey: 'name', header: ({ column }) => ( <button className="flex items-center gap-2 hover:text-white outline-none transition-colors" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}> {t('suppliers.table.name')} <ArrowUpDown size={14} /> </button> ), cell: (info) => <span className="font-medium text-white">{info.getValue()}</span> },
     { accessorKey: 'phone', header: t('suppliers.table.phone'), cell: (info) => <span className="text-slate-400">{info.getValue() || '-'}</span> },
     { accessorKey: 'total_debt', header: t('suppliers.table.totalDebt'), cell: (info) => { const amount = info.getValue() || 0; return <span className={`font-bold ${amount > 0 ? 'text-red-400' : 'text-emerald-400'}`}>{amount.toLocaleString()} DA</span>; } },
     { id: 'status', header: t('suppliers.table.status'), cell: ({ row }) => { const amount = row.original.total_debt || 0; const isClear = amount <= 0; return ( <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${isClear ? 'bg-emerald-950 text-emerald-400 border-emerald-900' : 'bg-red-950 text-red-400 border-red-900'}`}> {isClear ? t('suppliers.status.clear') : t('suppliers.status.indebted')} </span> ); } },
-    { id: 'actions', header: t('suppliers.table.actions'), cell: ({ row }) => ( <button onClick={() => fetchSupplierDetails(row.original.id)} className="text-xs bg-blue-600/20 text-blue-400 border border-blue-900/50 px-4 py-1.5 rounded hover:bg-blue-600 hover:text-white transition-colors"> {t('suppliers.actions.view')} </button> ) },
-  ], [t, fetchSupplierDetails]);
+  { 
+      id: 'actions', 
+      header: t('suppliers.table.actions'), 
+      cell: ({ row }) => ( 
+        <div className="flex items-center gap-2">
+          <button onClick={() => fetchSupplierDetails(row.original.id)} className="p-2 text-blue-400 hover:bg-blue-900/50 rounded-lg transition-colors" title={t('suppliers.actions.view')}>
+            <Eye size={18} />
+          </button>
+          <button onClick={() => openEditSupplierModal(row.original)} className="p-2 text-emerald-400 hover:bg-emerald-900/50 rounded-lg transition-colors" title={t('suppliers.actions.edit')}>
+            <Edit size={18} />
+          </button>
+<button onClick={() => confirmDeleteSupplier(row.original.id)} className="p-2 text-red-400 hover:bg-red-900/50 rounded-lg transition-colors" title={t('suppliers.actions.delete')}>
+  <Trash2 size={18} />
+</button>
+        </div>
+      ) 
+    }, ], [t, fetchSupplierDetails]);
 
   const table = useReactTable({ data: suppliers, columns, state: { globalFilter }, onGlobalFilterChange: setGlobalFilter, getCoreRowModel: getCoreRowModel(), getFilteredRowModel: getFilteredRowModel(), getSortedRowModel: getSortedRowModel() });
+  
+  const openEditSupplierModal = (supplier) => {
+    setEditingSupplier(supplier);
+    setFormData({ name: supplier.name, phone: supplier.phone || '', initialDebt: supplier.initial_debt || 0 });
+    setIsAddModalOpen(true);
+  };
+
+
+// هذه الدالة تفتح نافذة التأكيد فقط
+const confirmDeleteSupplier = (id) => {
+  setSupplierToDelete(id);
+};
+
+// هذه الدالة تنفذ الحذف الفعلي عند الضغط على "نعم"
+const executeDelete = async () => {
+  if (!supplierToDelete) return;
+
+  const res = await deleteSupplier(supplierToDelete);
+  if (res && res.success) {
+    fetchSuppliers();
+    setSupplierToDelete(null); // إغلاق النافذة بعد النجاح
+  } else {
+    // عرض رسالة الخطأ داخل الواجهة أفضل من استخدام alert
+    const errorMessage = res?.errorKey 
+      ? t(`suppliers.messages.${res.errorKey}`) 
+      : t('suppliers.messages.deleteError') + (res?.message ? `: ${res.message}` : '');
+    alert(errorMessage); // إذا استمر التجمّد بسبب هذه الـ alert، سنستبدلها بـ Toast لاحقاً
+    setSupplierToDelete(null);
+  }
+};
 
   if (currentSupplier) {
     return (
@@ -7885,9 +8307,22 @@ export default function Suppliers() {
           <h1 className="text-3xl font-bold text-white">{t('suppliers.title')}</h1>
           <p className="text-sm text-slate-500 mt-1">{t('suppliers.subtitle')}</p>
         </div>
-        <button onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-md font-medium hover:bg-slate-200 transition-colors shadow-sm">
-          <Plus size={18} /><span>{t('suppliers.addSupplier')}</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={handleImportExcel} 
+            className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-md font-medium hover:bg-emerald-700 transition-colors shadow-sm" 
+            title={t('suppliers.actions.importExcelTooltip')}
+          >
+            <Upload size={18} /><span>{t('suppliers.actions.importExcel')}</span>
+          </button>
+          
+          <button 
+            onClick={() => setIsAddModalOpen(true)} 
+            className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-md font-medium hover:bg-slate-200 transition-colors shadow-sm"
+          >
+            <Plus size={18} /><span>{t('suppliers.addSupplier')}</span>
+          </button>
+        </div>
       </div>
 
       <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
@@ -7929,8 +8364,12 @@ export default function Suppliers() {
         )}
       </div>
 
-      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title={t('suppliers.addSupplier')}>
-        <form onSubmit={handleSaveSupplier} className="space-y-4 text-start">
+<Modal 
+  isOpen={isAddModalOpen} 
+  onClose={() => { setIsAddModalOpen(false); setEditingSupplier(null); }} 
+  title={editingSupplier ? t('suppliers.messages.editTitle') : t('suppliers.addSupplier')}
+>
+          <form onSubmit={handleSaveSupplier} className="space-y-4 text-start">
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-2">{t('suppliers.modal.nameLabel')}</label>
             <input type="text" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start" />
@@ -7949,7 +8388,31 @@ export default function Suppliers() {
           </div>
         </form>
       </Modal>
-
+    
+    <Modal 
+     isOpen={!!supplierToDelete} 
+     onClose={() => setSupplierToDelete(null)} 
+     title={t('suppliers.actions.delete')}
+   >
+     <div className="p-4">
+       <p className="text-white mb-6 text-lg">{t('suppliers.actions.deleteConfirm')}</p>
+       <div className="flex items-center justify-end gap-3">
+         <button 
+           onClick={() => setSupplierToDelete(null)}
+           className="px-4 py-2 text-white bg-gray-600 rounded-md hover:bg-gray-700 transition-colors"
+         >
+           {t('suppliers.actions.cancel')}
+         </button>
+         <button 
+           onClick={executeDelete}
+           className="px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
+         >
+           {t('suppliers.actions.confirmDeleteBtn')}
+         </button>
+       </div>
+     </div>
+   </Modal>
+   
     </div>
   );
 }
@@ -8399,9 +8862,24 @@ export default function PrintableTicket({ data }) {
       "clear": "صافي (لا يوجد دين)",
       "indebted": "مدين"
     },
+    "messages": {
+      "editTitle": "تعديل بيانات المورد",
+      "deleteProtected": "حماية النظام: لا يمكن حذف مورد لديه فواتير أو دفعات سابقة. قم بحذف معاملاته المالية أولاً.",
+      "deleteError": "حدث خطأ أثناء الحذف",
+      "saveError": "حدث خطأ أثناء الحفظ"
+    },
     "actions": {
       "view": "التفاصيل",
-      "pay": "تسديد دفعة"
+      "pay": "تسديد دفعة",
+      "importExcel": "استيراد إكسيل",
+      "importExcelTooltip": "يجب أن يحتوي الملف على أعمدة بالترتيب: الاسم | الهاتف | الدين الأولي",
+      "importSuccess": "تم استيراد {{count}} مورد بنجاح!",
+      "edit": "تعديل",
+      "delete": "حذف",
+      "deleteConfirm": "هل أنت متأكد من حذف هذا المورد نهائياً؟",
+      "importError": "حدث خطأ أثناء الاستيراد:",
+      "cancel": "إلغاء",
+      "confirmDeleteBtn": "تأكيد الحذف"
     },
     "details": {
       "caisse": "مصدر الصندوق (الكاشير)",
@@ -8807,7 +9285,22 @@ export default function PrintableTicket({ data }) {
     },
     "actions": {
       "view": "View Details",
-      "pay": "Make Payment"
+      "pay": "Make Payment",
+      "importExcel": "Import Excel",
+      "importExcelTooltip": "File must contain columns in order: Name | Phone | Initial Debt",
+      "importSuccess": "Successfully imported {{count}} suppliers!",
+      "edit": "Edit",
+      "delete": "Delete",
+      "deleteConfirm": "Are you sure you want to permanently delete this supplier?",
+      "importError": "An error occurred during import:",
+      "cancel": "Cancel",
+      "confirmDeleteBtn": "Confirm Delete"
+    },
+    "messages": {
+      "editTitle": "Edit Supplier Details",
+      "deleteProtected": "System Protection: Cannot delete a supplier with existing bills or payments. Please delete their financial records first.",
+      "deleteError": "An error occurred during deletion",
+      "saveError": "An error occurred while saving"
     },
     "details": {
       "caisse": "Caisse Source",
@@ -9538,6 +10031,51 @@ addReceipt: async (receiptData) => {
       return false;
     }
   },
+  
+
+  updateSupplier: async (id, data) => {
+    try {
+      if (window.api && window.api.updateSupplier) {
+        return await window.api.updateSupplier(id, data);
+      }
+    } catch (error) { return { success: false, message: error.message }; }
+  },
+
+  deleteSupplier: async (id) => {
+    try {
+      if (window.api && window.api.deleteSupplier) {
+        return await window.api.deleteSupplier(id);
+      }
+    } catch (error) { return { success: false, message: error.message }; }
+  },
+
+  
+  deleteReceipt: async (id, supplierId) => {
+    try {
+      if (window.api && window.api.deleteReceipt) {
+        const res = await window.api.deleteReceipt(id);
+        if (res && res.success) {
+          await get().fetchSupplierDetails(supplierId);
+          await get().fetchSuppliers();
+        }
+        return res;
+      }
+    } catch (error) { return { success: false, message: error.message }; }
+  },
+
+  deletePayment: async (id, supplierId) => {
+    try {
+      if (window.api && window.api.deletePayment) {
+        const res = await window.api.deletePayment(id);
+        if (res && res.success) {
+          await get().fetchSupplierDetails(supplierId);
+          await get().fetchSuppliers();
+        }
+        return res;
+      }
+    } catch (error) { return { success: false, message: error.message }; }
+  },
+
 
   addPayment: async (paymentData) => {
     try {

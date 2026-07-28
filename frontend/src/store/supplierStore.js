@@ -70,6 +70,51 @@ addReceipt: async (receiptData) => {
       return false;
     }
   },
+  
+
+  updateSupplier: async (id, data) => {
+    try {
+      if (window.api && window.api.updateSupplier) {
+        return await window.api.updateSupplier(id, data);
+      }
+    } catch (error) { return { success: false, message: error.message }; }
+  },
+
+  deleteSupplier: async (id) => {
+    try {
+      if (window.api && window.api.deleteSupplier) {
+        return await window.api.deleteSupplier(id);
+      }
+    } catch (error) { return { success: false, message: error.message }; }
+  },
+
+  
+  deleteReceipt: async (id, supplierId) => {
+    try {
+      if (window.api && window.api.deleteReceipt) {
+        const res = await window.api.deleteReceipt(id);
+        if (res && res.success) {
+          await get().fetchSupplierDetails(supplierId);
+          await get().fetchSuppliers();
+        }
+        return res;
+      }
+    } catch (error) { return { success: false, message: error.message }; }
+  },
+
+  deletePayment: async (id, supplierId) => {
+    try {
+      if (window.api && window.api.deletePayment) {
+        const res = await window.api.deletePayment(id);
+        if (res && res.success) {
+          await get().fetchSupplierDetails(supplierId);
+          await get().fetchSuppliers();
+        }
+        return res;
+      }
+    } catch (error) { return { success: false, message: error.message }; }
+  },
+
 
   addPayment: async (paymentData) => {
     try {

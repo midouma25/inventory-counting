@@ -2,7 +2,8 @@ const { app, BrowserWindow, ipcMain , Notification, dialog } = require('electron
 const db = require('./database'); 
 const path = require('path');
 const fs = require('fs');
-
+// أضف هذا السطر لإخفاء تحذيرات الأمان أثناء التطوير
+process.env['ELECTRON_DISABLE_SECURITY_WARNINGS'] = 'true';
 const { 
   initDatabase, verifyLogin, getSuppliers, addSupplier, getEmployees, 
   addEmployee, handlePinEntry, getExpenses, addExpense, deleteExpense, 
@@ -11,24 +12,51 @@ const {
   getSalaries, calculateEmployeePayroll, paySalary , getAgendaTasks, addAgendaTask, toggleAgendaTaskStatus, getDueThisWeek , deleteAgendaTask,
   rescheduleAgendaTask , getDailySummary,
   openShift, getActiveShift, closeShift, getShiftSummary,
-  getUsers, addUser, deleteUser, updateEmployee, deleteEmployee ,logAudit , getAuditLogs, backupDatabase, generateExcelBackup // أضفنا هذه الدوال هنا
+  getUsers, addUser, deleteUser, updateEmployee, deleteEmployee ,logAudit , getAuditLogs, backupDatabase, generateExcelBackup, updateSupplier, deleteSupplier  // أضفنا هذه الدوال هنا
 } = require('./database');
 
 
 function createWindow() {
+  // 1. إنشاء شاشة الإقلاع أولاً
+  const splash = new BrowserWindow({
+    width: 650,
+    height: 400,
+    transparent: true, // الشفافية مفعلة لكي يظهر الحواف المنحنية فقط
+    frame: false,      // بدون إطار علوي (أزرار الإغلاق والتكبير)
+    alwaysOnTop: true, // تبقى فوق النوافذ الأخرى
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true
+    },
+  });
+
+  // تحميل ملف HTML الخاص بشاشة الإقلاع
+  splash.loadFile(path.join(__dirname, 'splash.html'));
+
+  // 2. إنشاء النافذة الرئيسية (في الخلفية ومخفية)
   const win = new BrowserWindow({
     width: 1200, height: 800, minWidth: 900, minHeight: 600,
+    show: false, // تبقى مخفية أثناء التحميل
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
     },
-    show: false,
   });
 
   win.setMenuBarVisibility(false);
-  win.loadURL('http://localhost:5173');
-  win.once('ready-to-show', () => win.show());
+  win.loadURL('http://localhost:5173'); // (قم بتغييرها للمسار المحلي لاحقاً عند عمل Build)
+
+  // 3. عندما تجهز النافذة الرئيسية تماماً
+  win.once('ready-to-show', () => {
+    // نضع تأخير زمني بسيط (3 ثوانٍ) لكي يستمتع العميل برؤية اللوجو الخاص بك واسمك
+    setTimeout(() => {
+      if (!splash.isDestroyed()) {
+        splash.close(); // إغلاق شاشة الإقلاع
+      }
+      win.show(); // إظهار البرنامج
+    }, 3000); // يمكنك تقليلها إلى 1000 إذا أردت تسريع الفتح
+  });
 }
 
 function setupIpcHandlers() {
@@ -180,12 +208,34 @@ ipcMain.handle('backup-database', async (event) => {
     }
   });
 
+ipcMain.handle('import-suppliers-excel', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      title: 'استيراد الموردين من ملف إكسيل',
+      properties: ['openFile'],
+      filters: [{ name: 'Excel Files', extensions: ['xlsx', 'xls'] }]
+    });
+
+    if (canceled || filePaths.length === 0) return { success: false, canceled: true };
+
+    return await db.importSuppliersFromExcel(filePaths[0]);
+  });
+
 
 ipcMain.handle('update-receipt', (event, id, data) => { try { return db.updateReceipt(id, data); } catch (e) { return { success: false, error: e.message }; }});
   ipcMain.handle('update-payment', (event, id, data) => { try { return db.updatePayment(id, data); } catch (e) { return { success: false, error: e.message }; }});
   ipcMain.handle('delete-receipt', (event, id) => { try { return db.deleteReceipt(id); } catch(e) { return {success: false, error: e.message}; }});
   ipcMain.handle('delete-payment', (event, id) => { try { return db.deletePayment(id); } catch(e) { return {success: false, error: e.message}; }});
 
+  ipcMain.handle('update-supplier', async (event, id, data) => {
+    return updateSupplier(id, data);
+  });
+
+  ipcMain.handle('delete-supplier', async (event, id) => {
+    return deleteSupplier(id);
+  });
+
+
+  
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
