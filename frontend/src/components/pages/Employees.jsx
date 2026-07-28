@@ -1,206 +1,177 @@
 import React, { useState, useEffect } from "react";
-import { Search, Plus, MoreHorizontal } from "lucide-react";
-import useEmployeeStore from "../store/employeeStore"; // تأكد من مسار الملف
+import { Search, Plus, Edit, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next"; // 🔴 استيراد مكتبة الترجمة
+import useEmployeeStore from "../../store/employeeStore";
 
-// افترضت أنك تستخدم هذا المسار لمكونات shadcn. قم بتعديله إذا لزم الأمر
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const Employees = () => {
-  // جلب البيانات والدوال من مخزن Zustand
+  // 🔴 تفعيل الترجمة والاتجاه 🔴
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.dir() === 'rtl';
+
   const { employees, fetchEmployees, addEmployee, isLoading } = useEmployeeStore();
 
-  // حالات الواجهة (States)
   const [searchQuery, setSearchQuery] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    role: "",
-    pinCode: "",
-  });
+  const [editingEmployee, setEditingEmployee] = useState(null);
+  const [formData, setFormData] = useState({ name: "", role: "", pinCode: "" });
 
-  // جلب الموظفين عند تحميل الصفحة
   useEffect(() => {
     fetchEmployees();
-  }, [fetchEmployees]);
+  }, []);
 
-  // فلترة الموظفين حسب البحث
   const filteredEmployees = employees.filter((emp) =>
     emp.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // التعامل مع إدخال البيانات في النموذج
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // إرسال النموذج لإضافة موظف جديد
+  const openAddDialog = () => {
+    setEditingEmployee(null);
+    setFormData({ name: "", role: "", pinCode: "" });
+    setIsDialogOpen(true);
+  };
+
+  const openEditDialog = (emp) => {
+    setEditingEmployee(emp);
+    setFormData({ name: emp.name, role: emp.role, pinCode: emp.pin_code });
+    setIsDialogOpen(true);
+  };
+
+  const handleDelete = async (emp) => {
+    // 🔴 استخدام الترجمة في رسائل التأكيد 🔴
+    if (window.confirm(t('hr.employees.deleteConfirm', { name: emp.name }))) {
+      const store = useEmployeeStore.getState();
+      if (store.deleteEmployee) {
+        const res = await window.api.deleteEmployee(emp.id);
+        if (res.success) {
+          if (res.isSoftDeleted) alert(t('hr.employees.softDeleted'));
+          fetchEmployees();
+        } else {
+          alert(t('common.error'));
+        }
+      }
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.pinCode) return; // تحقق بسيط
+    if (!formData.name || !formData.pinCode) return; 
 
-    const success = await addEmployee(formData);
-    if (success) {
-      setIsDialogOpen(false); // إغلاق النافذة عند النجاح
-      setFormData({ name: "", role: "", pinCode: "" }); // تفريغ الحقول
+    let success;
+    if (editingEmployee) {
+      success = await window.api.updateEmployee(editingEmployee.id, formData);
     } else {
-      alert("حدث خطأ. قد يكون رمز الدخول (PIN) مستخدماً بالفعل لموظف آخر.");
+      success = await addEmployee(formData);
+    }
+
+    if (success) {
+      setIsDialogOpen(false); 
+      setFormData({ name: "", role: "", pinCode: "" }); 
+      setEditingEmployee(null);
+      fetchEmployees();
+    } else {
+      alert(t('hr.messages.error'));
     }
   };
 
   return (
-    <div className="flex flex-col gap-6 p-6 w-full text-slate-100">
-      {/* الترويسة (Header) */}
+    <div className={`flex flex-col gap-6 p-6 w-full text-slate-100 ${isRTL ? 'text-right' : 'text-left'}`}>
       <div className="flex justify-between items-end">
-        <div className="text-right">
-          <h1 className="text-3xl font-bold mb-2">الموارد البشرية</h1>
-          <p className="text-slate-400">إدارة حسابات الموظفين ورموز الدخول (PIN)</p>
+        <div>
+          <h1 className="text-3xl font-bold mb-2">{t('hr.tabs.employees')}</h1>
+          <p className="text-slate-400">{t('hr.subtitle')}</p>
         </div>
       </div>
 
-      {/* شريط الإجراءات والبحث */}
       <div className="flex justify-between items-center bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+        <Button onClick={openAddDialog} className="flex gap-2 items-center bg-blue-600 text-white hover:bg-blue-700">
+          <Plus size={18} /> {t('hr.employees.addBtn')}
+        </Button>
+
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="flex gap-2 items-center bg-white text-black hover:bg-slate-200">
-              <Plus size={18} />
-              موظف جديد
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px] bg-slate-950 text-slate-100 border-slate-800" dir="rtl">
+          <DialogContent className={`sm:max-w-[425px] bg-slate-950 text-slate-100 border-slate-800 ${isRTL ? 'text-right' : 'text-left'}`} dir={i18n.dir()}>
             <DialogHeader>
-              <DialogTitle className="text-right">إضافة موظف جديد</DialogTitle>
-              <DialogDescription className="text-right text-slate-400">
-                أدخل بيانات الموظف. يجب أن يكون رمز (PIN) فريداً لكل موظف.
+              <DialogTitle>{editingEmployee ? t('hr.dialog.editTitle') : t('hr.dialog.title')}</DialogTitle>
+              <DialogDescription className="text-slate-400">
+                {t('hr.dialog.desc')}
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right col-span-1">
-                  الاسم الكامل
-                </Label>
-                <Input
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className="col-span-3 bg-slate-900 border-slate-800"
-                  placeholder="مثال: فاتح حمة"
-                  required
-                />
+                <Label htmlFor="name" className={`col-span-1 ${isRTL ? 'text-right' : 'text-left'}`}>{t('hr.dialog.name')}</Label>
+                <Input id="name" name="name" value={formData.name} onChange={handleChange} className="col-span-3 bg-slate-900 border-slate-800" placeholder={t('hr.dialog.namePlaceholder')} required />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="role" className="text-right col-span-1">
-                  المنصب
-                </Label>
-                <Input
-                  id="role"
-                  name="role"
-                  value={formData.role}
-                  onChange={handleChange}
-                  className="col-span-3 bg-slate-900 border-slate-800"
-                  placeholder="مثال: كاشير"
-                  required
-                />
+                <Label htmlFor="role" className={`col-span-1 ${isRTL ? 'text-right' : 'text-left'}`}>{t('hr.dialog.role')}</Label>
+                {/* 🔴 ربط المناصب بملفات الترجمة 🔴 */}
+                <select id="role" name="role" value={formData.role} onChange={handleChange} className="col-span-3 bg-slate-900 border-slate-800 rounded-md p-2 text-sm text-white focus:outline-none focus:border-blue-500" required>
+                  <option value="" disabled>{t('hr.dialog.rolePlaceholder')}</option>
+                  <option value="cashier">{t('hr.roles.cashier')}</option>
+                  <option value="scale">{t('hr.roles.scale')}</option>
+                  <option value="stock">{t('hr.roles.stock')}</option>
+                  <option value="admin">{t('hr.roles.admin')}</option>
+                </select>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="pinCode" className="text-right col-span-1">
-                  رمز PIN
-                </Label>
-                <Input
-                  id="pinCode"
-                  name="pinCode"
-                  type="password" // إخفاء الرمز أثناء الكتابة
-                  value={formData.pinCode}
-                  onChange={handleChange}
-                  className="col-span-3 bg-slate-900 border-slate-800"
-                  placeholder="أرقام فقط (مثال: 1234)"
-                  required
-                />
+                <Label htmlFor="pinCode" className={`col-span-1 ${isRTL ? 'text-right' : 'text-left'}`}>{t('hr.dialog.pin')}</Label>
+                <Input id="pinCode" name="pinCode" type="password" value={formData.pinCode} onChange={handleChange} className="col-span-3 bg-slate-900 border-slate-800 tracking-widest" placeholder="****" required />
               </div>
               <DialogFooter>
-                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-                  حفظ الموظف
+                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white mt-4">
+                  {editingEmployee ? t('hr.dialog.saveChanges') : t('hr.dialog.save')}
                 </Button>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
 
-        {/* حقل البحث */}
         <div className="relative w-1/3">
-          <Input
-            placeholder="ابحث عن موظف بالاسم..."
-            className="pr-10 bg-slate-900 border-slate-800 text-right w-full"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            dir="rtl"
-          />
-          <Search className="absolute right-3 top-2.5 text-slate-500" size={18} />
+          <Input placeholder={t('hr.employees.search')} className={`bg-slate-900 border-slate-800 w-full ${isRTL ? 'pr-10 text-right' : 'pl-10 text-left'}`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} dir={i18n.dir()} />
+          <Search className={`absolute top-2.5 text-slate-500 ${isRTL ? 'right-3' : 'left-3'}`} size={18} />
         </div>
       </div>
 
-      {/* جدول الموظفين */}
       <div className="bg-slate-900/50 rounded-xl border border-slate-800 overflow-hidden">
-        <Table dir="rtl">
+        <Table dir={i18n.dir()}>
           <TableHeader>
             <TableRow className="border-slate-800 hover:bg-transparent">
-              <TableHead className="text-right text-slate-400">اسم الموظف</TableHead>
-              <TableHead className="text-right text-slate-400">المنصب</TableHead>
-              <TableHead className="text-center text-slate-400">الحالة</TableHead>
-              <TableHead className="text-left text-slate-400">الإجراءات</TableHead>
+              <TableHead className={`${isRTL ? 'text-right' : 'text-left'} text-slate-400`}>{t('hr.employees.table.name')}</TableHead>
+              <TableHead className={`${isRTL ? 'text-right' : 'text-left'} text-slate-400`}>{t('hr.employees.table.role')}</TableHead>
+              <TableHead className="text-center text-slate-400">{t('hr.employees.table.status')}</TableHead>
+              <TableHead className="text-center text-slate-400">{t('hr.employees.table.actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={4} className="text-center py-8 text-slate-500">
-                  جاري تحميل البيانات...
-                </TableCell>
-              </TableRow>
+              <TableRow><TableCell colSpan={4} className="text-center py-8 text-slate-500">{t('hr.table.loading')}</TableCell></TableRow>
             ) : filteredEmployees.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4} className="text-center py-8 text-slate-500">
-                  لا يوجد موظفين حالياً.
-                </TableCell>
-              </TableRow>
+              <TableRow><TableCell colSpan={4} className="text-center py-8 text-slate-500">{t('hr.employees.empty')}</TableCell></TableRow>
             ) : (
               filteredEmployees.map((emp) => (
                 <TableRow key={emp.id} className="border-slate-800 hover:bg-slate-800/50">
-                  <TableCell className="font-medium text-right">{emp.name}</TableCell>
-                  <TableCell className="text-right text-slate-300">{emp.role}</TableCell>
+                  <TableCell className={`font-medium ${isRTL ? 'text-right' : 'text-left'}`}>{emp.name}</TableCell>
+                  <TableCell className={`${isRTL ? 'text-right' : 'text-left'} text-slate-300`}>
+                    {t(`hr.roles.${emp.role}`, emp.role)}
+                  </TableCell>
                   <TableCell className="text-center">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        emp.status === "active"
-                          ? "bg-green-500/10 text-green-500 border border-green-500/20"
-                          : "bg-red-500/10 text-red-500 border border-red-500/20"
-                      }`}
-                    >
-                      {emp.status === "active" ? "نشط" : "غير نشط"}
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${emp.status === "active" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"}`}>
+                      {emp.status === "active" ? t('hr.status.active') : t('hr.status.inactive')}
                     </span>
                   </TableCell>
-                  <TableCell className="text-left">
-                    <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
-                      <MoreHorizontal size={18} />
+                  <TableCell className="text-center flex justify-center gap-2">
+                    <Button onClick={() => openEditDialog(emp)} variant="ghost" size="icon" className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/30" title={t('hr.employees.actions.edit')}>
+                      <Edit size={18} />
+                    </Button>
+                    <Button onClick={() => handleDelete(emp)} variant="ghost" size="icon" className="text-red-400 hover:text-red-300 hover:bg-red-900/30" title={t('hr.employees.actions.delete')}>
+                      <Trash2 size={18} />
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -212,5 +183,4 @@ const Employees = () => {
     </div>
   );
 };
-
 export default Employees;

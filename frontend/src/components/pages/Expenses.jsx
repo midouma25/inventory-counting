@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, Receipt, ArrowDownCircle, Wallet, Edit, Trash2, ShieldAlert } from 'lucide-react';
+import { Plus, Search, ArrowDownCircle, Wallet, Edit, Trash2, ShieldAlert } from 'lucide-react';
 import Modal from '../ui/Modal';
 import useEmployeeStore from '../../store/employeeStore';
 import useSupplierStore from '../../store/supplierStore';
@@ -20,11 +20,7 @@ export default function Expenses() {
   const user = useAuthStore(state => state.user);
 
   const [formData, setFormData] = useState({
-    description: '',
-    category: 'utilities',
-    amount: '',
-    employeeId: '',
-    supplierId: ''
+    description: '', category: 'utilities', amount: '', employeeId: '', supplierId: ''
   });
   
   const fetchExpensesList = async () => {
@@ -33,16 +29,15 @@ export default function Expenses() {
         const data = await window.api.getExpenses();
         setExpenses(data || []);
       }
-    } catch (error) {
-      console.error("Failed to fetch expenses:", error);
-    }
+    } catch (error) { console.error("Failed to fetch expenses:", error); }
   };
 
+  // 🔴 الإصلاح: جعل المصفوفة فارغة لمنع التجميد 🔴
   useEffect(() => {
     fetchExpensesList();
     fetchEmployees();
     fetchSuppliers();
-  }, [fetchEmployees, fetchSuppliers]);
+  }, []);
 
   const openAddModal = () => {
     setEditingExpense(null);
@@ -60,22 +55,17 @@ export default function Expenses() {
     if (window.confirm(t('expenses.deleteConfirm'))) {
       try {
         if (window.api && window.api.deleteExpense) {
-          // قمنا بتمرير user?.username هنا لكي يتم تسجيله في قاعدة البيانات
           const result = await window.api.deleteExpense(id, user?.username || 'Unknown');
           if (result && result.success) {
             setExpenses(prev => prev.filter(exp => !(exp.id === id && exp.source === 'expense')));
           }
         }
-      } catch (error) {
-        console.error("Error deleting expense:", error);
-      }
+      } catch (error) { console.error("Error deleting expense:", error); }
     }
   };
-  // دالة تحديد اسم الكاشير (الدافع) بذكاء
+
   const getCaisseName = () => {
-    if (user?.role === 'superadmin' || user?.username === 'admin') {
-      return t('common.superAdmin');
-    }
+    if (user?.role === 'superadmin' || user?.username === 'admin') return t('common.superAdmin');
     return user?.username || 'Cashier';
   };
 
@@ -88,54 +78,32 @@ export default function Expenses() {
       if (formData.category === 'advance') {
         if (window.api && window.api.addAdvance) {
           await window.api.addAdvance({
-            employeeId: formData.employeeId,
-            amount: amountNum,
-            date: dateStr,
-            caisseSource: getCaisseName(), // استخدام الاسم الحقيقي
-            note: formData.description
+            employeeId: formData.employeeId, amount: amountNum, date: dateStr, caisseSource: getCaisseName(), note: formData.description
           });
         }
-      } 
-      else if (formData.category === 'supplier_payment') {
+      } else if (formData.category === 'supplier_payment') {
         if (window.api && window.api.addPayment) {
           await window.api.addPayment({
-            supplierId: formData.supplierId,
-            amount: amountNum,
-            date: dateStr,
-            caisseSource: getCaisseName(), // استخدام الاسم الحقيقي
-            note: formData.description
+            supplierId: formData.supplierId, amount: amountNum, date: dateStr, caisseSource: getCaisseName(), note: formData.description
           });
         }
-      } 
-      else {
+      } else {
         if (editingExpense) {
-          await window.api.updateExpense(editingExpense.id, {
-            description: formData.description,
-            category: formData.category,
-            amount: amountNum
-          });
+          await window.api.updateExpense(editingExpense.id, { description: formData.description, category: formData.category, amount: amountNum });
         } else {
-          await window.api.addExpense({
-            description: formData.description,
-            category: formData.category,
-            amount: amountNum,
-            date: dateStr
-          });
+          await window.api.addExpense({ description: formData.description, category: formData.category, amount: amountNum, date: dateStr });
         }
       }
 
       setIsModalOpen(false);
       setEditingExpense(null);
-      fetchExpensesList();
-    } catch (error) {
-      console.error("Error saving transaction:", error);
-    }
+      fetchExpensesList(); // تحديث فقط عند حفظ الإجراء
+    } catch (error) { console.error("Error saving transaction:", error); }
   };
 
   const filteredExpenses = expenses?.filter(exp => {
     const description = exp.description || "";
-    const search = searchTerm || "";
-    return description.toLowerCase().includes(search.toLowerCase());
+    return description.toLowerCase().includes(searchTerm.toLowerCase());
   }) || []; 
 
   const todayString = new Date().toISOString().split('T')[0];
@@ -153,15 +121,13 @@ export default function Expenses() {
     }
   };
 
-  // دالة للتعامل مع الترجمات المفقودة أو القديمة مثل "رواتب"
   const getCategoryTranslation = (category) => {
     const translated = t(`expenses.categories.${category}`);
     return translated.includes('expenses.categories') ? category : translated;
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans">
-      
+    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans text-start">
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-white">{t('expenses.title')}</h1>
@@ -190,18 +156,18 @@ export default function Expenses() {
         </div>
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-        <div className="p-4 border-b border-slate-800">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
+        <div className="p-4 border-b border-slate-800 bg-slate-950/30">
           <div className="relative w-full max-w-md">
             <Search size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder={t('expenses.searchPlaceholder')} className="w-full bg-slate-950 border border-slate-800 rounded-lg ps-10 pe-4 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-slate-600 transition-colors" dir={isRTL ? "rtl" : "ltr"} />
+            <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder={t('expenses.searchPlaceholder')} className="w-full bg-slate-900 border border-slate-700 rounded-lg ps-10 pe-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors shadow-inner text-start" dir={isRTL ? "rtl" : "ltr"} />
           </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-start border-collapse" dir={i18n.dir()}>
             <thead>
-              <tr className="border-b border-slate-800 bg-slate-950/50">
+              <tr className="border-b border-slate-800 bg-slate-950/80">
                 <th className="px-6 py-4 text-sm font-medium text-slate-400 text-start">{t('expenses.table.date')}</th>
                 <th className="px-6 py-4 text-sm font-medium text-slate-400 text-start">{t('expenses.table.description')}</th>
                 <th className="px-6 py-4 text-sm font-medium text-slate-400 text-start">{t('expenses.table.category')}</th>
@@ -211,12 +177,11 @@ export default function Expenses() {
             </thead>
             <tbody>
               {filteredExpenses.map((exp) => (
-                <tr key={`${exp.source}-${exp.id}`} className="border-b border-slate-800/50 hover:bg-slate-800/20">
+                <tr key={`${exp.source}-${exp.id}`} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
                   <td className="px-6 py-4 text-sm text-slate-400 whitespace-nowrap text-start">{exp.date}</td>
                   <td className="px-6 py-4 text-start">
                     <div className="flex items-center gap-3">
                       <span className="font-medium text-white">
-                        {/* ترجمة البوادئ ديناميكياً */}
                         {exp.source === 'advance' && <span className="text-purple-400 font-bold mx-1">{t('expenses.prefixes.advance')}:</span>}
                         {exp.source === 'supplier_payment' && <span className="text-orange-400 font-bold mx-1">{t('expenses.prefixes.supplier')}:</span>}
                         {exp.description}
@@ -228,14 +193,12 @@ export default function Expenses() {
                       {getCategoryTranslation(exp.category)}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-start">
-                    <span className="font-bold text-white">{exp.amount.toLocaleString()} DA</span>
-                  </td>
+                  <td className="px-6 py-4 text-start font-bold text-white">{exp.amount.toLocaleString()} DA</td>
                   <td className="px-6 py-4">
                     {exp.source === 'expense' ? (
                       <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => openEditModal(exp)} className="p-2 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors"><Edit size={18} /></button>
-                        <button onClick={() => handleDelete(exp.id)} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"><Trash2 size={18} /></button>
+                        <button onClick={() => openEditModal(exp)} className="p-2 text-blue-400 hover:bg-blue-900/50 rounded-lg transition-colors"><Edit size={18} /></button>
+                        <button onClick={() => handleDelete(exp.id)} className="p-2 text-red-400 hover:bg-red-900/50 rounded-lg transition-colors"><Trash2 size={18} /></button>
                       </div>
                     ) : (
                       <div className="flex items-center justify-center text-xs text-slate-500 gap-1" title={t('expenses.table.managedElsewhere')}>
@@ -246,7 +209,7 @@ export default function Expenses() {
                 </tr>
               ))}
               {filteredExpenses.length === 0 && (
-                <tr><td colSpan="5" className="px-6 py-8 text-center text-slate-500">{t('common.noResults')}</td></tr>
+                <tr><td colSpan="5" className="px-6 py-12 text-center text-slate-500">{t('common.noResults')}</td></tr>
               )}
             </tbody>
           </table>
@@ -255,15 +218,9 @@ export default function Expenses() {
 
       <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setEditingExpense(null); }} title={editingExpense ? t('expenses.editExpense') : t('expenses.addExpense')}>
         <form className="space-y-4" onSubmit={handleSubmitExpense} dir={isRTL ? "rtl" : "ltr"}>
-          
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('expenses.table.category')}</label>
-            <select 
-              value={formData.category} 
-              onChange={e => setFormData({...formData, category: e.target.value})} 
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start"
-              disabled={!!editingExpense}
-            >
+            <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start" disabled={!!editingExpense}>
               <option value="utilities">{t('expenses.categories.utilities')}</option>
               <option value="maintenance">{t('expenses.categories.maintenance')}</option>
               <option value="supplies">{t('expenses.categories.supplies')}</option>
@@ -302,17 +259,12 @@ export default function Expenses() {
             <input type="text" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start" />
           </div>
 
-          <div className="pt-4 flex justify-end gap-3">
-            <button type="button" onClick={() => { setIsModalOpen(false); setEditingExpense(null); }} className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800 transition-colors">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
-              {editingExpense ? t('expenses.saveChanges') : t('expenses.addExpense')}
-            </button>
+          <div className="pt-4 flex justify-end gap-3 mt-4">
+            <button type="button" onClick={() => { setIsModalOpen(false); setEditingExpense(null); }} className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800 transition-colors">{t('common.cancel')}</button>
+            <button type="submit" className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">{editingExpense ? t('expenses.saveChanges') : t('expenses.addExpense')}</button>
           </div>
         </form>
       </Modal>
-
     </div>
   );
 }

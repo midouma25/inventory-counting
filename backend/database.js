@@ -2,7 +2,7 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const { app } = require('electron');
 const ExcelJS = require('exceljs');
-const dbPath = path.join(app.getPath('userData'), 'pos_manager2.db');
+const dbPath = path.join(app.getPath('userData'), 'pos_manager3.db');
 const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 

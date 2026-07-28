@@ -29,23 +29,20 @@ const HR = () => {
     try {
       const data = await window.api.getTodayAttendance(date);
       setAttendanceRecords(data || []);
-    } catch (error) {
-      console.error("Error fetching attendance for date:", error);
-    }
+    } catch (error) { console.error("Error fetching attendance for date:", error); }
   };
 
   useEffect(() => {
     fetchAttendanceForDate(attendanceDate);
   }, [attendanceDate]);
 
-  // إصلاح مشكلة التجميد (حذفنا المتغيرات من المصفوفة لمنع الـ Infinite Loop)
-  useEffect(() => {
+  // إيقاف الـ Infinite Loop بجعل المصفوفة فارغة []
+useEffect(() => {
     fetchEmployees();
-  }, []);
+    fetchTodayRecords(); 
+  }, []); // <--- مصفوفة فارغة
 
-  const filteredEmployees = employees.filter((emp) =>
-    emp.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredEmployees = employees.filter((emp) => emp.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   const handleAttendanceSubmit = async (e) => {
     e.preventDefault();
@@ -56,7 +53,7 @@ const HR = () => {
     if (result && result.success) {
        const actionText = result.action === 'check_in' ? t('hr.messages.checkIn') : t('hr.messages.checkOut');
        setFeedback({ type: 'success', message: `${actionText}: ${result.employeeName}` });
-       fetchAttendanceForDate(attendanceDate); // تحديث الجدول فوراً
+       fetchAttendanceForDate(attendanceDate); // تحديث فوري
     } else if (result) {
        setFeedback({ type: 'error', message: result.message });
     }
@@ -66,7 +63,7 @@ const HR = () => {
     setTimeout(() => setFeedback(null), 4000);
   };
 
-  // إصلاح حساب عدد الحاضرين والغياب بناءً على تاريخ الجدول الحالي
+  // إصلاح أرقام الإحصائيات لتقرأ من السجل المحلي المرتبط بالتاريخ
   const presentCount = attendanceRecords.filter(r => !r.time_out).length;
   const absentCount = Math.max(0, employees.length - attendanceRecords.length);
 
@@ -194,7 +191,7 @@ const HR = () => {
                       <td className="px-6 py-4 font-medium text-start text-white">{emp.name}</td>
                       <td className="px-6 py-4 text-slate-400 text-start">{t(`hr.roles.${emp.role}`, { defaultValue: emp.role })}</td>
                       <td className="px-6 py-4 text-center">
-                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{t('hr.employees.status.active')}</span>
+                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{t('hr.status.active', 'نشط')}</span>
                       </td>
                       <td className="px-6 py-4 text-center flex justify-center gap-2">
                         <button onClick={() => { setFormData({ name: emp.name, role: emp.role, pinCode: emp.pin_code }); setEditingEmployee(emp); setIsDialogOpen(true); }} className="p-2 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" title={t('hr.employees.actions.edit')}><Edit size={18} /></button>
@@ -204,7 +201,7 @@ const HR = () => {
                             try {
                               const res = await window.api.deleteEmployee(emp.id);
                               if(res && res.success) {
-                                if (res.isSoftDeleted) alert(t('hr.employees.softDeleted', 'تم تعطيل الحساب، لا يمكن حذفه نهائياً لوجود سجلات مالية لحمايتها.'));
+                                if (res.isSoftDeleted) alert(t('hr.employees.softDeleted'));
                                 store.fetchEmployees();
                               } else alert(t('common.error'));
                             } catch(e) { console.error(e); }

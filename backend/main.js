@@ -181,17 +181,10 @@ ipcMain.handle('backup-database', async (event) => {
   });
 
 
-ipcMain.handle('update-receipt', (event, id, data) => {
-    try { return updateReceipt(id, data); } 
-    catch (e) { return { success: false, error: e.message }; }
-  });
-
-  
-  ipcMain.handle('update-payment', (event, id, data) => {
-    try { return updatePayment(id, data); } 
-    catch (e) { return { success: false, error: e.message }; }
-  });
-
+ipcMain.handle('update-receipt', (event, id, data) => { try { return db.updateReceipt(id, data); } catch (e) { return { success: false, error: e.message }; }});
+  ipcMain.handle('update-payment', (event, id, data) => { try { return db.updatePayment(id, data); } catch (e) { return { success: false, error: e.message }; }});
+  ipcMain.handle('delete-receipt', (event, id) => { try { return db.deleteReceipt(id); } catch(e) { return {success: false, error: e.message}; }});
+  ipcMain.handle('delete-payment', (event, id) => { try { return db.deletePayment(id); } catch(e) { return {success: false, error: e.message}; }});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();

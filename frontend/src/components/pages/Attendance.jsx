@@ -24,7 +24,7 @@ const Attendance = () => {
     // تحديث السجلات تلقائياً كل دقيقة (اختياري)
     const interval = setInterval(fetchTodayRecords, 60000);
     return () => clearInterval(interval);
-  }, [fetchTodayRecords]);
+  }, []);
 
   // دالة إرسال الرمز
   const handlePinSubmit = async (e) => {

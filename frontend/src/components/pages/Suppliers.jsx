@@ -1,16 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { 
-  useReactTable, 
-  getCoreRowModel, 
-  getFilteredRowModel, 
-  getSortedRowModel, 
-  flexRender 
-} from '@tanstack/react-table';
-import { 
-  Plus, Search, ArrowUpDown, ArrowRight, ArrowLeft, 
-  FileText, Banknote, ArrowUpRight, ArrowDownRight, Calendar, Printer, Download, Eye
-} from 'lucide-react';
+import { useReactTable, getCoreRowModel, getFilteredRowModel, getSortedRowModel, flexRender } from '@tanstack/react-table';
+import { Plus, Search, ArrowUpDown, ArrowRight, ArrowLeft, FileText, Banknote, ArrowUpRight, ArrowDownRight, Calendar, Printer, Download, Eye, Edit, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import useSupplierStore from '../../store/supplierStore';
 import useEmployeeStore from '../../store/employeeStore'; 
@@ -20,135 +11,86 @@ import PrintableTicket from '../ui/PrintableTicket';
 export default function Suppliers() {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.dir() === 'rtl';
-  const navigate = useNavigate(); // إضافة هذا السطر
-  const { 
-    suppliers, fetchSuppliers, addSupplier, 
-    currentSupplier, fetchSupplierDetails, clearCurrentSupplier,
-    addReceipt, addPayment
-  } = useSupplierStore();
-
+  const navigate = useNavigate();
+  const { suppliers, fetchSuppliers, addSupplier, currentSupplier, fetchSupplierDetails, clearCurrentSupplier, addReceipt, addPayment } = useSupplierStore();
   const { employees, fetchEmployees } = useEmployeeStore();
 
   const [globalFilter, setGlobalFilter] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   
-  // حالات نظام المعاينة
+  // دمج نوافذ الإضافة والتعديل
+  const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+  const [transactionType, setTransactionType] = useState('receipt'); // 'receipt' | 'payment'
+  const [editingTransactionId, setEditingTransactionId] = useState(null); 
+
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [printData, setPrintData] = useState(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
 
   const [formData, setFormData] = useState({ name: '', phone: '', initialDebt: 0 });
-  const [transactionData, setTransactionData] = useState({ 
-    amount: '', date: new Date().toISOString().split('T')[0], note: '', caisseSource: '' 
-  });
-  const [scheduleData, setScheduleData] = useState({ 
-    amount: '', date: new Date().toISOString().split('T')[0], time: '10:00', note: '' 
-  });
+  const [transactionData, setTransactionData] = useState({ amount: '', date: new Date().toISOString().split('T')[0], note: '', caisseSource: '' });
+  const [scheduleData, setScheduleData] = useState({ amount: '', date: new Date().toISOString().split('T')[0], time: '10:00', note: '' });
 
-  useEffect(() => {
-    fetchSuppliers();
-    fetchEmployees(); 
-  }, [fetchSuppliers, fetchEmployees]);
+  useEffect(() => { fetchSuppliers(); fetchEmployees(); }, []);
 
+  const handlePreview = (type, item) => { navigate('/preview', { state: { type, item, supplierName: currentSupplier.name } }); };
+  const executePrint = () => { setTimeout(() => { window.print(); }, 100); };
 
-  // دالة فتح المعاينة بدلاً من الطباعة المباشرة
-  const handlePreview = (type, item) => {
-    // الانتقال للصفحة الجديدة وتمرير البيانات في الـ state
-    navigate('/preview', { 
-      state: { type, item, supplierName: currentSupplier.name } 
-    });
+  const handleSaveSupplier = async (e) => { e.preventDefault(); const success = await addSupplier(formData); if (success) { setIsAddModalOpen(false); setFormData({ name: '', phone: '', initialDebt: 0 }); } };
+
+  // فتح نافذة المعاملات للإضافة
+  const openTransactionModal = (type) => {
+    setTransactionType(type);
+    setEditingTransactionId(null);
+    setTransactionData({ amount: '', date: new Date().toISOString().split('T')[0], note: '', caisseSource: '' });
+    setIsTransactionModalOpen(true);
   };
 
-
-  // دالة تنفيذ الطباعة / استخراج الـ PDF من المتصفح
-  const executePrint = () => {
-    setTimeout(() => {
-      window.print();
-    }, 100);
+  // فتح نافذة المعاملات للتعديل
+  const openEditTransactionModal = (type, item) => {
+    setTransactionType(type);
+    setEditingTransactionId(item.id);
+    setTransactionData({ amount: item.amount, date: item.date, note: item.note || '', caisseSource: item.caisse_source || '' });
+    setIsTransactionModalOpen(true);
   };
 
-  const handleSaveSupplier = async (e) => {
+  const handleSaveTransaction = async (e) => {
     e.preventDefault();
-    const success = await addSupplier(formData);
-    if (success) {
-      setIsAddModalOpen(false);
-      setFormData({ name: '', phone: '', initialDebt: 0 });
+    try {
+      if (editingTransactionId) {
+        if (transactionType === 'receipt') await window.api.updateReceipt(editingTransactionId, transactionData);
+        else await window.api.updatePayment(editingTransactionId, transactionData);
+      } else {
+        const payload = { ...transactionData, supplierId: currentSupplier.id, amount: Number(transactionData.amount) };
+        if (transactionType === 'receipt') await addReceipt(payload);
+        else await addPayment(payload);
+      }
+      setIsTransactionModalOpen(false);
+      fetchSupplierDetails(currentSupplier.id); 
+      fetchSuppliers(); 
+    } catch (error) { console.error("Error saving transaction:", error); }
+  };
+
+  const handleDeleteTransaction = async (type, id) => {
+    if(window.confirm(t('common.cancel', 'هل أنت متأكد من حذف هذه المعاملة؟'))) {
+       try {
+         if (type === 'receipt') await window.api.deleteReceipt(id);
+         else await window.api.deletePayment(id);
+         fetchSupplierDetails(currentSupplier.id); 
+         fetchSuppliers(); 
+       } catch (error) { console.error(error); }
     }
   };
 
-  const handleSaveReceipt = async (e) => {
-    e.preventDefault();
-    const payload = { ...transactionData, supplierId: currentSupplier.id, amount: Number(transactionData.amount) };
-    const success = await addReceipt(payload);
-    if (success) setIsReceiptModalOpen(false);
-  };
-
-  const handleSavePayment = async (e) => {
-    e.preventDefault();
-    const payload = { ...transactionData, supplierId: currentSupplier.id, amount: Number(transactionData.amount) };
-    const success = await addPayment(payload);
-    if (success) setIsPaymentModalOpen(false);
-  };
-
-  const openTransactionModal = (type) => {
-    setTransactionData({ amount: '', date: new Date().toISOString().split('T')[0], note: '', caisseSource: '' });
-    if (type === 'receipt') setIsReceiptModalOpen(true);
-    else setIsPaymentModalOpen(true);
-  };
-
   const columns = useMemo(() => [
-    {
-      accessorKey: 'name',
-      header: ({ column }) => (
-        <button className="flex items-center gap-2 hover:text-white outline-none transition-colors" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          {t('suppliers.table.name')} <ArrowUpDown size={14} />
-        </button>
-      ),
-      cell: (info) => <span className="font-medium text-white">{info.getValue()}</span>,
-    },
-    {
-      accessorKey: 'phone',
-      header: t('suppliers.table.phone'),
-      cell: (info) => <span className="text-slate-400">{info.getValue() || '-'}</span>,
-    },
-    {
-      accessorKey: 'total_debt',
-      header: t('suppliers.table.totalDebt'),
-      cell: (info) => {
-        const amount = info.getValue() || 0;
-        return <span className={`font-bold ${amount > 0 ? 'text-red-400' : 'text-emerald-400'}`}>{amount.toLocaleString()} DA</span>;
-      },
-    },
-    {
-      id: 'status',
-      header: t('suppliers.table.status'),
-      cell: ({ row }) => {
-        const amount = row.original.total_debt || 0;
-        const isClear = amount <= 0;
-        return (
-          <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${isClear ? 'bg-emerald-950 text-emerald-400 border-emerald-900' : 'bg-red-950 text-red-400 border-red-900'}`}>
-            {isClear ? t('suppliers.status.clear') : t('suppliers.status.indebted')}
-          </span>
-        );
-      },
-    },
-    {
-      id: 'actions',
-      header: t('suppliers.table.actions'),
-      cell: ({ row }) => (
-        <button onClick={() => fetchSupplierDetails(row.original.id)} className="text-xs bg-blue-600/20 text-blue-400 border border-blue-900/50 px-4 py-1.5 rounded hover:bg-blue-600 hover:text-white transition-colors">
-          {t('suppliers.actions.view')}
-        </button>
-      ),
-    },
+    { accessorKey: 'name', header: ({ column }) => ( <button className="flex items-center gap-2 hover:text-white outline-none transition-colors" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}> {t('suppliers.table.name')} <ArrowUpDown size={14} /> </button> ), cell: (info) => <span className="font-medium text-white">{info.getValue()}</span> },
+    { accessorKey: 'phone', header: t('suppliers.table.phone'), cell: (info) => <span className="text-slate-400">{info.getValue() || '-'}</span> },
+    { accessorKey: 'total_debt', header: t('suppliers.table.totalDebt'), cell: (info) => { const amount = info.getValue() || 0; return <span className={`font-bold ${amount > 0 ? 'text-red-400' : 'text-emerald-400'}`}>{amount.toLocaleString()} DA</span>; } },
+    { id: 'status', header: t('suppliers.table.status'), cell: ({ row }) => { const amount = row.original.total_debt || 0; const isClear = amount <= 0; return ( <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${isClear ? 'bg-emerald-950 text-emerald-400 border-emerald-900' : 'bg-red-950 text-red-400 border-red-900'}`}> {isClear ? t('suppliers.status.clear') : t('suppliers.status.indebted')} </span> ); } },
+    { id: 'actions', header: t('suppliers.table.actions'), cell: ({ row }) => ( <button onClick={() => fetchSupplierDetails(row.original.id)} className="text-xs bg-blue-600/20 text-blue-400 border border-blue-900/50 px-4 py-1.5 rounded hover:bg-blue-600 hover:text-white transition-colors"> {t('suppliers.actions.view')} </button> ) },
   ], [t, fetchSupplierDetails]);
 
-  const table = useReactTable({
-    data: suppliers, columns, state: { globalFilter }, onGlobalFilterChange: setGlobalFilter,
-    getCoreRowModel: getCoreRowModel(), getFilteredRowModel: getFilteredRowModel(), getSortedRowModel: getSortedRowModel(),
-  });
+  const table = useReactTable({ data: suppliers, columns, state: { globalFilter }, onGlobalFilterChange: setGlobalFilter, getCoreRowModel: getCoreRowModel(), getFilteredRowModel: getFilteredRowModel(), getSortedRowModel: getSortedRowModel() });
 
   if (currentSupplier) {
     return (
@@ -187,7 +129,6 @@ export default function Suppliers() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:hidden">
-          {/* قسم الفواتير */}
           <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden flex flex-col h-[450px]">
             <div className="p-4 bg-slate-950/50 border-b border-slate-800 flex items-center gap-2">
               <FileText size={18} className="text-slate-400" />
@@ -206,21 +147,17 @@ export default function Suppliers() {
                       </div>
                       <p className="text-sm text-slate-300">{r.note || '-'}</p>
                     </div>
-                    {/* زر المعاينة */}
-                    <button 
-                      onClick={() => handlePreview('receipt', r)} 
-                      className="ms-4 p-2 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-colors border border-slate-800 flex items-center gap-2"
-                      title="معاينة المستند"
-                    >
-                      <Eye size={18} />
-                    </button>
+                    <div className="flex gap-2 ms-4 border-s border-slate-800 ps-4">
+                      <button onClick={() => handlePreview('receipt', r)} className="p-2 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-colors border border-slate-800" title="معاينة المستند"><Eye size={18} /></button>
+                      <button onClick={() => openEditTransactionModal('receipt', r)} className="p-2 text-blue-400 hover:bg-slate-800 hover:text-blue-300 rounded-lg transition-colors border border-slate-800" title="تعديل"><Edit size={18} /></button>
+                      <button onClick={() => handleDeleteTransaction('receipt', r.id)} className="p-2 text-red-400 hover:bg-slate-800 hover:text-red-300 rounded-lg transition-colors border border-slate-800" title="حذف"><Trash2 size={18} /></button>
+                    </div>
                   </div>
                 ))
               )}
             </div>
           </div>
 
-          {/* قسم الدفعات */}
           <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden flex flex-col h-[450px]">
             <div className="p-4 bg-slate-950/50 border-b border-slate-800 flex items-center gap-2">
               <Banknote size={18} className="text-slate-400" />
@@ -239,14 +176,11 @@ export default function Suppliers() {
                       </div>
                       <p className="text-sm text-slate-300">{p.note || '-'}</p>
                     </div>
-                    {/* زر المعاينة */}
-                    <button 
-                      onClick={() => handlePreview('payment', p)} 
-                      className="ms-4 p-2 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-colors border border-slate-800 flex items-center gap-2"
-                      title="معاينة المستند"
-                    >
-                      <Eye size={18} />
-                    </button>
+                    <div className="flex gap-2 ms-4 border-s border-slate-800 ps-4">
+                      <button onClick={() => handlePreview('payment', p)} className="p-2 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-colors border border-slate-800" title="معاينة المستند"><Eye size={18} /></button>
+                      <button onClick={() => openEditTransactionModal('payment', p)} className="p-2 text-blue-400 hover:bg-slate-800 hover:text-blue-300 rounded-lg transition-colors border border-slate-800" title="تعديل"><Edit size={18} /></button>
+                      <button onClick={() => handleDeleteTransaction('payment', p.id)} className="p-2 text-red-400 hover:bg-slate-800 hover:text-red-300 rounded-lg transition-colors border border-slate-800" title="حذف"><Trash2 size={18} /></button>
+                    </div>
                   </div>
                 ))
               )}
@@ -254,94 +188,43 @@ export default function Suppliers() {
           </div>
         </div>
 
-        {/* --- نظام المعاينة (Print Preview Modal) --- */}
-        <Modal isOpen={isPreviewModalOpen} onClose={() => setIsPreviewModalOpen(false)} title="معاينة المستند / طباعة">
-          <div className="flex flex-col items-center">
-            {/* الشاشة الوهمية للمعاينة */}
-            <div className="w-full max-h-[55vh] overflow-y-auto bg-slate-800 rounded-lg p-6 flex justify-center items-start shadow-inner print:hidden border border-slate-700">
-              <div className="pointer-events-none select-none">
-                <PrintableTicket data={printData} />
-              </div>
-            </div>
-
-            {/* أزرار الإجراءات */}
-            <div className="flex w-full gap-4 mt-6 print:hidden">
-              <button onClick={executePrint} className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold transition-colors">
-                <Printer size={20} />
-                <span>طباعة</span>
-              </button>
-              <button onClick={executePrint} className="flex-1 flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-lg font-bold transition-colors border border-slate-600">
-                <Download size={20} />
-                <span>تحميل كـ PDF</span>
-              </button>
-            </div>
-            <p className="text-xs text-slate-400 mt-4 text-center print:hidden">
-              للحفظ كـ PDF، قم بالضغط على الزر واختر "Save as PDF" من قائمة الطابعات.
-            </p>
-          </div>
-        </Modal>
-
-        {/* المكون الفعلي الذي سيُطبع ويختفي عن الواجهة العادية */}
-        <div className="hidden print:block w-full">
-          <PrintableTicket data={printData} />
-        </div>
-        {/* ------------------------------------- */}
-
-        <Modal isOpen={isReceiptModalOpen} onClose={() => setIsReceiptModalOpen(false)} title={t('suppliers.details.addReceipt')}>
-          <form onSubmit={handleSaveReceipt} className="space-y-4">
+        <Modal isOpen={isTransactionModalOpen} onClose={() => setIsTransactionModalOpen(false)} title={transactionType === 'receipt' ? (editingTransactionId ? t('expenses.editExpense', 'تعديل') : t('suppliers.details.addReceipt')) : (editingTransactionId ? t('expenses.editExpense', 'تعديل') : t('suppliers.details.addPayment'))}>
+          <form onSubmit={handleSaveTransaction} className="space-y-4 text-start">
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.amount')} (DA)</label>
-              <input type="number" min="1" required value={transactionData.amount} onChange={e => setTransactionData({...transactionData, amount: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-red-500 transition-colors" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.date')}</label>
-              <input type="date" required value={transactionData.date} onChange={e => setTransactionData({...transactionData, date: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-red-500 transition-colors" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.note')}</label>
-              <input type="text" value={transactionData.note} onChange={e => setTransactionData({...transactionData, note: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-red-500 transition-colors" />
-            </div>
-            <div className="pt-4 flex justify-end gap-3 mt-6">
-              <button type="button" onClick={() => setIsReceiptModalOpen(false)} className="px-4 py-2 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">{t('suppliers.modal.cancelBtn')}</button>
-              <button type="submit" className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors">{t('suppliers.details.addReceipt')}</button>
-            </div>
-          </form>
-        </Modal>
-
-        <Modal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} title={t('suppliers.details.addPayment')}>
-          <form onSubmit={handleSavePayment} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.amount')} (DA)</label>
-              <input type="number" min="1" max={currentSupplier.total_debt > 0 ? currentSupplier.total_debt : undefined} required value={transactionData.amount} onChange={e => setTransactionData({...transactionData, amount: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500 transition-colors" />
+              <input type="number" min="1" required value={transactionData.amount} onChange={e => setTransactionData({...transactionData, amount: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start" />
             </div>
             
-            <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.caisse')}</label>
-              <select required value={transactionData.caisseSource} onChange={e => setTransactionData({...transactionData, caisseSource: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500 transition-colors" dir={isRTL ? "rtl" : "ltr"}>
-                <option value="" disabled>{t('suppliers.modal.selectEmployee')}</option>
-                {employees.map(emp => (
-                  <option key={emp.id} value={emp.name}>{emp.name} ({emp.role})</option>
-                ))}
-              </select>
-            </div>
+            {transactionType === 'payment' && (
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.caisse')}</label>
+                <select required value={transactionData.caisseSource} onChange={e => setTransactionData({...transactionData, caisseSource: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start" dir={isRTL ? "rtl" : "ltr"}>
+                  <option value="" disabled>{t('suppliers.modal.selectEmployee')}</option>
+                  {employees.map(emp => (
+                    <option key={emp.id} value={emp.name}>{emp.name} ({t(`hr.roles.${emp.role}`, emp.role)})</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.date')}</label>
-              <input type="date" required value={transactionData.date} onChange={e => setTransactionData({...transactionData, date: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500 transition-colors" />
+              <input type="date" required value={transactionData.date} onChange={e => setTransactionData({...transactionData, date: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start" />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.note')}</label>
-              <input type="text" value={transactionData.note} onChange={e => setTransactionData({...transactionData, note: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500 transition-colors" />
+              <input type="text" value={transactionData.note} onChange={e => setTransactionData({...transactionData, note: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start" />
             </div>
             <div className="pt-4 flex justify-end gap-3 mt-6">
-              <button type="button" onClick={() => setIsPaymentModalOpen(false)} className="px-4 py-2 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">{t('suppliers.modal.cancelBtn')}</button>
-              <button type="submit" className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors">{t('suppliers.details.addPayment')}</button>
+              <button type="button" onClick={() => setIsTransactionModalOpen(false)} className="px-4 py-2 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">{t('common.cancel')}</button>
+              <button type="submit" className={`px-4 py-2 text-white rounded-lg font-medium transition-colors ${transactionType === 'receipt' ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
+                {editingTransactionId ? t('expenses.saveChanges', 'حفظ التعديلات') : t('common.success', 'تأكيد')}
+              </button>
             </div>
           </form>
         </Modal>
-        
 
-<Modal isOpen={isScheduleModalOpen} onClose={() => setIsScheduleModalOpen(false)} title={t('suppliers.modal.scheduleTitle', 'جدولة دفعة قادمة')}>
+        <Modal isOpen={isScheduleModalOpen} onClose={() => setIsScheduleModalOpen(false)} title={t('suppliers.modal.scheduleTitle', 'جدولة دفعة قادمة')}>
           <form onSubmit={async (e) => {
             e.preventDefault();
             try {
@@ -354,9 +237,7 @@ export default function Suppliers() {
                });
                setIsScheduleModalOpen(false);
                alert(t('common.success'));
-            } catch(error) {
-               console.error(error);
-            }
+            } catch(error) { console.error(error); }
           }} className="space-y-4 text-start">
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.amount')} (DA)</label>
@@ -377,16 +258,11 @@ export default function Suppliers() {
           </form>
         </Modal>
 
-
-       
-
       </div>
     );
   }
 
-  // ... (الجزء الخاص بالقائمة الرئيسية للموردين يبقى كما هو بدون تغيير)
-  return (/* كود القائمة الرئيسية */
-    // ...
+  return (
     <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans relative">
       <div className="flex justify-between items-center mb-8">
         <div>
@@ -402,17 +278,17 @@ export default function Suppliers() {
         <div className="p-4 border-b border-slate-800 flex items-center bg-slate-950/30">
           <div className="relative w-full max-w-md">
             <Search size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <input type="text" value={globalFilter ?? ''} onChange={e => setGlobalFilter(e.target.value)} placeholder={t('suppliers.searchPlaceholder')} className="w-full bg-slate-900 border border-slate-700 rounded-lg ps-10 pe-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors shadow-inner" />
+            <input type="text" value={globalFilter ?? ''} onChange={e => setGlobalFilter(e.target.value)} placeholder={t('suppliers.searchPlaceholder')} className="w-full bg-slate-900 border border-slate-700 rounded-lg ps-10 pe-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors shadow-inner text-start" dir={isRTL ? "rtl" : "ltr"} />
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse" dir={i18n.dir()}>
+          <table className="w-full text-start border-collapse" dir={i18n.dir()}>
             <thead>
               {table.getHeaderGroups().map(headerGroup => (
                 <tr key={headerGroup.id} className="border-b border-slate-800 bg-slate-950/80">
                   {headerGroup.headers.map(header => (
-                    <th key={header.id} className={`px-6 py-4 text-sm font-medium text-slate-400 whitespace-nowrap ${isRTL ? 'text-right' : 'text-left'}`}>
+                    <th key={header.id} className={`px-6 py-4 text-sm font-medium text-slate-400 whitespace-nowrap text-start`}>
                       {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                     </th>
                   ))}
@@ -423,7 +299,7 @@ export default function Suppliers() {
               {table.getRowModel().rows.map(row => (
                 <tr key={row.id} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
                   {row.getVisibleCells().map(cell => (
-                    <td key={cell.id} className="px-6 py-4 text-sm whitespace-nowrap">
+                    <td key={cell.id} className="px-6 py-4 text-sm whitespace-nowrap text-start">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
@@ -438,18 +314,18 @@ export default function Suppliers() {
       </div>
 
       <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title={t('suppliers.addSupplier')}>
-        <form onSubmit={handleSaveSupplier} className="space-y-4">
+        <form onSubmit={handleSaveSupplier} className="space-y-4 text-start">
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-2">{t('suppliers.modal.nameLabel')}</label>
-            <input type="text" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors" />
+            <input type="text" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start" />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-2">{t('suppliers.modal.phoneLabel')}</label>
-            <input type="text" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors" />
+            <input type="text" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start" />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-2">{t('suppliers.modal.debtLabel')}</label>
-            <input type="number" min="0" required value={formData.initialDebt} onChange={e => setFormData({...formData, initialDebt: Number(e.target.value)})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors" />
+            <input type="number" min="0" required value={formData.initialDebt} onChange={e => setFormData({...formData, initialDebt: Number(e.target.value)})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start" />
           </div>
           <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-800">
             <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-4 py-2 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors font-medium">{t('suppliers.modal.cancelBtn')}</button>

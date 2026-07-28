@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom'; // إضافة استيراد useNavigate
+import { useNavigate } from 'react-router-dom';
 import { 
   Calculator, Banknote, Clock, Users, Calendar, 
   MinusCircle, CheckCircle, Plus, AlertCircle, FileText, Printer, Eye
@@ -13,7 +13,7 @@ import Modal from '../ui/Modal';
 export default function Payroll() {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.dir() === 'rtl';
-  const navigate = useNavigate(); // تهيئة دالة الانتقال
+  const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState('calculator');
 
@@ -37,15 +37,19 @@ export default function Payroll() {
     employeeId: '', amount: '', date: today.toISOString().split('T')[0], caisseSource: '', note: '' 
   });
 
+  // 🔴 الإصلاح الأول: إزالة الدوال من قائمة المراقبة لمنع التجميد 🔴
   useEffect(() => {
     fetchEmployees();
     fetchAdvances();
     fetchSalaries();
-  }, [fetchEmployees, fetchAdvances, fetchSalaries]);
+  }, []); // <-- يجب أن تكون فارغة هكذا
 
+  // 🔴 الإصلاح الثاني: مسح النتيجة فقط عند تغيير الموظف 🔴
   useEffect(() => {
-    clearPayrollResult();
-  }, [selectedEmployee, clearPayrollResult]);
+    if(selectedEmployee) {
+       clearPayrollResult();
+    }
+  }, [selectedEmployee]);
 
   const handleCalculate = async (e) => {
     if (e) e.preventDefault();
@@ -72,6 +76,8 @@ export default function Payroll() {
       setIsAdvanceModalOpen(false);
       setAdvanceData({ employeeId: '', amount: '', date: today.toISOString().split('T')[0], caisseSource: '', note: '' });
       if (payrollResult) handleCalculate(); 
+      // تحديث البيانات بعد الإضافة
+      fetchAdvances();
     }
   };
 
@@ -97,12 +103,15 @@ export default function Payroll() {
     if (res.success) {
       alert(t('common.success'));
       setActiveTab('salaries');
+      // تحديث البيانات بعد الدفع لمنع البلوك
+      fetchSalaries();
+      fetchAdvances();
+      clearPayrollResult();
     } else {
       alert('فشلت العملية. السبب التقني: \n' + res.error);
     }
   };
 
-  // --- دالة الانتقال إلى صفحة المعاينة الذكية ---
   const handlePrintPayslip = () => {
     if (!payrollResult) return;
     
@@ -110,7 +119,7 @@ export default function Payroll() {
     
     navigate('/preview', {
       state: {
-        type: 'payslip', // لتتعرف عليها صفحة المعاينة ككشف راتب A4
+        type: 'payslip',
         employeeName: employeeData?.name || '',
         period: `${startDate} - ${endDate}`,
         date: today.toISOString().split('T')[0],
@@ -122,10 +131,9 @@ export default function Payroll() {
       }
     });
   };
-  // ---------------------------------------------
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans flex flex-col gap-6">
+    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans flex flex-col gap-6 text-start">
       
       <div className="flex justify-between items-end">
         <div>
@@ -159,7 +167,7 @@ export default function Payroll() {
                 <label className="block text-sm font-medium text-slate-400 mb-2">{t('payroll.selectEmployee')}</label>
                 <select required value={selectedEmployee} onChange={e => setSelectedEmployee(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500" dir={isRTL ? "rtl" : "ltr"}>
                   <option value="" disabled>{t('payroll.selectEmployee')}</option>
-                  {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} ({emp.role})</option>)}
+                  {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} ({t(`hr.roles.${emp.role}`, emp.role)})</option>)}
                 </select>
               </div>
               <div>
@@ -206,7 +214,7 @@ export default function Payroll() {
                 <div className={`p-5 rounded-lg border text-center col-span-2 ${payrollResult.netSalary < 0 ? 'bg-red-950/30 border-red-900/50 ring-1 ring-red-500/50' : 'bg-emerald-950/30 border-emerald-900/50 ring-1 ring-emerald-500/50'}`}>
                   <p className="text-sm text-slate-300 mb-2">{t('payroll.netSalary')}</p>
                   <p className={`text-4xl font-bold ${payrollResult.netSalary < 0 ? 'text-red-500' : 'text-emerald-400'}`}>
-                    {payrollResult.netSalary.toLocaleString()} DA
+                    {payrollResult.netSalary.toLocaleString()} {t('currency', 'DA')}
                   </p>
                   {payrollResult.netSalary < 0 && <p className="text-xs text-red-400 mt-2">{t('payroll.negativeSalaryError')}</p>}
                 </div>
@@ -221,7 +229,6 @@ export default function Payroll() {
                   {payrollResult.netSalary < 0 ? t('payroll.rolloverBtn') : t('payroll.payBtn')}
                 </button>
 
-                {/* استبدال زر الطباعة المباشرة بزر الانتقال لصفحة المعاينة */}
                 <button 
                   onClick={handlePrintPayslip} 
                   className="bg-slate-800 hover:bg-slate-700 text-white py-4 px-6 rounded-lg font-bold transition-colors flex items-center justify-center gap-2"
@@ -245,7 +252,7 @@ export default function Payroll() {
             </button>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-start border-collapse min-w-[800px]">
+            <table className="w-full text-start border-collapse min-w-[800px]" dir={isRTL ? "rtl" : "ltr"}>
               <thead>
                 <tr className="border-b border-slate-800 bg-slate-950/80">
                   <th className="px-6 py-4 text-sm font-medium text-slate-400 text-start">{t('hr.table.name')}</th>
@@ -265,7 +272,7 @@ export default function Payroll() {
                       <td className="px-6 py-4 font-medium text-white">{adv.employee_name}</td>
                       <td className="px-6 py-4 text-slate-400 text-sm">{adv.date}</td>
                       <td className="px-6 py-4 text-slate-300 text-sm">{adv.caisse_source || '-'}</td>
-                      <td className="px-6 py-4 font-bold text-red-400">{adv.amount.toLocaleString()} DA</td>
+                      <td className="px-6 py-4 font-bold text-red-400">{adv.amount.toLocaleString()} {t('currency', 'DA')}</td>
                       <td className="px-6 py-4 text-slate-400 text-sm">{adv.note || '-'}</td>
                       <td className="px-6 py-4 text-center">
                         <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${adv.status === 'pending' ? 'bg-orange-950 text-orange-400 border-orange-900' : 'bg-emerald-950 text-emerald-400 border-emerald-900'}`}>
@@ -281,14 +288,13 @@ export default function Payroll() {
         </div>
       )}
 
-{activeTab === 'salaries' && (
+      {activeTab === 'salaries' && (
         <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
           <div className="p-4 border-b border-slate-800 bg-slate-950/30 flex justify-between items-center">
             <h3 className="font-bold text-white flex items-center gap-2">
               <FileText size={18} className="text-blue-400" /> {t('payroll.tabs.salaries')}
             </h3>
             
-            {/* زر طباعة التقرير الشامل الجديد */}
             <button 
               onClick={() => {
                 if(salaries.length === 0) return alert('لا توجد رواتب لطباعتها!');
@@ -306,8 +312,7 @@ export default function Payroll() {
           </div>
           
           <div className="overflow-x-auto">
-             {/* بقية الجدول كما هو في الكود الأصلي الخاص بك */}
-            <table className="w-full text-start border-collapse min-w-[800px]">
+            <table className="w-full text-start border-collapse min-w-[800px]" dir={isRTL ? "rtl" : "ltr"}>
               <thead>
                 <tr className="border-b border-slate-800 bg-slate-950/80">
                   <th className="px-6 py-4 text-sm font-medium text-slate-400 text-start">{t('hr.table.name')}</th>
@@ -332,7 +337,7 @@ export default function Payroll() {
                       <td className="px-6 py-4 text-blue-400 font-medium text-center">{sal.total_hours}</td>
                       <td className="px-6 py-4 text-slate-300 text-center">{sal.total_hours * sal.hourly_rate}</td>
                       <td className="px-6 py-4 text-red-400 font-medium text-center">-{sal.total_advances}</td>
-                      <td className="px-6 py-4 font-bold text-emerald-400 text-center bg-slate-950/50">{sal.net_salary.toLocaleString()} DA</td>
+                      <td className="px-6 py-4 font-bold text-emerald-400 text-center bg-slate-950/50">{sal.net_salary.toLocaleString()} {t('currency', 'DA')}</td>
                     </tr>
                   ))
                 )}
@@ -356,7 +361,7 @@ export default function Payroll() {
             <label className="block text-sm font-medium text-slate-400 mb-1">{t('payroll.caisse')}</label>
             <select required value={advanceData.caisseSource} onChange={e => setAdvanceData({...advanceData, caisseSource: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white" dir={isRTL ? "rtl" : "ltr"}>
               <option value="" disabled>{t('payroll.selectCaisse')}</option>
-              {employees.map(emp => <option key={emp.id} value={emp.name}>{emp.name} ({emp.role})</option>)}
+              {employees.map(emp => <option key={emp.id} value={emp.name}>{emp.name} ({t(`hr.roles.${emp.role}`, emp.role)})</option>)}
             </select>
           </div>
 

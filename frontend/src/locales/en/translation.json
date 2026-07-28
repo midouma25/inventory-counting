@@ -147,7 +147,7 @@
     "statusPaid": "Paid/Deducted",
     "amount": "Amount",
     "date": "Date",
-    "rolloConfirm": "Net salary is negative! Save record and rollover remaining debt to next week?",
+    "rolloverConfirm": "Net salary is negative! Save record and rollover remaining debt to next week?",
     "standardConfirm": "Are you sure you want to approve and pay this salary?",
     "rolloverBtn": "Confirm & Rollover Debt",
     "rolloverNote": "Rollover debt after salary deduction ({{start}} to {{end}})",
@@ -278,7 +278,7 @@
     "subtitle": "Manage upcoming deliveries, payments, and tasks",
     "addTask": "New Task",
     "dueThisWeek": "Due this week",
-    "scheduledPaymentDesc": "Scheduled Payment for {{name}} (Amount: {{amount}} DA)",
+    "scheduledPaymentDesc": "Scheduled Payment for {{name}} (Amount: {{amount}} DZD)",
     "filters": {
       "all": "All Tasks",
       "pending": "Pending",

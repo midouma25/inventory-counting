@@ -53,6 +53,8 @@ contextBridge.exposeInMainWorld('api', {
   
   updateReceipt: (id, data) => ipcRenderer.invoke('update-receipt', id, data),
   updatePayment: (id, data) => ipcRenderer.invoke('update-payment', id, data),
+  deleteReceipt: (id) => ipcRenderer.invoke('delete-receipt', id),
+  deletePayment: (id) => ipcRenderer.invoke('delete-payment', id),
   
   // Database Management
   backupDatabase: () => ipcRenderer.invoke('backup-database'),
