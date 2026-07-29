@@ -14,6 +14,8 @@ export default function Expenses() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
+  
+  const [expenseToDelete, setExpenseToDelete] = useState(null);
 
   const { employees, fetchEmployees } = useEmployeeStore();
   const { suppliers, fetchSuppliers } = useSupplierStore();
@@ -32,7 +34,6 @@ export default function Expenses() {
     } catch (error) { console.error("Failed to fetch expenses:", error); }
   };
 
-  // 🔴 الإصلاح: جعل المصفوفة فارغة لمنع التجميد 🔴
   useEffect(() => {
     fetchExpensesList();
     fetchEmployees();
@@ -51,17 +52,21 @@ export default function Expenses() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm(t('expenses.deleteConfirm'))) {
-      try {
-        if (window.api && window.api.deleteExpense) {
-          const result = await window.api.deleteExpense(id, user?.username || 'Unknown');
-          if (result && result.success) {
-            setExpenses(prev => prev.filter(exp => !(exp.id === id && exp.source === 'expense')));
-          }
+  const handleDeleteClick = (id) => {
+    setExpenseToDelete(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!expenseToDelete) return;
+    try {
+      if (window.api && window.api.deleteExpense) {
+        const result = await window.api.deleteExpense(expenseToDelete, user?.username || 'Unknown');
+        if (result && result.success) {
+          setExpenses(prev => prev.filter(exp => !(exp.id === expenseToDelete && exp.source === 'expense')));
         }
-      } catch (error) { console.error("Error deleting expense:", error); }
-    }
+      }
+    } catch (error) { console.error("Error deleting expense:", error); }
+    setExpenseToDelete(null); 
   };
 
   const getCaisseName = () => {
@@ -97,7 +102,7 @@ export default function Expenses() {
 
       setIsModalOpen(false);
       setEditingExpense(null);
-      fetchExpensesList(); // تحديث فقط عند حفظ الإجراء
+      fetchExpensesList(); 
     } catch (error) { console.error("Error saving transaction:", error); }
   };
 
@@ -142,7 +147,7 @@ export default function Expenses() {
         <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl flex items-center justify-between">
           <div>
             <p className="text-sm text-slate-400">{t('expenses.kpi.today')}</p>
-            <h3 className="text-2xl font-bold text-white mt-1">{todayTotal.toLocaleString()} DA</h3>
+            <h3 className="text-2xl font-bold text-white mt-1">{todayTotal.toLocaleString()} {t('currency')}</h3>
           </div>
           <div className="p-3 bg-red-950/30 rounded-lg text-red-400"><ArrowDownCircle size={24} /></div>
         </div>
@@ -150,7 +155,7 @@ export default function Expenses() {
         <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl flex items-center justify-between">
           <div>
             <p className="text-sm text-slate-400">{t('expenses.kpi.month')}</p>
-            <h3 className="text-2xl font-bold text-slate-300 mt-1">{monthTotal.toLocaleString()} DA</h3>
+            <h3 className="text-2xl font-bold text-slate-300 mt-1">{monthTotal.toLocaleString()} {t('currency')}</h3>
           </div>
           <div className="p-3 bg-slate-800 rounded-lg text-slate-400"><Wallet size={24} /></div>
         </div>
@@ -160,7 +165,7 @@ export default function Expenses() {
         <div className="p-4 border-b border-slate-800 bg-slate-950/30">
           <div className="relative w-full max-w-md">
             <Search size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder={t('expenses.searchPlaceholder')} className="w-full bg-slate-900 border border-slate-700 rounded-lg ps-10 pe-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors shadow-inner text-start" dir={isRTL ? "rtl" : "ltr"} />
+            <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder={t('common.search')} className="w-full bg-slate-900 border border-slate-700 rounded-lg ps-10 pe-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors shadow-inner text-start" dir={isRTL ? "rtl" : "ltr"} />
           </div>
         </div>
 
@@ -172,7 +177,7 @@ export default function Expenses() {
                 <th className="px-6 py-4 text-sm font-medium text-slate-400 text-start">{t('expenses.table.description')}</th>
                 <th className="px-6 py-4 text-sm font-medium text-slate-400 text-start">{t('expenses.table.category')}</th>
                 <th className="px-6 py-4 text-sm font-medium text-slate-400 text-start">{t('expenses.table.amount')}</th>
-                <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('expenses.table.actions')}</th>
+                <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('suppliers.table.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -193,16 +198,16 @@ export default function Expenses() {
                       {getCategoryTranslation(exp.category)}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-start font-bold text-white">{exp.amount.toLocaleString()} DA</td>
+                  <td className="px-6 py-4 text-start font-bold text-white">{exp.amount.toLocaleString()} {t('currency')}</td>
                   <td className="px-6 py-4">
                     {exp.source === 'expense' ? (
                       <div className="flex items-center justify-center gap-2">
                         <button onClick={() => openEditModal(exp)} className="p-2 text-blue-400 hover:bg-blue-900/50 rounded-lg transition-colors"><Edit size={18} /></button>
-                        <button onClick={() => handleDelete(exp.id)} className="p-2 text-red-400 hover:bg-red-900/50 rounded-lg transition-colors"><Trash2 size={18} /></button>
+                        <button onClick={() => handleDeleteClick(exp.id)} className="p-2 text-red-400 hover:bg-red-900/50 rounded-lg transition-colors"><Trash2 size={18} /></button>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-center text-xs text-slate-500 gap-1" title={t('expenses.table.managedElsewhere')}>
-                        <ShieldAlert size={14} /> {t('expenses.table.locked')}
+                      <div className="flex items-center justify-center text-xs text-slate-500 gap-1" title={t('common.serverOnlyFeature')}>
+                        <ShieldAlert size={14} /> {t('expenses.table.locked', 'مقفل')}
                       </div>
                     )}
                   </td>
@@ -215,6 +220,20 @@ export default function Expenses() {
           </table>
         </div>
       </div>
+
+      <Modal isOpen={!!expenseToDelete} onClose={() => setExpenseToDelete(null)} title={t('suppliers.actions.delete')}>
+        <div className="p-4 text-start">
+          <p className="text-white mb-6 text-lg">{t('expenses.deleteConfirm')}</p>
+          <div className="flex items-center justify-end gap-3 mt-4">
+            <button onClick={() => setExpenseToDelete(null)} className="px-4 py-2 text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
+              {t('common.cancel')}
+            </button>
+            <button onClick={confirmDelete} className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
+              {t('suppliers.actions.confirmDeleteBtn')}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setEditingExpense(null); }} title={editingExpense ? t('expenses.editExpense') : t('expenses.addExpense')}>
         <form className="space-y-4" onSubmit={handleSubmitExpense} dir={isRTL ? "rtl" : "ltr"}>
@@ -243,14 +262,14 @@ export default function Expenses() {
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('suppliers.modal.nameLabel')}</label>
               <select required value={formData.supplierId} onChange={e => setFormData({...formData, supplierId: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 text-start">
-                <option value="" disabled>{t('suppliers.modal.selectSupplier')}</option>
+                <option value="" disabled>{t('suppliers.modal.selectSupplier', '-- اختر مورداً --')}</option>
                 {suppliers.map(sup => <option key={sup.id} value={sup.id}>{sup.name}</option>)}
               </select>
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('expenses.table.amount')} (DA)</label>
+            <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('expenses.table.amount')} ({t('currency')})</label>
             <input type="number" min="1" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start" required />
           </div>
 

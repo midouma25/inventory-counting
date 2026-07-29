@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Play, Lock, Calculator, Banknote, AlertCircle, Clock } from 'lucide-react';
-import useAuthStore from '../store//authStore';
+import useAuthStore from '../store/authStore';
+import Modal from './ui/Modal'; 
 
 export default function EndOfDay() {
   const { t, i18n } = useTranslation();
@@ -18,6 +19,7 @@ export default function EndOfDay() {
   const [notes, setNotes] = useState('');
   
   const [summary, setSummary] = useState({ expenses: 0, supplierPayments: 0, advances: 0, totalOut: 0 });
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 
   const fetchShiftData = async () => {
     setIsLoading(true);
@@ -27,7 +29,6 @@ export default function EndOfDay() {
         if (shift) {
           setActiveShift(shift);
           
-          // جلب ملخص المصاريف الخاص بهذه الوردية فقط
           const summaryRes = await window.api.getShiftSummary(cashierName, shift.start_time);
           if (summaryRes.success) {
             setSummary(summaryRes.data);
@@ -61,7 +62,7 @@ export default function EndOfDay() {
           setOpeningBalanceInput('');
           fetchShiftData();
         } else {
-          alert(res.message);
+          alert(res.message || t('common.error'));
         }
       }
     } catch (err) {
@@ -72,43 +73,42 @@ export default function EndOfDay() {
   const totalOut = summary.totalOut || 0;
   const currentOpeningBalance = activeShift ? activeShift.opening_balance : 0;
   
-  // حساب المبيعات (المداخيل الصافية): (النقد الفعلي + المصاريف الخارجة) - الرصيد الافتتاحي
   const todaySales = (actualAmount === '' || actualAmount === 0) 
     ? 0 
     : (Number(actualAmount) + totalOut) - Number(currentOpeningBalance);
 
-  const handleCloseShift = async (e) => {
+  const handleCloseShiftClick = (e) => {
     e.preventDefault();
     if (actualAmount === '') return;
-    
-    if (window.confirm(t('eod.confirmClose'))) {
-      try {
-        if (window.api && window.api.closeShift) {
-          const res = await window.api.closeShift({
-            shiftId: activeShift.id,
-            actualCash: Number(actualAmount),
-            difference: todaySales, // نحفظ المبيعات/الفارق هنا
-            note: notes
-          });
-          
-          if (res.success) {
-            alert(t('eod.closeSuccess'));
-            setActiveShift(null);
-            setActualAmount('');
-            setNotes('');
-          }
+    setIsConfirmModalOpen(true);
+  };
+
+  const executeCloseShift = async () => {
+    try {
+      if (window.api && window.api.closeShift) {
+        const res = await window.api.closeShift({
+          shiftId: activeShift.id,
+          actualCash: Number(actualAmount),
+          difference: todaySales,
+          note: notes
+        });
+        
+        if (res.success) {
+          setActiveShift(null);
+          setActualAmount('');
+          setNotes('');
         }
-      } catch (err) {
-        console.error(err);
       }
+    } catch (err) {
+      console.error(err);
     }
+    setIsConfirmModalOpen(false);
   };
 
   if (isLoading) {
     return <div className="p-6 text-center text-slate-500">{t('hr.table.loading')}</div>;
   }
 
-  // === الشاشة 1: فتح وردية جديدة ===
   if (!activeShift) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans flex items-center justify-center">
@@ -121,9 +121,9 @@ export default function EndOfDay() {
             <p className="text-slate-500 text-sm">{t('eod.open_shift_desc')} <span className="font-bold text-white">{cashierName}</span></p>
           </div>
 
-          <form onSubmit={handleOpenShift} className="space-y-6 text-start">
+          <form onSubmit={handleOpenShift} className="space-y-6 text-start" dir={isRTL ? "rtl" : "ltr"}>
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-2">{t('eod.opening_balance')} (DA)</label>
+              <label className="block text-sm font-medium text-slate-400 mb-2">{t('eod.opening_balance')} ({t('currency')})</label>
               <div className="relative">
                 <Banknote size={18} className="absolute start-4 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input 
@@ -146,7 +146,6 @@ export default function EndOfDay() {
     );
   }
 
-  // === الشاشة 2: الوردية النشطة (إغلاق الوردية) ===
   const shiftStartTime = new Date(activeShift.start_time).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' });
 
   return (
@@ -184,7 +183,7 @@ export default function EndOfDay() {
       </div>
 
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg">
-        <form onSubmit={handleCloseShift} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <form onSubmit={handleCloseShiftClick} className="grid grid-cols-1 lg:grid-cols-2 gap-8 text-start" dir={isRTL ? "rtl" : "ltr"}>
           
           <div className="space-y-6">
             <div>
@@ -202,7 +201,7 @@ export default function EndOfDay() {
                 />
               </div>
               <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
-                <AlertCircle size={12} /> أَدخل المبلغ الإجمالي المتواجد في درج النقود حالياً.
+                <AlertCircle size={12} /> {t('eod.actualCashHint')}
               </p>
             </div>
 
@@ -213,7 +212,7 @@ export default function EndOfDay() {
                 onChange={(e) => setNotes(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-700 rounded-lg p-4 text-white focus:outline-none focus:border-blue-500"
                 rows="3"
-                placeholder="ملاحظات حول الإغلاق أو فوارق الدرج..."
+                placeholder={t('eod.notesPlaceholder')}
               ></textarea>
             </div>
           </div>
@@ -237,6 +236,27 @@ export default function EndOfDay() {
 
         </form>
       </div>
+
+      <Modal isOpen={isConfirmModalOpen} onClose={() => setIsConfirmModalOpen(false)} title={t('eod.title')}>
+        <div className="p-4 text-start">
+          <p className="text-white mb-6 text-lg">{t('eod.confirmClose')}</p>
+          
+          <div className="bg-slate-950 p-4 rounded-lg mb-6 text-center border border-slate-800">
+             <p className="text-sm text-slate-400 mb-1">{t('eod.today_sales')}</p>
+             <p className={`text-2xl font-bold ${todaySales > 0 ? 'text-emerald-400' : 'text-red-400'}`}>{todaySales} {t('currency')}</p>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 mt-4">
+            <button onClick={() => setIsConfirmModalOpen(false)} className="px-4 py-2 text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
+              {t('common.cancel')}
+            </button>
+            <button onClick={executeCloseShift} className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2">
+              <Lock size={18} /> {t('eod.save_btn')}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
     </div>
   );
 }

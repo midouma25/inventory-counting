@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Calculator, Banknote, Clock, Users, Calendar, 
-  MinusCircle, CheckCircle, Plus, AlertCircle, FileText, Printer, Eye
-} from 'lucide-react';
+import { Calculator, Banknote, Clock, Users, Calendar, MinusCircle, CheckCircle, Plus, AlertCircle, FileText, Printer, Eye } from 'lucide-react';
 
 import useEmployeeStore from '../../store/employeeStore';
 import usePayrollStore from '../../store/payrollStore';
@@ -18,10 +15,7 @@ export default function Payroll() {
   const [activeTab, setActiveTab] = useState('calculator');
 
   const { employees, fetchEmployees } = useEmployeeStore();
-  const { 
-    advances, salaries, fetchAdvances, fetchSalaries, addAdvance, 
-    calculatePayroll, payrollResult, paySalary, clearPayrollResult 
-  } = usePayrollStore();
+  const { advances, salaries, fetchAdvances, fetchSalaries, addAdvance, calculatePayroll, payrollResult, paySalary, clearPayrollResult } = usePayrollStore();
 
   const today = new Date();
   const lastWeek = new Date(today);
@@ -33,18 +27,16 @@ export default function Payroll() {
   const [hourlyRate, setHourlyRate] = useState('');
   
   const [isAdvanceModalOpen, setIsAdvanceModalOpen] = useState(false);
-  const [advanceData, setAdvanceData] = useState({ 
-    employeeId: '', amount: '', date: today.toISOString().split('T')[0], caisseSource: '', note: '' 
-  });
+  const [advanceData, setAdvanceData] = useState({ employeeId: '', amount: '', date: today.toISOString().split('T')[0], caisseSource: '', note: '' });
 
-  // 🔴 الإصلاح الأول: إزالة الدوال من قائمة المراقبة لمنع التجميد 🔴
+  const [confirmModalData, setConfirmModalData] = useState(null);
+
   useEffect(() => {
     fetchEmployees();
     fetchAdvances();
     fetchSalaries();
-  }, []); // <-- يجب أن تكون فارغة هكذا
+  }, []);
 
-  // 🔴 الإصلاح الثاني: مسح النتيجة فقط عند تغيير الموظف 🔴
   useEffect(() => {
     if(selectedEmployee) {
        clearPayrollResult();
@@ -54,112 +46,78 @@ export default function Payroll() {
   const handleCalculate = async (e) => {
     if (e) e.preventDefault();
     if (!selectedEmployee || !hourlyRate || !startDate || !endDate) return;
-    await calculatePayroll({
-      employeeId: selectedEmployee,
-      startDate,
-      endDate,
-      hourlyRate: Number(hourlyRate)
-    });
+    await calculatePayroll({ employeeId: selectedEmployee, startDate, endDate, hourlyRate: Number(hourlyRate) });
   };
 
   const handleSaveAdvance = async (e) => {
     e.preventDefault();
     if (!advanceData.employeeId || !advanceData.caisseSource) return;
-    const success = await addAdvance({
-      employeeId: advanceData.employeeId,
-      amount: Number(advanceData.amount),
-      date: advanceData.date,
-      caisseSource: advanceData.caisseSource,
-      note: advanceData.note
-    });
+    const success = await addAdvance({ employeeId: advanceData.employeeId, amount: Number(advanceData.amount), date: advanceData.date, caisseSource: advanceData.caisseSource, note: advanceData.note });
     if (success) {
       setIsAdvanceModalOpen(false);
       setAdvanceData({ employeeId: '', amount: '', date: today.toISOString().split('T')[0], caisseSource: '', note: '' });
       if (payrollResult) handleCalculate(); 
-      // تحديث البيانات بعد الإضافة
       fetchAdvances();
     }
   };
 
-  const handlePaySalary = async () => {
+  const handlePaySalaryClick = () => {
     if (!payrollResult) return;
-    
-    if (payrollResult.netSalary < 0) {
-       if (!window.confirm(t('payroll.rolloverConfirm'))) return;
-    } else {
-       if (!window.confirm(t('payroll.standardConfirm'))) return;
-    }
-
     const employeeName = employees.find(e => e.id === Number(selectedEmployee))?.name || '';
-
     const payload = { 
       ...payrollResult, 
       date: today.toISOString().split('T')[0],
       rolloverNote: t('payroll.rolloverNote', { start: payrollResult.startDate, end: payrollResult.endDate }),
       expenseNote: t('payroll.expenseNote', { name: employeeName, start: payrollResult.startDate, end: payrollResult.endDate })
     };
-    
-    const res = await paySalary(payload);
+
+    if (payrollResult.netSalary < 0) {
+       setConfirmModalData({ type: 'rollover', payload });
+    } else {
+       setConfirmModalData({ type: 'standard', payload });
+    }
+  };
+
+  const executePayment = async () => {
+    if (!confirmModalData) return;
+    const res = await paySalary(confirmModalData.payload);
     if (res.success) {
-      alert(t('common.success'));
       setActiveTab('salaries');
-      // تحديث البيانات بعد الدفع لمنع البلوك
       fetchSalaries();
       fetchAdvances();
       clearPayrollResult();
     } else {
-      alert('فشلت العملية. السبب التقني: \n' + res.error);
+      alert(t('common.error') + ' \n' + res.error);
+      setTimeout(() => window.focus(), 100);
     }
+    setConfirmModalData(null);
   };
 
   const handlePrintPayslip = () => {
     if (!payrollResult) return;
-    
     const employeeData = employees.find(e => e.id === Number(selectedEmployee));
-    
     navigate('/preview', {
-      state: {
-        type: 'payslip',
-        employeeName: employeeData?.name || '',
-        period: `${startDate} - ${endDate}`,
-        date: today.toISOString().split('T')[0],
-        hours: payrollResult.totalHours,
-        rate: hourlyRate,
-        grossSalary: payrollResult.grossSalary,
-        deductions: payrollResult.totalAdvances,
-        netSalary: payrollResult.netSalary
-      }
+      state: { type: 'payslip', employeeName: employeeData?.name || '', period: `${startDate} - ${endDate}`, date: today.toISOString().split('T')[0], hours: payrollResult.totalHours, rate: hourlyRate, grossSalary: payrollResult.grossSalary, deductions: payrollResult.totalAdvances, netSalary: payrollResult.netSalary }
     });
   };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans flex flex-col gap-6 text-start">
-      
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-bold text-white flex items-center gap-3 mb-2">
-            <Banknote className="text-emerald-500" />
-            {t('payroll.title')}
-          </h1>
+          <h1 className="text-3xl font-bold text-white flex items-center gap-3 mb-2"><Banknote className="text-emerald-500" />{t('payroll.title')}</h1>
           <p className="text-sm text-slate-500">{t('payroll.subtitle')}</p>
         </div>
       </div>
 
       <div className="flex bg-slate-900 border border-slate-800 rounded-lg w-fit p-1 overflow-x-auto">
-        <button onClick={() => setActiveTab('calculator')} className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-medium transition-colors whitespace-nowrap ${activeTab === 'calculator' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
-          <Calculator size={18} /> {t('payroll.tabs.calculator')}
-        </button>
-        <button onClick={() => setActiveTab('advances')} className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-medium transition-colors whitespace-nowrap ${activeTab === 'advances' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
-          <MinusCircle size={18} /> {t('payroll.tabs.advances')}
-        </button>
-        <button onClick={() => setActiveTab('salaries')} className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-medium transition-colors whitespace-nowrap ${activeTab === 'salaries' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
-          <FileText size={18} /> {t('payroll.tabs.salaries')}
-        </button>
+        <button onClick={() => setActiveTab('calculator')} className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-medium transition-colors whitespace-nowrap ${activeTab === 'calculator' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><Calculator size={18} /> {t('payroll.tabs.calculator')}</button>
+        <button onClick={() => setActiveTab('advances')} className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-medium transition-colors whitespace-nowrap ${activeTab === 'advances' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><MinusCircle size={18} /> {t('payroll.tabs.advances')}</button>
+        <button onClick={() => setActiveTab('salaries')} className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-medium transition-colors whitespace-nowrap ${activeTab === 'salaries' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><FileText size={18} /> {t('payroll.tabs.salaries')}</button>
       </div>
 
       {activeTab === 'calculator' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg h-fit">
             <h2 className="text-xl font-bold text-white mb-6">{t('payroll.calculator')}</h2>
             <form onSubmit={handleCalculate} className="grid grid-cols-2 gap-4">
@@ -180,7 +138,7 @@ export default function Payroll() {
               </div>
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-slate-400 mb-2">{t('payroll.hourlyRate')}</label>
-                <input type="number" step="0.01" min="1" required value={hourlyRate} onChange={e => setHourlyRate(e.target.value)} placeholder="مثال: 130" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white" />
+                <input type="number" step="0.01" min="1" required value={hourlyRate} onChange={e => setHourlyRate(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white" />
               </div>
               <div className="col-span-2 mt-4">
                 <button type="submit" disabled={!selectedEmployee} className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2">
@@ -205,48 +163,32 @@ export default function Payroll() {
                   <p className="text-xl font-bold text-white">{payrollResult.grossSalary.toLocaleString()}</p>
                 </div>
                 <div className="bg-slate-950 p-4 rounded-lg border border-red-900/30 text-center col-span-2 flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <MinusCircle className="text-red-400" size={24} />
-                    <p className="text-slate-400 font-medium">{t('payroll.deductions')}</p>
-                  </div>
+                  <div className="flex items-center gap-3"><MinusCircle className="text-red-400" size={24} /><p className="text-slate-400 font-medium">{t('payroll.deductions')}</p></div>
                   <p className="text-xl font-bold text-red-400">-{payrollResult.totalAdvances.toLocaleString()}</p>
                 </div>
                 <div className={`p-5 rounded-lg border text-center col-span-2 ${payrollResult.netSalary < 0 ? 'bg-red-950/30 border-red-900/50 ring-1 ring-red-500/50' : 'bg-emerald-950/30 border-emerald-900/50 ring-1 ring-emerald-500/50'}`}>
                   <p className="text-sm text-slate-300 mb-2">{t('payroll.netSalary')}</p>
                   <p className={`text-4xl font-bold ${payrollResult.netSalary < 0 ? 'text-red-500' : 'text-emerald-400'}`}>
-                    {payrollResult.netSalary.toLocaleString()} {t('currency', 'DA')}
+                    {payrollResult.netSalary.toLocaleString()} {t('currency')}
                   </p>
                   {payrollResult.netSalary < 0 && <p className="text-xs text-red-400 mt-2">{t('payroll.negativeSalaryError')}</p>}
                 </div>
               </div>
-              
               <div className="flex gap-4">
-                <button 
-                  onClick={handlePaySalary} 
-                  className={`flex-1 text-white py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-2 transition-colors ${payrollResult.netSalary < 0 ? 'bg-orange-600 hover:bg-orange-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
-                >
-                  <CheckCircle size={24} /> 
-                  {payrollResult.netSalary < 0 ? t('payroll.rolloverBtn') : t('payroll.payBtn')}
+                <button onClick={handlePaySalaryClick} className={`flex-1 text-white py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-2 transition-colors ${payrollResult.netSalary < 0 ? 'bg-orange-600 hover:bg-orange-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
+                  <CheckCircle size={24} /> {payrollResult.netSalary < 0 ? t('payroll.rolloverBtn') : t('payroll.payBtn')}
                 </button>
-
-                <button 
-                  onClick={handlePrintPayslip} 
-                  className="bg-slate-800 hover:bg-slate-700 text-white py-4 px-6 rounded-lg font-bold transition-colors flex items-center justify-center gap-2"
-                  title="معاينة كشف الراتب للطباعة"
-                >
-                  <Eye size={24} />
-                </button>
+                <button onClick={handlePrintPayslip} title={t('payroll.previewPayslip')} className="bg-slate-800 hover:bg-slate-700 text-white py-4 px-6 rounded-lg font-bold transition-colors flex items-center justify-center gap-2"><Eye size={24} /></button>
               </div>
             </div>
           )}
-
         </div>
       )}
 
       {activeTab === 'advances' && (
         <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
           <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/30">
-            <h3 className="font-bold text-white flex items-center gap-2"><MinusCircle size={18} className="text-red-400" /> {t('payroll.tabs.advances')}</h3>
+            <h3 className="font-bold text-white flex items-center gap-2"><MinusCircle size={18} className="text-red-400" /> {t('payroll.advancesTitle')}</h3>
             <button onClick={() => setIsAdvanceModalOpen(true)} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-md transition-colors">
               <Plus size={18} /> {t('payroll.addAdvance')}
             </button>
@@ -272,7 +214,7 @@ export default function Payroll() {
                       <td className="px-6 py-4 font-medium text-white">{adv.employee_name}</td>
                       <td className="px-6 py-4 text-slate-400 text-sm">{adv.date}</td>
                       <td className="px-6 py-4 text-slate-300 text-sm">{adv.caisse_source || '-'}</td>
-                      <td className="px-6 py-4 font-bold text-red-400">{adv.amount.toLocaleString()} {t('currency', 'DA')}</td>
+                      <td className="px-6 py-4 font-bold text-red-400">{adv.amount.toLocaleString()} {t('currency')}</td>
                       <td className="px-6 py-4 text-slate-400 text-sm">{adv.note || '-'}</td>
                       <td className="px-6 py-4 text-center">
                         <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${adv.status === 'pending' ? 'bg-orange-950 text-orange-400 border-orange-900' : 'bg-emerald-950 text-emerald-400 border-emerald-900'}`}>
@@ -294,23 +236,15 @@ export default function Payroll() {
             <h3 className="font-bold text-white flex items-center gap-2">
               <FileText size={18} className="text-blue-400" /> {t('payroll.tabs.salaries')}
             </h3>
-            
-            <button 
-              onClick={() => {
-                if(salaries.length === 0) return alert('لا توجد رواتب لطباعتها!');
-                navigate('/preview', {
-                  state: {
-                    type: 'all-salaries',
-                    salaries: salaries
-                  }
-                });
+            <button onClick={() => {
+                if(salaries.length === 0) return alert(t('payroll.noSalariesToPrint'));
+                navigate('/preview', { state: { type: 'all-salaries', salaries: salaries }});
               }}
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-md"
             >
-              <Printer size={16} /> طباعة التقرير الشامل
+              <Printer size={16} /> {t('payroll.printReport')}
             </button>
           </div>
-          
           <div className="overflow-x-auto">
             <table className="w-full text-start border-collapse min-w-[800px]" dir={isRTL ? "rtl" : "ltr"}>
               <thead>
@@ -329,15 +263,12 @@ export default function Payroll() {
                 ) : (
                   salaries.map(sal => (
                     <tr key={sal.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
-                      <td className="px-6 py-4 font-medium text-white">
-                        {sal.employee_name}
-                        <div className="text-xs text-slate-500 mt-1">{t('payroll.date')}: {sal.payment_date}</div>
-                      </td>
+                      <td className="px-6 py-4 font-medium text-white">{sal.employee_name}<div className="text-xs text-slate-500 mt-1">{t('payroll.date')}: {sal.payment_date}</div></td>
                       <td className="px-6 py-4 text-slate-400 text-sm text-center">{sal.start_date} <br/> {sal.end_date}</td>
                       <td className="px-6 py-4 text-blue-400 font-medium text-center">{sal.total_hours}</td>
                       <td className="px-6 py-4 text-slate-300 text-center">{sal.total_hours * sal.hourly_rate}</td>
                       <td className="px-6 py-4 text-red-400 font-medium text-center">-{sal.total_advances}</td>
-                      <td className="px-6 py-4 font-bold text-emerald-400 text-center bg-slate-950/50">{sal.net_salary.toLocaleString()} {t('currency', 'DA')}</td>
+                      <td className="px-6 py-4 font-bold text-emerald-400 text-center bg-slate-950/50">{sal.net_salary.toLocaleString()} {t('currency')}</td>
                     </tr>
                   ))
                 )}
@@ -360,13 +291,13 @@ export default function Payroll() {
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-1">{t('payroll.caisse')}</label>
             <select required value={advanceData.caisseSource} onChange={e => setAdvanceData({...advanceData, caisseSource: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white" dir={isRTL ? "rtl" : "ltr"}>
-              <option value="" disabled>{t('payroll.selectCaisse')}</option>
+              <option value="" disabled>{t('payroll.selectCaisse', '-- اختر المصدر --')}</option>
               {employees.map(emp => <option key={emp.id} value={emp.name}>{emp.name} ({t(`hr.roles.${emp.role}`, emp.role)})</option>)}
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1">{t('payroll.amount')} (DA)</label>
+            <label className="block text-sm font-medium text-slate-400 mb-1">{t('payroll.amount')} ({t('currency')})</label>
             <input type="number" min="1" required value={advanceData.amount} onChange={e => setAdvanceData({...advanceData, amount: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white" />
           </div>
           <div>
@@ -384,6 +315,23 @@ export default function Payroll() {
         </form>
       </Modal>
 
+      <Modal isOpen={!!confirmModalData} onClose={() => setConfirmModalData(null)} title={t('payroll.payBtn')}>
+        <div className="p-4 text-start">
+          <p className="text-white mb-6 text-lg">
+            {confirmModalData?.type === 'rollover' 
+              ? t('payroll.rolloverConfirm') 
+              : t('payroll.standardConfirm')}
+          </p>
+          <div className="flex items-center justify-end gap-3 mt-4">
+            <button onClick={() => setConfirmModalData(null)} className="px-4 py-2 text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
+              {t('common.cancel')}
+            </button>
+            <button onClick={executePayment} className={`px-4 py-2 text-white rounded-lg transition-colors ${confirmModalData?.type === 'rollover' ? 'bg-orange-600 hover:bg-orange-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
+              {t('common.success')}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -14,7 +14,8 @@ const {
   openShift, getActiveShift, closeShift, getShiftSummary,
   getUsers, addUser, deleteUser, updateEmployee, deleteEmployee ,logAudit , getAuditLogs, backupDatabase, generateExcelBackup, updateSupplier, deleteSupplier  // أضفنا هذه الدوال هنا
 } = require('./database');
-
+const express = require('express');
+const cors = require('cors');
 
 function createWindow() {
   // 1. إنشاء شاشة الإقلاع أولاً
@@ -141,11 +142,46 @@ ipcMain.handle('get-users', () => getUsers());
   ipcMain.handle('delete-expense', (event, id, username) => deleteExpense(id, username));
   
   
+// هذه الدالة ستحول حاسوب المدير إلى سيرفر يخدم الكاشيرات
+function startLocalNetworkServer() {
+  const apiApp = express();
+  apiApp.use(cors());
+  apiApp.use(express.json());
 
+  // دالة ذكية تستقبل أي طلب من الكاشير وتنفذه في قاعدة البيانات
+  apiApp.post('/api/:method', async (req, res) => {
+    const method = req.params.method;
+    const args = req.body.args || [];
+    
+    try {
+      // التحقق من وجود الدالة في database.js
+      if (typeof db[method] === 'function') {
+        const result = await db[method](...args);
+        res.json({ success: true, data: result });
+      } else {
+        res.status(404).json({ success: false, error: 'Method not found' });
+      }
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // بث الواجهة الأمامية (Frontend) ليتمكن الكاشير من فتحها بمتصفح كروم
+  const frontendPath = path.join(__dirname, '..', 'dist'); // المسار بعد عمل Build للـ Vite
+  if (fs.existsSync(frontendPath)) {
+    apiApp.use(express.static(frontendPath));
+  }
+
+  // تشغيل السيرفر على البورت 3000 لجميع الأجهزة المتصلة بالراوتر
+  apiApp.listen(3000, '0.0.0.0', () => {
+    console.log('✅ Local Network Server is running on port 3000');
+  });
+}
 
 app.whenReady().then(() => {
   initDatabase();
   setupIpcHandlers();
+  startLocalNetworkServer();
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

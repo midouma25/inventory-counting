@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Search, Plus, MoreHorizontal, UserCheck, AlertCircle, ScanLine, Users, X, Clock, Edit, Trash2 } from "lucide-react";
+import { Search, Plus, MoreHorizontal, UserCheck, AlertCircle, ScanLine, Users, X, Clock, Edit, Trash2, CheckCircle2 } from "lucide-react";
 
 import useEmployeeStore from "../../store/employeeStore";
 import useAttendanceStore from "../../store/attendanceStore";
+
+// 🔴 1. استيراد نافذة التنبيه المخصصة
+import ConfirmAlert from '../ui/ConfirmAlert'; 
 
 const HR = () => {
   const { t, i18n } = useTranslation();
@@ -16,7 +19,7 @@ const HR = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({ name: "", role: "", pinCode: "" });
  
-const { submitPin, fetchTodayRecords, isLoading: attLoading } = useAttendanceStore();
+  const { submitPin, fetchTodayRecords, isLoading: attLoading } = useAttendanceStore();
   const [pinInput, setPinInput] = useState("");
   const [feedback, setFeedback] = useState(null);
   const inputRef = useRef(null);
@@ -24,6 +27,15 @@ const { submitPin, fetchTodayRecords, isLoading: attLoading } = useAttendanceSto
   const today = new Date().toISOString().split('T')[0];
   const [attendanceDate, setAttendanceDate] = useState(today);
   const [attendanceRecords, setAttendanceRecords] = useState([]);
+
+  // 🔴 2. متغيرات حالة النافذة المخصصة والإشعارات
+  const [employeeToDelete, setEmployeeToDelete] = useState(null); 
+  const [toast, setToast] = useState(null);
+
+  const showToast = (type, message) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   const fetchAttendanceForDate = async (date) => {
     try {
@@ -36,13 +48,14 @@ const { submitPin, fetchTodayRecords, isLoading: attLoading } = useAttendanceSto
     fetchAttendanceForDate(attendanceDate);
   }, [attendanceDate]);
 
-  // إيقاف الـ Infinite Loop بجعل المصفوفة فارغة []
-useEffect(() => {
+  useEffect(() => {
     fetchEmployees();
     fetchTodayRecords(); 
-  }, []); // <--- مصفوفة فارغة
+  }, []); 
 
-  const filteredEmployees = employees.filter((emp) => emp.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredEmployees = employees.filter((emp) =>
+    (emp?.name || "").toLowerCase().includes((searchQuery || "").toLowerCase())
+  );
 
   const handleAttendanceSubmit = async (e) => {
     e.preventDefault();
@@ -53,7 +66,7 @@ useEffect(() => {
     if (result && result.success) {
        const actionText = result.action === 'check_in' ? t('hr.messages.checkIn') : t('hr.messages.checkOut');
        setFeedback({ type: 'success', message: `${actionText}: ${result.employeeName}` });
-       fetchAttendanceForDate(attendanceDate); // تحديث فوري
+       fetchAttendanceForDate(attendanceDate); 
     } else if (result) {
        setFeedback({ type: 'error', message: result.message });
     }
@@ -63,12 +76,49 @@ useEffect(() => {
     setTimeout(() => setFeedback(null), 4000);
   };
 
-  // إصلاح أرقام الإحصائيات لتقرأ من السجل المحلي المرتبط بالتاريخ
+  // 🔴 3. دالة الحذف الآمنة (بدون تجميد)
+  const confirmDelete = async () => {
+    if (!employeeToDelete) return;
+    const store = useEmployeeStore.getState();
+    const idToDelete = employeeToDelete.id;
+    
+    setEmployeeToDelete(null); // إغلاق النافذة فوراً
+    
+    try {
+      const res = await window.api.deleteEmployee(idToDelete);
+      if (res && res.success) {
+        if (res.isSoftDeleted) {
+          showToast('warning', t('hr.employees.softDeleted', 'تم تعطيل الحساب لحماية السجلات.')); 
+        } else {
+          showToast('success', t('common.success', 'تم الحذف بنجاح'));
+        }
+        store.fetchEmployees();
+      } else {
+        showToast('error', t('common.error', 'حدث خطأ أثناء الحذف'));
+      }
+    } catch(e) { 
+      showToast('error', t('common.error', 'حدث خطأ غير متوقع'));
+    }
+  };
+
   const presentCount = attendanceRecords.filter(r => !r.time_out).length;
   const absentCount = Math.max(0, employees.length - attendanceRecords.length);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-6 font-sans flex flex-col gap-6">
+    <div className="min-h-screen bg-slate-950 text-slate-100 p-6 font-sans flex flex-col gap-6 relative">
+      
+      {/* 🔴 شريط الإشعارات الذكي (Toast) */}
+      {toast && (
+        <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 ${
+          toast.type === 'success' ? 'bg-emerald-600 text-white' :
+          toast.type === 'warning' ? 'bg-amber-600 text-white' :
+          'bg-red-600 text-white'
+        }`}>
+          {toast.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+          <span className="font-bold">{toast.message}</span>
+        </div>
+      )}
+
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">{t('hr.title')}</h1>
@@ -195,18 +245,16 @@ useEffect(() => {
                       </td>
                       <td className="px-6 py-4 text-center flex justify-center gap-2">
                         <button onClick={() => { setFormData({ name: emp.name, role: emp.role, pinCode: emp.pin_code }); setEditingEmployee(emp); setIsDialogOpen(true); }} className="p-2 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" title={t('hr.employees.actions.edit')}><Edit size={18} /></button>
-                        <button onClick={async () => {
-                          if(window.confirm(t('hr.employees.deleteConfirm', { name: emp.name }))) {
-                            const store = useEmployeeStore.getState();
-                            try {
-                              const res = await window.api.deleteEmployee(emp.id);
-                              if(res && res.success) {
-                                if (res.isSoftDeleted) alert(t('hr.employees.softDeleted'));
-                                store.fetchEmployees();
-                              } else alert(t('common.error'));
-                            } catch(e) { console.error(e); }
-                          }
-                        }} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors" title={t('hr.employees.actions.delete')}><Trash2 size={18} /></button>
+                        
+                        {/* 🔴 التعديل هنا: استخدام setEmployeeToDelete بدلاً من window.confirm */}
+                        <button 
+                          onClick={() => setEmployeeToDelete(emp)} 
+                          className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors" 
+                          title={t('hr.employees.actions.delete')}
+                        >
+                          <Trash2 size={18} />
+                        </button>
+
                       </td>
                     </tr>
                   ))
@@ -231,12 +279,21 @@ useEffect(() => {
                     if (!formData.name || !formData.pinCode) return;
                     const store = useEmployeeStore.getState();
                     let success;
+                    
                     if (editingEmployee) {
                        if (store.updateEmployee) success = await store.updateEmployee(editingEmployee.id, formData);
-                       else { alert("Error: updateEmployee not found"); return; }
+                       else { showToast('error', "Error: updateEmployee not found"); return; }
                     } else success = await store.addEmployee(formData);
-                    if (success) { setIsDialogOpen(false); setFormData({ name: "", role: "", pinCode: "" }); setEditingEmployee(null); store.fetchEmployees(); } 
-                    else alert(t('hr.messages.error'));
+                    
+                    if (success) { 
+                      setIsDialogOpen(false); 
+                      setFormData({ name: "", role: "", pinCode: "" }); 
+                      setEditingEmployee(null); 
+                      store.fetchEmployees(); 
+                      showToast('success', t('common.success', 'تمت العملية بنجاح')); // 🔴 بدلاً من alert
+                    } else {
+                      showToast('error', t('hr.messages.error', 'حدث خطأ غير متوقع')); // 🔴 بدلاً من alert
+                    }
                   }} className="flex flex-col gap-4 text-start">
                   <div>
                     <label className="block text-sm font-medium text-slate-300 mb-1">{t('hr.dialog.name')}</label>
@@ -267,6 +324,20 @@ useEffect(() => {
           )}
         </div>
       )}
+
+      {/* 🔴 4. مكون نافذة التأكيد السوداء المخصصة */}
+      <ConfirmAlert 
+        isOpen={!!employeeToDelete}
+        onClose={() => setEmployeeToDelete(null)}
+        onConfirm={confirmDelete}
+        title={t('hr.employees.actions.delete', 'حذف حساب الموظف')}
+        message={t('hr.employees.deleteConfirmMsg', { 
+          name: employeeToDelete?.name, 
+          defaultValue: `هل أنت متأكد من حذف حساب المستخدم:\n${employeeToDelete?.name}؟` 
+        })}
+        cancelText={t('common.cancel', 'إلغاء')}
+        confirmText={t('suppliers.actions.confirmDeleteBtn', 'تأكيد الحذف')}
+      />
 
     </div>
   );

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Shield, UserPlus, Trash2, Users, Key, AlertCircle, Save, Upload } from 'lucide-react';
 import useAuthStore from '../store/authStore';
+import Modal from './ui/Modal';
 
 export default function UsersManagement() {
   const { t, i18n } = useTranslation();
@@ -12,6 +13,9 @@ export default function UsersManagement() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('cashier');
+  
+  const [userToDelete, setUserToDelete] = useState(null); 
+  const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false); // مودال استعادة النسخة
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -49,23 +53,33 @@ export default function UsersManagement() {
     } catch (err) { setError(t('settings.addError')); }
   };
 
-  const handleDeleteUser = async (id, name) => {
+  const handleDeleteUserClick = (id, name) => {
     if (name === 'admin' || name === currentUser?.username) {
-      alert(t('settings.deleteAlert')); return;
+      alert(t('settings.deleteAlert')); 
+      setTimeout(() => window.focus(), 100);
+      return;
     }
-    if (window.confirm(t('settings.deleteConfirm', { name }))) {
-      try {
-        if (window.api && window.api.deleteUser) {
-          const res = await window.api.deleteUser(id);
-          if (res.success) {
-            if (res.isSoftDeleted) {
-                alert(t('hr.employees.softDeleted', 'تم تعطيل الحساب بنجاح، لا يمكن حذفه نهائياً لوجود سجلات مالية لحمايتها.'));
-            }
-            fetchUsers();
-          } else { alert(res.error || t('settings.deleteError')); }
+    setUserToDelete({ id, name }); 
+  };
+
+  const confirmDelete = async () => {
+    if (!userToDelete) return;
+    try {
+      if (window.api && window.api.deleteUser) {
+        const res = await window.api.deleteUser(userToDelete.id);
+        if (res.success) {
+          if (res.isSoftDeleted) {
+              alert(t('hr.employees.softDeleted', 'تم تعطيل الحساب لحماية سجلاته المالية.')); 
+              setTimeout(() => window.focus(), 100);
+          }
+          fetchUsers();
+        } else { 
+            alert(res.error || t('settings.deleteError')); 
+            setTimeout(() => window.focus(), 100);
         }
-      } catch (err) { console.error(err); }
-    }
+      }
+    } catch (err) { console.error(err); }
+    setUserToDelete(null); 
   };
 
   if (currentUser?.role !== 'admin' && currentUser?.role !== 'superadmin') {
@@ -79,23 +93,36 @@ export default function UsersManagement() {
   const handleBackup = async () => {
     try {
       const result = await window.api.backupDatabase();
-      if (result.success) { alert(t('database.messages.backupSuccess')); } 
-      else if (!result.canceled) { alert(t('database.messages.error') + "\n" + (result.error || '')); }
-    } catch (error) { alert(t('database.messages.error')); }
+      if (result.success) { 
+          alert(t('database.messages.backupSuccess')); 
+      } 
+      else if (!result.canceled) { 
+          alert(t('database.messages.error') + "\n" + (result.error || '')); 
+      }
+    } catch (error) { 
+        alert(t('database.messages.error')); 
+    }
+    setTimeout(() => window.focus(), 100); 
   };
 
-  const handleRestore = async () => {
-    if (window.confirm(t('database.messages.restoreConfirm'))) {
+  const confirmRestore = async () => {
+      setIsRestoreModalOpen(false);
       try {
         const result = await window.api.restoreDatabase();
-        if (result.success) { alert(t('database.messages.restoreSuccess')); } 
-        else if (!result.canceled) { alert(t('database.messages.error') + "\n" + (result.error || '')); }
-      } catch (error) { alert(t('database.messages.error')); }
-    }
+        if (result.success) { 
+            alert(t('database.messages.restoreSuccess')); 
+        } 
+        else if (!result.canceled) { 
+            alert(t('database.messages.error') + "\n" + (result.error || '')); 
+        }
+      } catch (error) { 
+          alert(t('database.messages.error')); 
+      }
+      setTimeout(() => window.focus(), 100); 
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans">
+    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans text-start">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
           <Shield className="text-blue-500" /> {t('settings.title')}
@@ -151,7 +178,7 @@ export default function UsersManagement() {
             {isLoading ? (
               <div className="p-8 text-center text-slate-500">{t('settings.loading')}</div>
             ) : (
-              <table className="w-full text-sm text-start">
+              <table className="w-full text-sm text-start" dir={i18n.dir()}>
                 <thead className="text-xs text-slate-400 bg-slate-950/50 uppercase border-b border-slate-800">
                   <tr>
                     <th className="px-6 py-4 text-start">{t('settings.table.username')}</th>
@@ -175,7 +202,7 @@ export default function UsersManagement() {
                       </td>
                       <td className="px-6 py-4 text-center">
                         <button 
-                          onClick={() => handleDeleteUser(u.id, u.username)}
+                          onClick={() => handleDeleteUserClick(u.id, u.username)}
                           disabled={u.username === 'admin' || u.username === currentUser?.username}
                           className="text-slate-500 hover:text-red-500 disabled:opacity-30 disabled:hover:text-slate-500 transition-colors"
                           title={t('settings.deleteTooltip')}
@@ -194,8 +221,7 @@ export default function UsersManagement() {
           </div>
         </div>
 
-        {/* قسم إدارة قاعدة البيانات والنسخ الاحتياطي */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 mt-6">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 mt-6 lg:col-span-3">
           <h2 className="text-xl font-bold text-white mb-6 border-b border-slate-800 pb-4">
             {t('database.title')}
           </h2>
@@ -213,13 +239,47 @@ export default function UsersManagement() {
               <div className="w-14 h-14 bg-red-500/10 rounded-full flex items-center justify-center mb-4"><Upload className="text-red-500" size={28} /></div>
               <h3 className="text-lg font-bold text-white mb-2">{t('database.restore')}</h3>
               <p className="text-sm text-slate-400 mb-6 flex-1">{t('database.restoreDesc')}</p>
-              <button onClick={handleRestore} className="w-full bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-lg transition-colors font-medium flex justify-center items-center gap-2">
+              <button onClick={() => setIsRestoreModalOpen(true)} className="w-full bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-lg transition-colors font-medium flex justify-center items-center gap-2">
                 <Upload size={18} />{t('database.restore')}
               </button>
             </div>
           </div>
         </div>
       </div>
+
+      <Modal isOpen={!!userToDelete} onClose={() => setUserToDelete(null)} title={t('suppliers.actions.delete')}>
+        <div className="p-4 text-start">
+          <p className="text-white mb-6 text-lg">
+            {t('settings.deleteConfirm', { name: userToDelete?.name })}
+          </p>
+          <div className="flex items-center justify-end gap-3 mt-4">
+            <button onClick={() => setUserToDelete(null)} className="px-4 py-2 text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
+              {t('common.cancel')}
+            </button>
+            <button onClick={confirmDelete} className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
+              {t('suppliers.actions.confirmDeleteBtn')}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={isRestoreModalOpen} onClose={() => setIsRestoreModalOpen(false)} title={t('database.restore')}>
+        <div className="p-4 text-start">
+          <div className="flex items-center gap-3 text-red-400 bg-red-950/30 p-4 rounded-lg border border-red-900 mb-6">
+             <AlertCircle size={24} />
+             <p className="font-bold">{t('database.messages.restoreConfirm')}</p>
+          </div>
+          <div className="flex items-center justify-end gap-3 mt-4">
+            <button onClick={() => setIsRestoreModalOpen(false)} className="px-4 py-2 text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
+              {t('common.cancel')}
+            </button>
+            <button onClick={confirmRestore} className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
+              {t('common.success', 'تأكيد العملية')}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
     </div>
   );
 }

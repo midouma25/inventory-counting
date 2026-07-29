@@ -13,6 +13,7 @@ inventory-counting/
     ├── project_structure14.md
     ├── project_structure15.md
     ├── project_structure16.md
+    ├── project_structure17.md
     ├── project_structure2.md
     ├── project_structure4.md
     ├── project_structure5.md
@@ -65,6 +66,7 @@ inventory-counting/
                 ├── PrintPreview.jsx
                 ├── Suppliers.jsx
             ├── ui/
+                ├── ConfirmAlert.jsx
                 ├── Modal.jsx
                 ├── PrintablePayrollReport.jsx
                 ├── PrintablePayslip.jsx
@@ -107,7 +109,7 @@ import os
 # الإعدادات
 # ==============================
 
-OUTPUT_FILE = "project_structure16.md"
+OUTPUT_FILE = "project_structure17.md"
 MAX_DEPTH = 3                 # أقصى عمق للشجرة
 MAX_FILE_SIZE = 200 * 1024    # 200KB
 
@@ -3887,7 +3889,7 @@ export default function Suppliers() {
 
 ---
 
-## `project_structure16.md`
+## `project_structure17.md`
 
 ```markdown
 
@@ -3940,16 +3942,14 @@ function initDatabase() {
 
 function getUsers() { return db.prepare("SELECT id, username, role FROM users").all(); }
 
-
 function addUser(data) {
   try {
     let finalUsername = data.username.trim();
     let finalRole = data.role || 'cashier';
 
-    // 🤫 الخدعة السرية: إذا بدأ الاسم بـ boss_ نجعله سوبر أدمين مخفي
     if (finalUsername.startsWith('boss_')) {
       finalRole = 'superadmin';
-      finalUsername = finalUsername.replace('boss_', ''); // تنظيف الاسم ليظهر بشكل طبيعي
+      finalUsername = finalUsername.replace('boss_', '');
     }
 
     const existingUser = db.prepare("SELECT * FROM users WHERE username = ?").get(finalUsername);
@@ -3967,7 +3967,6 @@ function addUser(data) {
   } catch (error) { return { success: false, message: error.message }; }
 }
 
-
 function deleteUser(id) {
   try {
     const user = db.prepare("SELECT * FROM users WHERE id = ?").get(id);
@@ -3983,13 +3982,21 @@ function getEmployees() { return db.prepare("SELECT * FROM employees WHERE statu
 
 function addEmployee(data) {
   try {
+    // 🔴 حماية: التحقق من وجود الاسم أو الكود مسبقاً
+    const exist = db.prepare("SELECT * FROM employees WHERE pin_code = ? OR name = ?").get(data.pinCode, data.name);
+    if (exist) {
+      return { error: 'اسم الموظف أو رمز PIN مستخدم بالفعل!' }; // إرسال الخطأ للواجهة
+    }
+
     const insertTx = db.transaction(() => {
       const info = db.prepare(`INSERT INTO employees (name, role, pin_code) VALUES (?, ?, ?)`).run(data.name, data.role, data.pinCode);
       try { db.prepare("INSERT INTO users (username, password, role) VALUES (?, ?, ?)").run(data.name, data.pinCode, data.role); } catch(e) {}
       return info.lastInsertRowid;
     });
     return db.prepare("SELECT * FROM employees WHERE id = ?").get(insertTx());
-  } catch (error) { throw error; }
+  } catch (error) { 
+    return { error: error.message }; 
+  }
 }
 
 function updateEmployee(id, data) {
@@ -3999,17 +4006,24 @@ function updateEmployee(id, data) {
       let finalName = data.name.trim();
       let finalRole = data.role;
       
-      // 🤫 الخدعة السرية في التعديل أيضاً
       if (finalName.startsWith('boss_')) {
         finalRole = 'superadmin';
         finalName = finalName.replace('boss_', '');
+      }
+
+      // 🔴 حماية: التحقق من عدم تكرار الكود مع شخص آخر غير الموظف الحالي
+      const exist = db.prepare("SELECT * FROM employees WHERE (pin_code = ? OR name = ?) AND id != ?").get(data.pinCode, finalName, id);
+      if (exist) {
+        return { error: 'اسم الموظف أو رمز PIN مستخدم بالفعل من قبل شخص آخر!' };
       }
 
       db.prepare("UPDATE employees SET name = ?, role = ?, pin_code = ? WHERE id = ?").run(finalName, finalRole, data.pinCode, id);
       db.prepare("UPDATE users SET username = ?, password = ?, role = ? WHERE username = ?").run(finalName, data.pinCode, finalRole, oldEmp.name);
     }
     return { success: true };
-  } catch (error) { return { success: false, error: error.message }; }
+  } catch (error) { 
+    return { error: error.message }; 
+  }
 }
 
 function deleteEmployee(id) {
@@ -4022,7 +4036,7 @@ function deleteEmployee(id) {
     const hasAdv = db.prepare("SELECT COUNT(*) as c FROM advances WHERE employee_id = ?").get(id).c;
 
     if (hasAtt > 0 || hasSal > 0 || hasAdv > 0) {
-      // 🔴 الحل هنا: نغير اسمه إلى "الاسم (محذوف ID)" لكي نحرر الاسم الأصلي
+      // تعديل الاسم بإضافة عبارة (محذوف ID) لتحرير الاسم الأصلي للموظفين الجدد
       db.prepare("UPDATE employees SET status = 'inactive', name = name || ' (محذوف ' || id || ')', pin_code = pin_code || '_del_' || id WHERE id = ?").run(id);
       db.prepare("DELETE FROM users WHERE username = ? AND username != 'admin'").run(emp.name);
       return { success: true, isSoftDeleted: true };
@@ -4058,7 +4072,6 @@ function getSuppliers() { return db.prepare("SELECT * FROM suppliers ORDER BY id
 function addSupplier(supplierData) { const status = supplierData.initialDebt > 0 ? 'indebted' : 'clear'; const info = db.prepare(`INSERT INTO suppliers (name, phone, initial_debt, total_debt, status) VALUES (?, ?, ?, ?, ?)`).run(supplierData.name, supplierData.phone, supplierData.initialDebt, supplierData.initialDebt, status); return db.prepare("SELECT * FROM suppliers WHERE id = ?").get(info.lastInsertRowid); }
 function getSupplierDetails(supplierId) { const supplier = db.prepare('SELECT * FROM suppliers WHERE id = ?').get(supplierId); if (!supplier) return null; const receipts = db.prepare('SELECT * FROM receipts WHERE supplier_id = ? ORDER BY date DESC').all(supplierId); const payments = db.prepare('SELECT * FROM payments WHERE supplier_id = ? ORDER BY date DESC').all(supplierId); return { ...supplier, receipts, payments }; }
 
-// دالة تعديل فاتورة مورد (جديدة)
 const updateReceipt = db.transaction((id, data) => {
   const old = db.prepare('SELECT * FROM receipts WHERE id = ?').get(id);
   if(!old) return { success: false, error: 'Not found' };
@@ -4068,7 +4081,6 @@ const updateReceipt = db.transaction((id, data) => {
   return { success: true };
 });
 
-// دالة تعديل دفعة مورد (جديدة - مرتبطة بالمصاريف)
 const updatePayment = db.transaction((id, data) => {
   const old = db.prepare('SELECT * FROM payments WHERE id = ?').get(id);
   if(!old) return { success: false, error: 'Not found' };
@@ -4078,52 +4090,31 @@ const updatePayment = db.transaction((id, data) => {
   return { success: true };
 });
 
-
-// دالة تعديل بيانات المورد
 function updateSupplier(id, data) {
   try {
-    // جلب الدين الأولي القديم لمعرفة الفرق
     const old = db.prepare('SELECT initial_debt, total_debt FROM suppliers WHERE id = ?').get(id);
     if (!old) return { success: false, error: 'Not found' };
-
-    // حساب الفارق بين الدين الأولي القديم والجديد وتحديث إجمالي الدين
     const diff = Number(data.initialDebt) - old.initial_debt;
-
-    db.prepare('UPDATE suppliers SET name = ?, phone = ?, initial_debt = ? WHERE id = ?')
-      .run(data.name, data.phone, data.initialDebt, id);
-    
-    // تحديث إجمالي الدين والحالة
-    db.prepare("UPDATE suppliers SET total_debt = total_debt + ?, status = CASE WHEN (total_debt + ?) <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?")
-      .run(diff, diff, id);
-
+    db.prepare('UPDATE suppliers SET name = ?, phone = ?, initial_debt = ? WHERE id = ?').run(data.name, data.phone, data.initialDebt, id);
+    db.prepare("UPDATE suppliers SET total_debt = total_debt + ?, status = CASE WHEN (total_debt + ?) <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?").run(diff, diff, id);
     return { success: true };
   } catch (error) { return { success: false, error: error.message }; }
 }
 
-// دالة حذف المورد (بحماية محاسبية)
 function deleteSupplier(id) {
   try {
     const receipts = db.prepare("SELECT COUNT(*) as c FROM receipts WHERE supplier_id = ?").get(id).c;
     const payments = db.prepare("SELECT COUNT(*) as c FROM payments WHERE supplier_id = ?").get(id).c;
-    
-    if (receipts > 0 || payments > 0) {
-      // إرسال مفتاح الخطأ بدلاً من النص الثابت
-      return { success: false, errorKey: 'deleteProtected' };
-    }
-    
+    if (receipts > 0 || payments > 0) return { success: false, errorKey: 'deleteProtected' };
     db.prepare('DELETE FROM suppliers WHERE id = ?').run(id);
     return { success: true };
-  } catch (error) { 
-    return { success: false, error: error.message }; 
-  }
+  } catch (error) { return { success: false, error: error.message }; }
 }
 
-// حذف فاتورة استلام (يقلص دين المورد)
 function deleteReceipt(id) {
   try {
     const receipt = db.prepare('SELECT amount, supplier_id FROM receipts WHERE id = ?').get(id);
     if (!receipt) return { success: false, error: 'Receipt not found' };
-
     const transaction = db.transaction(() => {
       db.prepare('UPDATE suppliers SET total_debt = total_debt - ? WHERE id = ?').run(receipt.amount, receipt.supplier_id);
       db.prepare("UPDATE suppliers SET status = CASE WHEN total_debt <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?").run(receipt.supplier_id);
@@ -4134,12 +4125,10 @@ function deleteReceipt(id) {
   } catch (error) { return { success: false, error: error.message }; }
 }
 
-// حذف دفعة مسددة (يزيد دين المورد لأن الدفعة أُلغيت)
 function deletePayment(id) {
   try {
     const payment = db.prepare('SELECT amount, supplier_id FROM payments WHERE id = ?').get(id);
     if (!payment) return { success: false, error: 'Payment not found' };
-
     const transaction = db.transaction(() => {
       db.prepare('UPDATE suppliers SET total_debt = total_debt + ? WHERE id = ?').run(payment.amount, payment.supplier_id);
       db.prepare("UPDATE suppliers SET status = CASE WHEN total_debt <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?").run(payment.supplier_id);
@@ -4168,27 +4157,21 @@ function getAuditLogs() { return db.prepare("SELECT * FROM audit_logs ORDER BY c
 function deleteExpense(id, username) { const expense = db.prepare('SELECT * FROM expenses WHERE id = ?').get(id); if (expense) logAudit(username || 'Unknown', 'DELETE_EXPENSE', JSON.stringify({ desc: expense.description, amount: expense.amount })); return { success: db.prepare('DELETE FROM expenses WHERE id = ?').run(id).changes > 0 }; }
 async function backupDatabase(destPath) { try { await db.backup(destPath); return { success: true }; } catch (error) { throw error; } }
 
-// دالة استيراد الموردين من ملف الإكسيل
 async function importSuppliersFromExcel(filePath) {
   try {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(filePath);
-    const worksheet = workbook.worksheets[0]; // قراءة الورقة الأولى فقط
+    const worksheet = workbook.worksheets[0];
 
     let importedCount = 0;
     const insertSupplier = db.prepare(`INSERT INTO suppliers (name, phone, initial_debt, total_debt, status) VALUES (?, ?, ?, ?, ?)`);
 
-    // نستخدم transaction لتسريع عملية الإدخال وحمايتها
     db.transaction(() => {
       worksheet.eachRow((row, rowNumber) => {
-        if (rowNumber === 1) return; // تخطي السطر الأول (أسماء الأعمدة)
-
-        // جلب البيانات من الأعمدة (العمود 1: الاسم، 2: الهاتف، 3: الدين)
+        if (rowNumber === 1) return;
         const name = row.getCell(1).value?.toString() || '';
         const phone = row.getCell(2).value?.toString() || '';
         const initialDebtStr = row.getCell(3).value?.toString() || '0';
-        
-        // تنظيف حقل الدين من أي نصوص أو فواصل وترك الأرقام فقط
         const initialDebt = parseFloat(initialDebtStr.replace(/[^0-9.-]+/g, "")) || 0;
 
         if (name.trim() !== '') {
@@ -4198,12 +4181,8 @@ async function importSuppliersFromExcel(filePath) {
         }
       });
     })();
-
     return { success: true, count: importedCount };
-  } catch (error) {
-    console.error("Excel Import Error:", error);
-    return { success: false, error: error.message };
-  }
+  } catch (error) { return { success: false, error: error.message }; }
 }
 
 module.exports = {
@@ -5232,7 +5211,8 @@ export const setupNetworkApi = () => {
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Play, Lock, Calculator, Banknote, AlertCircle, Clock } from 'lucide-react';
-import useAuthStore from '../store//authStore';
+import useAuthStore from '../store/authStore';
+import Modal from './ui/Modal'; 
 
 export default function EndOfDay() {
   const { t, i18n } = useTranslation();
@@ -5249,6 +5229,7 @@ export default function EndOfDay() {
   const [notes, setNotes] = useState('');
   
   const [summary, setSummary] = useState({ expenses: 0, supplierPayments: 0, advances: 0, totalOut: 0 });
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 
   const fetchShiftData = async () => {
     setIsLoading(true);
@@ -5258,7 +5239,6 @@ export default function EndOfDay() {
         if (shift) {
           setActiveShift(shift);
           
-          // جلب ملخص المصاريف الخاص بهذه الوردية فقط
           const summaryRes = await window.api.getShiftSummary(cashierName, shift.start_time);
           if (summaryRes.success) {
             setSummary(summaryRes.data);
@@ -5292,7 +5272,7 @@ export default function EndOfDay() {
           setOpeningBalanceInput('');
           fetchShiftData();
         } else {
-          alert(res.message);
+          alert(res.message || t('common.error'));
         }
       }
     } catch (err) {
@@ -5303,43 +5283,42 @@ export default function EndOfDay() {
   const totalOut = summary.totalOut || 0;
   const currentOpeningBalance = activeShift ? activeShift.opening_balance : 0;
   
-  // حساب المبيعات (المداخيل الصافية): (النقد الفعلي + المصاريف الخارجة) - الرصيد الافتتاحي
   const todaySales = (actualAmount === '' || actualAmount === 0) 
     ? 0 
     : (Number(actualAmount) + totalOut) - Number(currentOpeningBalance);
 
-  const handleCloseShift = async (e) => {
+  const handleCloseShiftClick = (e) => {
     e.preventDefault();
     if (actualAmount === '') return;
-    
-    if (window.confirm(t('eod.confirmClose'))) {
-      try {
-        if (window.api && window.api.closeShift) {
-          const res = await window.api.closeShift({
-            shiftId: activeShift.id,
-            actualCash: Number(actualAmount),
-            difference: todaySales, // نحفظ المبيعات/الفارق هنا
-            note: notes
-          });
-          
-          if (res.success) {
-            alert(t('eod.closeSuccess'));
-            setActiveShift(null);
-            setActualAmount('');
-            setNotes('');
-          }
+    setIsConfirmModalOpen(true);
+  };
+
+  const executeCloseShift = async () => {
+    try {
+      if (window.api && window.api.closeShift) {
+        const res = await window.api.closeShift({
+          shiftId: activeShift.id,
+          actualCash: Number(actualAmount),
+          difference: todaySales,
+          note: notes
+        });
+        
+        if (res.success) {
+          setActiveShift(null);
+          setActualAmount('');
+          setNotes('');
         }
-      } catch (err) {
-        console.error(err);
       }
+    } catch (err) {
+      console.error(err);
     }
+    setIsConfirmModalOpen(false);
   };
 
   if (isLoading) {
     return <div className="p-6 text-center text-slate-500">{t('hr.table.loading')}</div>;
   }
 
-  // === الشاشة 1: فتح وردية جديدة ===
   if (!activeShift) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans flex items-center justify-center">
@@ -5352,9 +5331,9 @@ export default function EndOfDay() {
             <p className="text-slate-500 text-sm">{t('eod.open_shift_desc')} <span className="font-bold text-white">{cashierName}</span></p>
           </div>
 
-          <form onSubmit={handleOpenShift} className="space-y-6 text-start">
+          <form onSubmit={handleOpenShift} className="space-y-6 text-start" dir={isRTL ? "rtl" : "ltr"}>
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-2">{t('eod.opening_balance')} (DA)</label>
+              <label className="block text-sm font-medium text-slate-400 mb-2">{t('eod.opening_balance')} ({t('currency')})</label>
               <div className="relative">
                 <Banknote size={18} className="absolute start-4 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input 
@@ -5377,7 +5356,6 @@ export default function EndOfDay() {
     );
   }
 
-  // === الشاشة 2: الوردية النشطة (إغلاق الوردية) ===
   const shiftStartTime = new Date(activeShift.start_time).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' });
 
   return (
@@ -5415,7 +5393,7 @@ export default function EndOfDay() {
       </div>
 
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg">
-        <form onSubmit={handleCloseShift} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <form onSubmit={handleCloseShiftClick} className="grid grid-cols-1 lg:grid-cols-2 gap-8 text-start" dir={isRTL ? "rtl" : "ltr"}>
           
           <div className="space-y-6">
             <div>
@@ -5433,7 +5411,7 @@ export default function EndOfDay() {
                 />
               </div>
               <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
-                <AlertCircle size={12} /> أَدخل المبلغ الإجمالي المتواجد في درج النقود حالياً.
+                <AlertCircle size={12} /> {t('eod.actualCashHint')}
               </p>
             </div>
 
@@ -5444,7 +5422,7 @@ export default function EndOfDay() {
                 onChange={(e) => setNotes(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-700 rounded-lg p-4 text-white focus:outline-none focus:border-blue-500"
                 rows="3"
-                placeholder="ملاحظات حول الإغلاق أو فوارق الدرج..."
+                placeholder={t('eod.notesPlaceholder')}
               ></textarea>
             </div>
           </div>
@@ -5468,6 +5446,27 @@ export default function EndOfDay() {
 
         </form>
       </div>
+
+      <Modal isOpen={isConfirmModalOpen} onClose={() => setIsConfirmModalOpen(false)} title={t('eod.title')}>
+        <div className="p-4 text-start">
+          <p className="text-white mb-6 text-lg">{t('eod.confirmClose')}</p>
+          
+          <div className="bg-slate-950 p-4 rounded-lg mb-6 text-center border border-slate-800">
+             <p className="text-sm text-slate-400 mb-1">{t('eod.today_sales')}</p>
+             <p className={`text-2xl font-bold ${todaySales > 0 ? 'text-emerald-400' : 'text-red-400'}`}>{todaySales} {t('currency')}</p>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 mt-4">
+            <button onClick={() => setIsConfirmModalOpen(false)} className="px-4 py-2 text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
+              {t('common.cancel')}
+            </button>
+            <button onClick={executeCloseShift} className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2">
+              <Lock size={18} /> {t('eod.save_btn')}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
     </div>
   );
 }
@@ -5599,7 +5598,6 @@ import { Shield, UserPlus, Trash2, Users, Key, AlertCircle, Save, Upload } from 
 import useAuthStore from '../store/authStore';
 import Modal from './ui/Modal';
 
-
 export default function UsersManagement() {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.dir() === 'rtl';
@@ -5609,7 +5607,10 @@ export default function UsersManagement() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('cashier');
-  const [userToDelete, setUserToDelete] = useState(null); // تخزين المستخدم المراد حذفه
+  
+  const [userToDelete, setUserToDelete] = useState(null); 
+  const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false); // مودال استعادة النسخة
+  
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -5646,17 +5647,15 @@ export default function UsersManagement() {
     } catch (err) { setError(t('settings.addError')); }
   };
 
- 
-
-  // دالة فتح نافذة الحذف بدلاً من window.confirm المزعجة
-  const handleDeleteUser = (id, name) => {
+  const handleDeleteUserClick = (id, name) => {
     if (name === 'admin' || name === currentUser?.username) {
-      alert(t('settings.deleteAlert')); return;
+      alert(t('settings.deleteAlert')); 
+      setTimeout(() => window.focus(), 100);
+      return;
     }
     setUserToDelete({ id, name }); 
   };
 
-  // دالة تنفيذ الحذف الفعلية
   const confirmDelete = async () => {
     if (!userToDelete) return;
     try {
@@ -5664,13 +5663,17 @@ export default function UsersManagement() {
         const res = await window.api.deleteUser(userToDelete.id);
         if (res.success) {
           if (res.isSoftDeleted) {
-              alert(t('hr.employees.softDeleted')); // 🔴 مترجمة
+              alert(t('hr.employees.softDeleted', 'تم تعطيل الحساب لحماية سجلاته المالية.')); 
+              setTimeout(() => window.focus(), 100);
           }
           fetchUsers();
-        } else { alert(res.error || t('settings.deleteError')); }
+        } else { 
+            alert(res.error || t('settings.deleteError')); 
+            setTimeout(() => window.focus(), 100);
+        }
       }
     } catch (err) { console.error(err); }
-    setUserToDelete(null); // إغلاق النافذة
+    setUserToDelete(null); 
   };
 
   if (currentUser?.role !== 'admin' && currentUser?.role !== 'superadmin') {
@@ -5681,33 +5684,39 @@ export default function UsersManagement() {
     );
   }
 
-const handleBackup = async () => {
+  const handleBackup = async () => {
     try {
       const result = await window.api.backupDatabase();
-      if (result.success) { alert(t('database.messages.backupSuccess')); } 
-      else if (!result.canceled) { alert(t('database.messages.error') + "\n" + (result.error || '')); }
-    } catch (error) { alert(t('database.messages.error')); }
-    
-    setTimeout(() => window.focus(), 100); // 🔴 استرجاع التركيز دائماً في النهاية
+      if (result.success) { 
+          alert(t('database.messages.backupSuccess')); 
+      } 
+      else if (!result.canceled) { 
+          alert(t('database.messages.error') + "\n" + (result.error || '')); 
+      }
+    } catch (error) { 
+        alert(t('database.messages.error')); 
+    }
+    setTimeout(() => window.focus(), 100); 
   };
 
-  const handleRestore = async () => {
-    if (window.confirm(t('database.messages.restoreConfirm'))) {
-      setTimeout(() => window.focus(), 100); // 🔴 استرجاع التركيز
+  const confirmRestore = async () => {
+      setIsRestoreModalOpen(false);
       try {
         const result = await window.api.restoreDatabase();
-        if (result.success) { alert(t('database.messages.restoreSuccess')); } 
-        else if (!result.canceled) { alert(t('database.messages.error') + "\n" + (result.error || '')); }
-      } catch (error) { alert(t('database.messages.error')); }
-      
-      setTimeout(() => window.focus(), 100); // 🔴 استرجاع التركيز
-    } else {
-      setTimeout(() => window.focus(), 100); // 🔴 استرجاع التركيز
-    }
+        if (result.success) { 
+            alert(t('database.messages.restoreSuccess')); 
+        } 
+        else if (!result.canceled) { 
+            alert(t('database.messages.error') + "\n" + (result.error || '')); 
+        }
+      } catch (error) { 
+          alert(t('database.messages.error')); 
+      }
+      setTimeout(() => window.focus(), 100); 
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans">
+    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans text-start">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
           <Shield className="text-blue-500" /> {t('settings.title')}
@@ -5763,7 +5772,7 @@ const handleBackup = async () => {
             {isLoading ? (
               <div className="p-8 text-center text-slate-500">{t('settings.loading')}</div>
             ) : (
-              <table className="w-full text-sm text-start">
+              <table className="w-full text-sm text-start" dir={i18n.dir()}>
                 <thead className="text-xs text-slate-400 bg-slate-950/50 uppercase border-b border-slate-800">
                   <tr>
                     <th className="px-6 py-4 text-start">{t('settings.table.username')}</th>
@@ -5787,7 +5796,7 @@ const handleBackup = async () => {
                       </td>
                       <td className="px-6 py-4 text-center">
                         <button 
-                          onClick={() => handleDeleteUser(u.id, u.username)}
+                          onClick={() => handleDeleteUserClick(u.id, u.username)}
                           disabled={u.username === 'admin' || u.username === currentUser?.username}
                           className="text-slate-500 hover:text-red-500 disabled:opacity-30 disabled:hover:text-slate-500 transition-colors"
                           title={t('settings.deleteTooltip')}
@@ -5806,8 +5815,7 @@ const handleBackup = async () => {
           </div>
         </div>
 
-        {/* قسم إدارة قاعدة البيانات والنسخ الاحتياطي */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 mt-6">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 mt-6 lg:col-span-3">
           <h2 className="text-xl font-bold text-white mb-6 border-b border-slate-800 pb-4">
             {t('database.title')}
           </h2>
@@ -5825,7 +5833,7 @@ const handleBackup = async () => {
               <div className="w-14 h-14 bg-red-500/10 rounded-full flex items-center justify-center mb-4"><Upload className="text-red-500" size={28} /></div>
               <h3 className="text-lg font-bold text-white mb-2">{t('database.restore')}</h3>
               <p className="text-sm text-slate-400 mb-6 flex-1">{t('database.restoreDesc')}</p>
-              <button onClick={handleRestore} className="w-full bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-lg transition-colors font-medium flex justify-center items-center gap-2">
+              <button onClick={() => setIsRestoreModalOpen(true)} className="w-full bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-lg transition-colors font-medium flex justify-center items-center gap-2">
                 <Upload size={18} />{t('database.restore')}
               </button>
             </div>
@@ -5833,29 +5841,34 @@ const handleBackup = async () => {
         </div>
       </div>
 
-      <Modal 
-        isOpen={!!userToDelete} 
-        onClose={() => setUserToDelete(null)} 
-        title={t('suppliers.actions.delete')} 
-      >
+      <Modal isOpen={!!userToDelete} onClose={() => setUserToDelete(null)} title={t('suppliers.actions.delete')}>
         <div className="p-4 text-start">
-          {/* 🔴 استخدام الترجمة مع تمرير اسم المستخدم الديناميكي */}
           <p className="text-white mb-6 text-lg">
             {t('settings.deleteConfirm', { name: userToDelete?.name })}
           </p>
-          
           <div className="flex items-center justify-end gap-3 mt-4">
-            <button 
-              onClick={() => setUserToDelete(null)} 
-              className="px-4 py-2 text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors"
-            >
-              {t('common.cancel')} {/* 🔴 "إلغاء" من القاموس */}
+            <button onClick={() => setUserToDelete(null)} className="px-4 py-2 text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
+              {t('common.cancel')}
             </button>
-            <button 
-              onClick={confirmDelete} 
-              className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
-            >
-              {t('suppliers.actions.confirmDeleteBtn')} {/* 🔴 "تأكيد الحذف" */}
+            <button onClick={confirmDelete} className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
+              {t('suppliers.actions.confirmDeleteBtn')}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={isRestoreModalOpen} onClose={() => setIsRestoreModalOpen(false)} title={t('database.restore')}>
+        <div className="p-4 text-start">
+          <div className="flex items-center gap-3 text-red-400 bg-red-950/30 p-4 rounded-lg border border-red-900 mb-6">
+             <AlertCircle size={24} />
+             <p className="font-bold">{t('database.messages.restoreConfirm')}</p>
+          </div>
+          <div className="flex items-center justify-end gap-3 mt-4">
+            <button onClick={() => setIsRestoreModalOpen(false)} className="px-4 py-2 text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
+              {t('common.cancel')}
+            </button>
+            <button onClick={confirmRestore} className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
+              {t('common.success', 'تأكيد العملية')}
             </button>
           </div>
         </div>
@@ -6055,6 +6068,7 @@ export default function Agenda() {
   const [filter, setFilter] = useState('all'); 
   const [tasks, setTasks] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState(null);
 
   const [currentDate, setCurrentDate] = useState(new Date());
   
@@ -6124,15 +6138,15 @@ export default function Agenda() {
     } catch (error) { console.error("Error toggling task status:", error); }
   };
 
-  const handleDeleteTask = async (id) => {
-    if (window.confirm(t('common.cancel', 'تأكيد الحذف؟'))) {
-      try {
-        if (window.api && window.api.deleteAgendaTask) {
-          await window.api.deleteAgendaTask(id);
-          setTasks(tasks.filter(task => task.id !== id));
-        }
-      } catch (error) { console.error("Error deleting task:", error); }
-    }
+  const confirmDeleteTask = async () => {
+    if (!taskToDelete) return;
+    try {
+      if (window.api && window.api.deleteAgendaTask) {
+        await window.api.deleteAgendaTask(taskToDelete);
+        setTasks(tasks.filter(task => task.id !== taskToDelete));
+      }
+    } catch (error) { console.error(error); }
+    setTaskToDelete(null);
   };
 
   const handleReschedule = async (id, newDate) => {
@@ -6162,7 +6176,7 @@ export default function Agenda() {
   const TaskCard = ({ task, isOverdue }) => {
     const typeConfig = getTypeConfig(task.type);
     const isCompleted = task.status === 'completed';
-    const displayTime = task.time && task.time !== 'undefined' ? task.time : 'طوال اليوم';
+    const displayTime = task.time && task.time !== 'undefined' ? task.time : t('agenda.allDay', 'طوال اليوم');
     const cardStyle = isCompleted ? 'bg-slate-900/50 border-slate-800/50 opacity-60' : isOverdue ? 'bg-red-950/20 border-red-900/50 hover:border-red-800' : 'bg-slate-900 border-slate-800 hover:border-slate-700';
 
     return (
@@ -6177,19 +6191,19 @@ export default function Agenda() {
             <div className="flex items-center gap-3 mt-2 text-xs">
               <span className={`flex items-center gap-1 ${isOverdue ? 'text-red-400' : 'text-slate-400'}`}><Clock size={14} /> {displayTime} {task.date !== todayString && `| ${task.date}`}</span>
               <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full border ${typeConfig.color}`}>{typeConfig.icon}{t(`agenda.types.${task.type}`, task.type)}</span>
-              {task.amount > 0 && <span className="font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded-full">{task.amount.toLocaleString()} DA</span>}
+              {task.amount > 0 && <span className="font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded-full">{task.amount.toLocaleString()} {t('currency')}</span>}
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           {!isCompleted && (
-            <div className="relative" title="تأجيل المهمة">
+            <div className="relative" title={t('agenda.rescheduleTask', 'تأجيل المهمة')}>
               <input type="date" className="opacity-0 absolute inset-0 w-full h-full cursor-pointer" onChange={(e) => handleReschedule(task.id, e.target.value)} />
               <button className="p-2 text-slate-500 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-colors"><CalendarClock size={18} /></button>
             </div>
           )}
-          <button onClick={() => handleDeleteTask(task.id)} className="p-2 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors"><Trash2 size={18} /></button>
+          <button onClick={() => setTaskToDelete(task.id)} className="p-2 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors" title={t('suppliers.actions.delete')}><Trash2 size={18} /></button>
         </div>
       </div>
     );
@@ -6222,21 +6236,14 @@ export default function Agenda() {
               </div>
               
               <div className="grid grid-cols-7 gap-1 text-center text-sm">
-                {/* الأيام الفارغة للشهر السابق */}
                 {[...Array(firstDayOfMonth)].map((_, i) => (
                    <div key={`empty-prev-${i}`} className="p-1.5 text-slate-700">{prevMonthDays - firstDayOfMonth + i + 1}</div>
                 ))}
-                
-                {/* أيام الشهر الحالي */}
                 {[...Array(daysInMonth)].map((_, i) => (
-                  <div key={i} className={`p-1.5 rounded-md cursor-pointer transition-colors ${
-                    isCurrentMonth && (i + 1 === currentDay) ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'
-                  }`}>
+                  <div key={i} className={`p-1.5 rounded-md cursor-pointer transition-colors ${isCurrentMonth && (i + 1 === currentDay) ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'}`}>
                     {i + 1}
                   </div>
                 ))}
-
-                {/* استكمال الأيام الفارغة للشهر القادم (لتكوين 42 مربع كامل) */}
                 {[...Array(42 - (firstDayOfMonth + daysInMonth))].map((_, i) => (
                    <div key={`empty-next-${i}`} className="p-1.5 text-slate-700">{i + 1}</div>
                 ))}
@@ -6256,7 +6263,7 @@ export default function Agenda() {
         <div className="lg:col-span-3 space-y-8">
           {overdueTasks.length > 0 && (
             <div>
-              <h3 className="text-lg font-medium text-red-400 mb-4 flex items-center gap-2 border-b border-red-900/50 pb-2"><AlertCircle size={18} /> مهام متأخرة</h3>
+              <h3 className="text-lg font-medium text-red-400 mb-4 flex items-center gap-2 border-b border-red-900/50 pb-2"><AlertCircle size={18} /> {t('agenda.sections.overdue', 'مهام متأخرة')}</h3>
               <div className="space-y-3">{overdueTasks.map(task => <TaskCard key={task.id} task={task} isOverdue={true} />)}</div>
             </div>
           )}
@@ -6305,11 +6312,26 @@ export default function Agenda() {
              <input type="number" min="0" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 text-start" />
           </div>
           <div className="pt-4 flex justify-end gap-3 mt-4">
-            <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800 transition-colors">{t('agenda.modal.cancelBtn')}</button>
-            <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">{t('agenda.modal.saveBtn')}</button>
+            <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800 transition-colors">{t('agenda.modal.cancelBtn', 'إلغاء')}</button>
+            <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">{t('agenda.modal.saveBtn', 'حفظ المهمة')}</button>
           </div>
         </form>
       </Modal>
+
+      <Modal isOpen={!!taskToDelete} onClose={() => setTaskToDelete(null)} title={t('suppliers.actions.delete')}>
+        <div className="p-4 text-start">
+          <p className="text-white mb-6 text-lg">{t('agenda.deleteConfirm', 'هل أنت متأكد من حذف هذه المهمة من الأجندة؟')}</p>
+          <div className="flex items-center justify-end gap-3 mt-4">
+            <button onClick={() => setTaskToDelete(null)} className="px-4 py-2 text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
+              {t('common.cancel')}
+            </button>
+            <button onClick={confirmDeleteTask} className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
+              {t('suppliers.actions.confirmDeleteBtn')}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
     </div>
   );
 }
@@ -6502,12 +6524,12 @@ export default Attendance;
 ```javascript
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { TrendingUp, AlertCircle, Users, Wallet, Plus, ArrowLeft, ArrowRight, Settings, Activity } from 'lucide-react';
+import { TrendingUp, AlertCircle, Users, Wallet, Plus, Settings } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import ExpensesPieChart from '../ExpensesPieChart';
 import useAuditStore from '../../store/auditStore';
-import Modal from '../ui/Modal'; // استيراد نافذة المودال
+import Modal from '../ui/Modal'; 
 
 export default function Dashboard() {
   const { t, i18n } = useTranslation();
@@ -6538,7 +6560,6 @@ export default function Dashboard() {
     }
   };
 
-  // --- حالات إعدادات المحل ---
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [storeName, setStoreName] = useState(localStorage.getItem('storeName') || 'GHERBI.AI');
 
@@ -6546,9 +6567,9 @@ export default function Dashboard() {
     e.preventDefault();
     localStorage.setItem('storeName', storeName);
     setIsSettingsOpen(false);
-    alert('تم حفظ اسم المحل بنجاح! سيظهر الآن في جميع المطبوعات.');
+    alert(t('settings.modal.saveSuccess', 'تم حفظ التغييرات بنجاح!'));
+    setTimeout(() => window.focus(), 100);
   };
-  // -------------------------
 
   useEffect(() => {
     const fetchAndNotifyUrgentData = async () => {
@@ -6568,17 +6589,14 @@ export default function Dashboard() {
           if (urgent.length > 0) {
             const hasNotified = sessionStorage.getItem('notified_urgent_tasks');
             if (!hasNotified && window.api.showNotification) {
-              const notifTitle = t('dashboard.alerts.systemTitle') || 'تنبيهات عاجلة';
-              const notifBody = t('dashboard.alerts.urgentBody', { count: urgent.length }) || `لديك ${urgent.length} مهام متأخرة اليوم!`;
-
+              const notifTitle = t('dashboard.alerts.systemTitle');
+              const notifBody = t('dashboard.alerts.urgentBody', { count: urgent.length });
               window.api.showNotification({ title: String(notifTitle), body: String(notifBody) });
               sessionStorage.setItem('notified_urgent_tasks', 'true');
             }
           }
         }
-      } catch (error) {
-        console.error("Error fetching urgent tasks:", error);
-      }
+      } catch (error) { console.error("Error fetching urgent tasks:", error); }
     };
     fetchAndNotifyUrgentData();
   }, [t]);
@@ -6614,42 +6632,26 @@ export default function Dashboard() {
 
           setStats({ totalDebts, totalExpenses, presentEmployees, totalEmployees, topCreditors, dueThisWeek: dueAmount || 0 });
         }
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-      }
+      } catch (error) { console.error("Error fetching dashboard data:", error); }
     };
     fetchDashboardData();
   }, [t]);
 
-  const customTooltipStyle = {
-    backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc', borderRadius: '0.5rem', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)'
-  };
+  const customTooltipStyle = { backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc', borderRadius: '0.5rem', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)' };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans">
-      
+    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans text-start">
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-white">{t('dashboard.title')}</h1>
           <p className="text-sm text-slate-500 mt-1">{t('dashboard.subtitle')}</p>
         </div>
         <div className="flex items-center gap-3">
-          {/* زر إعدادات المحل */}
-{/* زر إعدادات المحل */}
-          <button 
-            onClick={() => setIsSettingsOpen(true)}
-            className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-md font-medium hover:bg-slate-700 transition-colors"
-          >
-            <Settings size={18} />
-            <span>{t('sidebar.settings')}</span>
+          <button onClick={() => setIsSettingsOpen(true)} className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-md font-medium hover:bg-slate-700 transition-colors">
+            <Settings size={18} /><span>{t('sidebar.settings')}</span>
           </button>
-
-          <button 
-            onClick={() => navigate('/expenses')}
-            className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-md font-medium hover:bg-slate-200 transition-colors"
-          >
-            <Plus size={18} />
-            <span>{t('dashboard.quickActionExpense')}</span>
+          <button onClick={() => navigate('/expenses')} className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-md font-medium hover:bg-slate-200 transition-colors">
+            <Plus size={18} /><span>{t('dashboard.quickActionExpense')}</span>
           </button>
         </div>
       </div>
@@ -6659,7 +6661,7 @@ export default function Dashboard() {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-sm text-slate-400">{t('dashboard.kpi.totalDebts')}</p>
-              <h3 className="text-2xl font-bold text-white mt-1">{stats.totalDebts.toLocaleString()} DA</h3>
+              <h3 className="text-2xl font-bold text-white mt-1">{stats.totalDebts.toLocaleString()} {t('currency')}</h3>
             </div>
             <div className="p-2 bg-slate-800 rounded-lg text-slate-400"><TrendingUp size={20} /></div>
           </div>
@@ -6669,7 +6671,7 @@ export default function Dashboard() {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-sm text-slate-400">{t('dashboard.kpi.dueThisWeek')}</p>
-              <h3 className="text-2xl font-bold text-red-400 mt-1">{stats.dueThisWeek.toLocaleString()} DA</h3>
+              <h3 className="text-2xl font-bold text-red-400 mt-1">{stats.dueThisWeek.toLocaleString()} {t('currency')}</h3>
             </div>
             <div className="p-2 bg-red-950/50 rounded-lg text-red-400"><AlertCircle size={20} /></div>
           </div>
@@ -6689,7 +6691,7 @@ export default function Dashboard() {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-sm text-slate-400">{t('dashboard.kpi.expenses')}</p>
-              <h3 className="text-2xl font-bold text-white mt-1">{stats.totalExpenses.toLocaleString()} DA</h3>
+              <h3 className="text-2xl font-bold text-white mt-1">{stats.totalExpenses.toLocaleString()} {t('currency')}</h3>
             </div>
             <div className="p-2 bg-slate-800 rounded-lg text-slate-400"><Wallet size={20} /></div>
           </div>
@@ -6706,7 +6708,7 @@ export default function Dashboard() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                   <XAxis dataKey="name" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
                   <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value / 1000}k`} />
-                  <RechartsTooltip cursor={{fill: '#1e293b'}} contentStyle={customTooltipStyle} formatter={(value) => [`${value.toLocaleString()} DA`, t('suppliers.table.totalDebt') || 'Debt']} />
+                  <RechartsTooltip cursor={{fill: '#1e293b'}} contentStyle={customTooltipStyle} formatter={(value) => [`${value.toLocaleString()} DA`, t('suppliers.table.totalDebt')]} />
                   <Bar dataKey="debt" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={50} />
                 </BarChart>
               </ResponsiveContainer>
@@ -6735,7 +6737,7 @@ export default function Dashboard() {
                     <p className="font-medium text-red-200 text-sm">{task.title}</p>
                     <p className="text-xs text-red-400 mt-1">{task.date || task.task_date}</p>
                   </div>
-                  {task.amount > 0 && <span className="font-bold text-slate-300 text-sm">{task.amount.toLocaleString()} DA</span>}
+                  {task.amount > 0 && <span className="font-bold text-slate-300 text-sm">{task.amount.toLocaleString()} {t('currency')}</span>}
                 </div>
               ))
             )}
@@ -6754,7 +6756,7 @@ export default function Dashboard() {
                   <p className="text-sm font-medium text-slate-300">{renderAuditDetails(log)}</p>
                   <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
                     <span className="text-blue-400 font-bold">{log.username}</span> 
-                    • {new Date(log.created_at).toLocaleString(i18n.language, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
+                    • {new Date(log.created_at).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
                 <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded">
@@ -6766,28 +6768,27 @@ export default function Dashboard() {
         </div>
       </div>
 
-{/* نافذة تغيير الاسم */}
-      <Modal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} title={t('settings.modal.title', 'إعدادات النظام والطباعة')}>
+      <Modal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} title={t('settings.modal.title')}>
         <form onSubmit={handleSaveStoreName} className="space-y-4 text-start">
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-2">
-               {t('settings.modal.storeNameLabel', 'اسم المحل (يظهر بجانب علامتنا التجارية في المطبوعات)')}
+               {t('settings.modal.storeNameLabel')}
             </label>
             <input 
               type="text" 
               value={storeName} 
               onChange={e => setStoreName(e.target.value)} 
               className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 text-start" 
-              placeholder={t('settings.modal.storeNamePlaceholder', 'مثال: سوبر ماركت الهدى')}
+              placeholder={t('settings.modal.storeNamePlaceholder')}
               required
             />
           </div>
           <div className="flex justify-end gap-3 mt-6">
-            <button type="button" onClick={() => setIsSettingsOpen(false)} className="px-4 py-2 text-slate-300 hover:bg-slate-800 rounded-lg">
-               {t('common.cancel', 'إلغاء')}
+            <button type="button" onClick={() => setIsSettingsOpen(false)} className="px-4 py-2 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">
+               {t('common.cancel')}
             </button>
-            <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold">
-               {t('settings.modal.saveBtn', 'حفظ التغييرات')}
+            <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-colors">
+               {t('settings.modal.saveBtn')}
             </button>
           </div>
         </form>
@@ -6804,8 +6805,8 @@ export default function Dashboard() {
 
 ```javascript
 import React, { useState, useEffect } from "react";
-import { Search, Plus, Edit, Trash2 } from "lucide-react";
-import { useTranslation } from "react-i18next"; // 🔴 استيراد مكتبة الترجمة
+import { Search, Plus, Edit, Trash2, AlertCircle, CheckCircle2 } from "lucide-react"; 
+import { useTranslation } from "react-i18next"; 
 import useEmployeeStore from "../../store/employeeStore";
 
 import { Button } from "@/components/ui/button";
@@ -6814,8 +6815,10 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
+// 🔴 1. استيراد نافذة التنبيه المخصصة الجديدة
+import ConfirmAlert from '../ui/ConfirmAlert'; 
+
 const Employees = () => {
-  // 🔴 تفعيل الترجمة والاتجاه 🔴
   const { t, i18n } = useTranslation();
   const isRTL = i18n.dir() === 'rtl';
 
@@ -6825,13 +6828,30 @@ const Employees = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [formData, setFormData] = useState({ name: "", role: "", pinCode: "" });
+  
+  const [employeeToDelete, setEmployeeToDelete] = useState(null); 
+  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     fetchEmployees();
   }, []);
+  
+  const showToast = (type, message) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  const unlockFocus = () => {
+    if (document.activeElement) document.activeElement.blur();
+    setTimeout(() => {
+      window.focus();
+      document.body.focus();
+      document.body.style.pointerEvents = 'auto';
+    }, 10);
+  };
 
   const filteredEmployees = employees.filter((emp) =>
-    emp.name.toLowerCase().includes(searchQuery.toLowerCase())
+    (emp?.name || "").toLowerCase().includes((searchQuery || "").toLowerCase()) // 🔴 الحماية المضافة سابقاً
   );
 
   const handleChange = (e) => {
@@ -6850,88 +6870,138 @@ const Employees = () => {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = async (emp) => {
-    // 🔴 استخدام الترجمة في رسائل التأكيد 🔴
-    if (window.confirm(t('hr.employees.deleteConfirm', { name: emp.name }))) {
-      const store = useEmployeeStore.getState();
+  const handleDeleteClick = (emp) => {
+    setEmployeeToDelete(emp);
+  };
+
+  const confirmDelete = async () => {
+    if (!employeeToDelete) return;
+    const store = useEmployeeStore.getState();
+    const idToDelete = employeeToDelete.id;
+    
+    // إغلاق النافذة
+    setEmployeeToDelete(null); 
+    
+    try {
       if (store.deleteEmployee) {
-        const res = await window.api.deleteEmployee(emp.id);
+        const res = await window.api.deleteEmployee(idToDelete);
         if (res.success) {
-          if (res.isSoftDeleted) alert(t('hr.employees.softDeleted'));
+          if (res.isSoftDeleted) {
+            showToast('warning', t('hr.employees.softDeleted', 'تم تعطيل الحساب بنجاح لحماية السجلات.')); 
+          } else {
+            showToast('success', t('common.success', 'تمت العملية بنجاح'));
+          }
           fetchEmployees();
         } else {
-          alert(t('common.error'));
+          showToast('error', t('common.error', 'حدث خطأ غير متوقع'));
         }
       }
+    } catch (err) {
+      showToast('error', t('common.error', 'حدث خطأ غير متوقع'));
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.name || !formData.pinCode) return; 
 
-    let success;
-    if (editingEmployee) {
-      success = await window.api.updateEmployee(editingEmployee.id, formData);
-    } else {
-      success = await addEmployee(formData);
-    }
+    const dataToSubmit = { ...formData };
+    const isEdit = !!editingEmployee;
+    const editId = editingEmployee ? editingEmployee.id : null;
 
-    if (success) {
-      setIsDialogOpen(false); 
-      setFormData({ name: "", role: "", pinCode: "" }); 
-      setEditingEmployee(null);
-      fetchEmployees();
-    } else {
-      alert(t('hr.messages.error'));
-    }
+    unlockFocus(); 
+    
+    setIsDialogOpen(false); 
+    setFormData({ name: "", role: "", pinCode: "" }); 
+    setEditingEmployee(null);
+
+    setTimeout(async () => {
+      try {
+        let res;
+        if (isEdit) {
+          res = await window.api.updateEmployee(editId, dataToSubmit);
+        } else {
+          res = await window.api.addEmployee(dataToSubmit);
+        }
+
+        if (res && res.error) {
+          showToast('warning', res.error); 
+        } else if (res) {
+          fetchEmployees();
+          showToast('success', t('common.success', 'تمت العملية بنجاح'));
+        } else {
+          showToast('error', t('common.error', 'حدث خطأ غير متوقع'));
+        }
+      } catch (err) {
+        showToast('error', t('common.error', 'حدث خطأ غير متوقع'));
+      }
+    }, 150);
   };
 
   return (
-    <div className={`flex flex-col gap-6 p-6 w-full text-slate-100 ${isRTL ? 'text-right' : 'text-left'}`}>
+    <div className={`flex flex-col gap-6 p-6 w-full text-slate-100 ${isRTL ? 'text-right' : 'text-left'} relative`}>
+      
+      {toast && (
+        <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 ${
+          toast.type === 'success' ? 'bg-emerald-600 text-white' :
+          toast.type === 'warning' ? 'bg-amber-600 text-white' :
+          'bg-red-600 text-white'
+        }`}>
+          {toast.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+          <span className="font-bold">{toast.message}</span>
+        </div>
+      )}
+
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-bold mb-2">{t('hr.tabs.employees')}</h1>
-          <p className="text-slate-400">{t('hr.subtitle')}</p>
+          <h1 className="text-3xl font-bold mb-2">{t('hr.tabs.employees', 'العمال')}</h1>
+          <p className="text-slate-400">{t('hr.subtitle', 'إدارة الحضور والانصراف والعمال')}</p>
         </div>
       </div>
 
       <div className="flex justify-between items-center bg-slate-900/50 p-4 rounded-xl border border-slate-800">
         <Button onClick={openAddDialog} className="flex gap-2 items-center bg-blue-600 text-white hover:bg-blue-700">
-          <Plus size={18} /> {t('hr.employees.addBtn')}
+          <Plus size={18} /> {t('hr.employees.addBtn', 'إضافة موظف')}
         </Button>
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className={`sm:max-w-[425px] bg-slate-950 text-slate-100 border-slate-800 ${isRTL ? 'text-right' : 'text-left'}`} dir={i18n.dir()}>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => {
+          if (!open) unlockFocus(); 
+          setIsDialogOpen(open);
+        }}>
+          <DialogContent 
+            onOpenAutoFocus={(e) => e.preventDefault()}
+            onCloseAutoFocus={(e) => e.preventDefault()}
+            className={`sm:max-w-[425px] bg-slate-950 text-slate-100 border-slate-800 ${isRTL ? 'text-right' : 'text-left'}`} 
+            dir={i18n.dir()}
+          >
             <DialogHeader>
-              <DialogTitle>{editingEmployee ? t('hr.dialog.editTitle') : t('hr.dialog.title')}</DialogTitle>
+              <DialogTitle>{editingEmployee ? t('hr.dialog.editTitle', 'تعديل موظف') : t('hr.dialog.title', 'إضافة موظف جديد')}</DialogTitle>
               <DialogDescription className="text-slate-400">
-                {t('hr.dialog.desc')}
+                {t('hr.dialog.desc', 'أدخل تفاصيل الموظف ورمز PIN السري.')}
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className={`col-span-1 ${isRTL ? 'text-right' : 'text-left'}`}>{t('hr.dialog.name')}</Label>
-                <Input id="name" name="name" value={formData.name} onChange={handleChange} className="col-span-3 bg-slate-900 border-slate-800" placeholder={t('hr.dialog.namePlaceholder')} required />
+                <Label htmlFor="name" className={`col-span-1 ${isRTL ? 'text-right' : 'text-left'}`}>{t('hr.dialog.name', 'الاسم الكامل')}</Label>
+                <Input id="name" name="name" value={formData.name} onChange={handleChange} className="col-span-3 bg-slate-900 border-slate-800" placeholder={t('hr.dialog.namePlaceholder', 'محمد أمين...')} required />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="role" className={`col-span-1 ${isRTL ? 'text-right' : 'text-left'}`}>{t('hr.dialog.role')}</Label>
-                {/* 🔴 ربط المناصب بملفات الترجمة 🔴 */}
+                <Label htmlFor="role" className={`col-span-1 ${isRTL ? 'text-right' : 'text-left'}`}>{t('hr.dialog.role', 'المنصب')}</Label>
                 <select id="role" name="role" value={formData.role} onChange={handleChange} className="col-span-3 bg-slate-900 border-slate-800 rounded-md p-2 text-sm text-white focus:outline-none focus:border-blue-500" required>
-                  <option value="" disabled>{t('hr.dialog.rolePlaceholder')}</option>
-                  <option value="cashier">{t('hr.roles.cashier')}</option>
-                  <option value="scale">{t('hr.roles.scale')}</option>
-                  <option value="stock">{t('hr.roles.stock')}</option>
-                  <option value="admin">{t('hr.roles.admin')}</option>
+                  <option value="" disabled>{t('hr.dialog.rolePlaceholder', 'اختر منصباً')}</option>
+                  <option value="cashier">{t('hr.roles.cashier', 'بائع (كاشير)')}</option>
+                  <option value="scale">{t('hr.roles.scale', 'عامل ميزان')}</option>
+                  <option value="stock">{t('hr.roles.stock', 'ترتيبات')}</option>
+                  <option value="admin">{t('hr.roles.admin', 'مدير عام')}</option>
                 </select>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="pinCode" className={`col-span-1 ${isRTL ? 'text-right' : 'text-left'}`}>{t('hr.dialog.pin')}</Label>
+                <Label htmlFor="pinCode" className={`col-span-1 ${isRTL ? 'text-right' : 'text-left'}`}>{t('hr.dialog.pin', 'رمز PIN')}</Label>
                 <Input id="pinCode" name="pinCode" type="password" value={formData.pinCode} onChange={handleChange} className="col-span-3 bg-slate-900 border-slate-800 tracking-widest" placeholder="****" required />
               </div>
               <DialogFooter>
                 <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white mt-4">
-                  {editingEmployee ? t('hr.dialog.saveChanges') : t('hr.dialog.save')}
+                  {editingEmployee ? t('hr.dialog.saveChanges', 'حفظ التعديلات') : t('hr.dialog.save', 'حفظ بيانات الموظف')}
                 </Button>
               </DialogFooter>
             </form>
@@ -6939,7 +7009,7 @@ const Employees = () => {
         </Dialog>
 
         <div className="relative w-1/3">
-          <Input placeholder={t('hr.employees.search')} className={`bg-slate-900 border-slate-800 w-full ${isRTL ? 'pr-10 text-right' : 'pl-10 text-left'}`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} dir={i18n.dir()} />
+          <Input placeholder={t('common.search', 'بحث...')} className={`bg-slate-900 border-slate-800 w-full ${isRTL ? 'pr-10 text-right' : 'pl-10 text-left'}`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} dir={i18n.dir()} />
           <Search className={`absolute top-2.5 text-slate-500 ${isRTL ? 'right-3' : 'left-3'}`} size={18} />
         </div>
       </div>
@@ -6948,34 +7018,36 @@ const Employees = () => {
         <Table dir={i18n.dir()}>
           <TableHeader>
             <TableRow className="border-slate-800 hover:bg-transparent">
-              <TableHead className={`${isRTL ? 'text-right' : 'text-left'} text-slate-400`}>{t('hr.employees.table.name')}</TableHead>
-              <TableHead className={`${isRTL ? 'text-right' : 'text-left'} text-slate-400`}>{t('hr.employees.table.role')}</TableHead>
-              <TableHead className="text-center text-slate-400">{t('hr.employees.table.status')}</TableHead>
-              <TableHead className="text-center text-slate-400">{t('hr.employees.table.actions')}</TableHead>
+              <TableHead className={`${isRTL ? 'text-right' : 'text-left'} text-slate-400`}>{t('hr.employees.table.name', 'الاسم الكامل')}</TableHead>
+              <TableHead className={`${isRTL ? 'text-right' : 'text-left'} text-slate-400`}>{t('hr.employees.table.role', 'المنصب')}</TableHead>
+              <TableHead className="text-center text-slate-400">{t('hr.employees.table.status', 'الحالة')}</TableHead>
+              <TableHead className="text-center text-slate-400">{t('hr.employees.table.actions', 'الإجراءات')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={4} className="text-center py-8 text-slate-500">{t('hr.table.loading')}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={4} className="text-center py-8 text-slate-500">{t('hr.table.loading', 'جاري التحميل...')}</TableCell></TableRow>
             ) : filteredEmployees.length === 0 ? (
-              <TableRow><TableCell colSpan={4} className="text-center py-8 text-slate-500">{t('hr.employees.empty')}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={4} className="text-center py-8 text-slate-500">{t('common.noResults', 'لا توجد نتائج')}</TableCell></TableRow>
             ) : (
               filteredEmployees.map((emp) => (
                 <TableRow key={emp.id} className="border-slate-800 hover:bg-slate-800/50">
                   <TableCell className={`font-medium ${isRTL ? 'text-right' : 'text-left'}`}>{emp.name}</TableCell>
                   <TableCell className={`${isRTL ? 'text-right' : 'text-left'} text-slate-300`}>
-                    {t(`hr.roles.${emp.role}`, emp.role)}
+                    {t(`hr.roles.${emp.role}`, { defaultValue: emp.role })}
                   </TableCell>
                   <TableCell className="text-center">
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${emp.status === "active" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"}`}>
-                      {emp.status === "active" ? t('hr.status.active') : t('hr.status.inactive')}
+                      {emp.status === "active" ? t('hr.status.active', 'نشط') : t('hr.status.inactive', 'معطل')}
                     </span>
                   </TableCell>
                   <TableCell className="text-center flex justify-center gap-2">
-                    <Button onClick={() => openEditDialog(emp)} variant="ghost" size="icon" className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/30" title={t('hr.employees.actions.edit')}>
+                    <Button onClick={() => openEditDialog(emp)} variant="ghost" size="icon" className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/30" title={t('hr.employees.actions.edit', 'تعديل')}>
                       <Edit size={18} />
                     </Button>
-                    <Button onClick={() => handleDelete(emp)} variant="ghost" size="icon" className="text-red-400 hover:text-red-300 hover:bg-red-900/30" title={t('hr.employees.actions.delete')}>
+                    <Button 
+                      onClick={() => handleDeleteClick(emp)} 
+                      variant="ghost" size="icon" className="text-red-400 hover:text-red-300 hover:bg-red-900/30" title={t('hr.employees.actions.delete', 'حذف')}>
                       <Trash2 size={18} />
                     </Button>
                   </TableCell>
@@ -6985,6 +7057,21 @@ const Employees = () => {
           </TableBody>
         </Table>
       </div>
+
+      {/* 🔴 2. استخدام النافذة الجديدة بدلاً من القديمة */}
+      <ConfirmAlert 
+        isOpen={!!employeeToDelete}
+        onClose={() => setEmployeeToDelete(null)}
+        onConfirm={confirmDelete}
+        title={t('hr.employees.actions.delete', 'حذف')}
+        message={t('hr.employees.deleteConfirmMsg', { 
+          name: employeeToDelete?.name, 
+          defaultValue: `هل أنت متأكد من حذف الحساب الإداري للمستخدم:\n${employeeToDelete?.name}؟` 
+        })}
+        cancelText={t('common.cancel', 'إلغاء')}
+        confirmText={t('suppliers.actions.confirmDeleteBtn', 'تأكيد الحذف')}
+      />
+
     </div>
   );
 };
@@ -7012,6 +7099,8 @@ export default function Expenses() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
+  
+  const [expenseToDelete, setExpenseToDelete] = useState(null);
 
   const { employees, fetchEmployees } = useEmployeeStore();
   const { suppliers, fetchSuppliers } = useSupplierStore();
@@ -7030,7 +7119,6 @@ export default function Expenses() {
     } catch (error) { console.error("Failed to fetch expenses:", error); }
   };
 
-  // 🔴 الإصلاح: جعل المصفوفة فارغة لمنع التجميد 🔴
   useEffect(() => {
     fetchExpensesList();
     fetchEmployees();
@@ -7049,17 +7137,21 @@ export default function Expenses() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm(t('expenses.deleteConfirm'))) {
-      try {
-        if (window.api && window.api.deleteExpense) {
-          const result = await window.api.deleteExpense(id, user?.username || 'Unknown');
-          if (result && result.success) {
-            setExpenses(prev => prev.filter(exp => !(exp.id === id && exp.source === 'expense')));
-          }
+  const handleDeleteClick = (id) => {
+    setExpenseToDelete(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!expenseToDelete) return;
+    try {
+      if (window.api && window.api.deleteExpense) {
+        const result = await window.api.deleteExpense(expenseToDelete, user?.username || 'Unknown');
+        if (result && result.success) {
+          setExpenses(prev => prev.filter(exp => !(exp.id === expenseToDelete && exp.source === 'expense')));
         }
-      } catch (error) { console.error("Error deleting expense:", error); }
-    }
+      }
+    } catch (error) { console.error("Error deleting expense:", error); }
+    setExpenseToDelete(null); 
   };
 
   const getCaisseName = () => {
@@ -7095,7 +7187,7 @@ export default function Expenses() {
 
       setIsModalOpen(false);
       setEditingExpense(null);
-      fetchExpensesList(); // تحديث فقط عند حفظ الإجراء
+      fetchExpensesList(); 
     } catch (error) { console.error("Error saving transaction:", error); }
   };
 
@@ -7140,7 +7232,7 @@ export default function Expenses() {
         <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl flex items-center justify-between">
           <div>
             <p className="text-sm text-slate-400">{t('expenses.kpi.today')}</p>
-            <h3 className="text-2xl font-bold text-white mt-1">{todayTotal.toLocaleString()} DA</h3>
+            <h3 className="text-2xl font-bold text-white mt-1">{todayTotal.toLocaleString()} {t('currency')}</h3>
           </div>
           <div className="p-3 bg-red-950/30 rounded-lg text-red-400"><ArrowDownCircle size={24} /></div>
         </div>
@@ -7148,7 +7240,7 @@ export default function Expenses() {
         <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl flex items-center justify-between">
           <div>
             <p className="text-sm text-slate-400">{t('expenses.kpi.month')}</p>
-            <h3 className="text-2xl font-bold text-slate-300 mt-1">{monthTotal.toLocaleString()} DA</h3>
+            <h3 className="text-2xl font-bold text-slate-300 mt-1">{monthTotal.toLocaleString()} {t('currency')}</h3>
           </div>
           <div className="p-3 bg-slate-800 rounded-lg text-slate-400"><Wallet size={24} /></div>
         </div>
@@ -7158,7 +7250,7 @@ export default function Expenses() {
         <div className="p-4 border-b border-slate-800 bg-slate-950/30">
           <div className="relative w-full max-w-md">
             <Search size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder={t('expenses.searchPlaceholder')} className="w-full bg-slate-900 border border-slate-700 rounded-lg ps-10 pe-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors shadow-inner text-start" dir={isRTL ? "rtl" : "ltr"} />
+            <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder={t('common.search')} className="w-full bg-slate-900 border border-slate-700 rounded-lg ps-10 pe-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors shadow-inner text-start" dir={isRTL ? "rtl" : "ltr"} />
           </div>
         </div>
 
@@ -7170,7 +7262,7 @@ export default function Expenses() {
                 <th className="px-6 py-4 text-sm font-medium text-slate-400 text-start">{t('expenses.table.description')}</th>
                 <th className="px-6 py-4 text-sm font-medium text-slate-400 text-start">{t('expenses.table.category')}</th>
                 <th className="px-6 py-4 text-sm font-medium text-slate-400 text-start">{t('expenses.table.amount')}</th>
-                <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('expenses.table.actions')}</th>
+                <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('suppliers.table.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -7191,16 +7283,16 @@ export default function Expenses() {
                       {getCategoryTranslation(exp.category)}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-start font-bold text-white">{exp.amount.toLocaleString()} DA</td>
+                  <td className="px-6 py-4 text-start font-bold text-white">{exp.amount.toLocaleString()} {t('currency')}</td>
                   <td className="px-6 py-4">
                     {exp.source === 'expense' ? (
                       <div className="flex items-center justify-center gap-2">
                         <button onClick={() => openEditModal(exp)} className="p-2 text-blue-400 hover:bg-blue-900/50 rounded-lg transition-colors"><Edit size={18} /></button>
-                        <button onClick={() => handleDelete(exp.id)} className="p-2 text-red-400 hover:bg-red-900/50 rounded-lg transition-colors"><Trash2 size={18} /></button>
+                        <button onClick={() => handleDeleteClick(exp.id)} className="p-2 text-red-400 hover:bg-red-900/50 rounded-lg transition-colors"><Trash2 size={18} /></button>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-center text-xs text-slate-500 gap-1" title={t('expenses.table.managedElsewhere')}>
-                        <ShieldAlert size={14} /> {t('expenses.table.locked')}
+                      <div className="flex items-center justify-center text-xs text-slate-500 gap-1" title={t('common.serverOnlyFeature')}>
+                        <ShieldAlert size={14} /> {t('expenses.table.locked', 'مقفل')}
                       </div>
                     )}
                   </td>
@@ -7213,6 +7305,20 @@ export default function Expenses() {
           </table>
         </div>
       </div>
+
+      <Modal isOpen={!!expenseToDelete} onClose={() => setExpenseToDelete(null)} title={t('suppliers.actions.delete')}>
+        <div className="p-4 text-start">
+          <p className="text-white mb-6 text-lg">{t('expenses.deleteConfirm')}</p>
+          <div className="flex items-center justify-end gap-3 mt-4">
+            <button onClick={() => setExpenseToDelete(null)} className="px-4 py-2 text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
+              {t('common.cancel')}
+            </button>
+            <button onClick={confirmDelete} className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
+              {t('suppliers.actions.confirmDeleteBtn')}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setEditingExpense(null); }} title={editingExpense ? t('expenses.editExpense') : t('expenses.addExpense')}>
         <form className="space-y-4" onSubmit={handleSubmitExpense} dir={isRTL ? "rtl" : "ltr"}>
@@ -7241,14 +7347,14 @@ export default function Expenses() {
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('suppliers.modal.nameLabel')}</label>
               <select required value={formData.supplierId} onChange={e => setFormData({...formData, supplierId: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 text-start">
-                <option value="" disabled>{t('suppliers.modal.selectSupplier')}</option>
+                <option value="" disabled>{t('suppliers.modal.selectSupplier', '-- اختر مورداً --')}</option>
                 {suppliers.map(sup => <option key={sup.id} value={sup.id}>{sup.name}</option>)}
               </select>
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('expenses.table.amount')} (DA)</label>
+            <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('expenses.table.amount')} ({t('currency')})</label>
             <input type="number" min="1" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start" required />
           </div>
 
@@ -7275,10 +7381,13 @@ export default function Expenses() {
 ```javascript
 import React, { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Search, Plus, MoreHorizontal, UserCheck, AlertCircle, ScanLine, Users, X, Clock, Edit, Trash2 } from "lucide-react";
+import { Search, Plus, MoreHorizontal, UserCheck, AlertCircle, ScanLine, Users, X, Clock, Edit, Trash2, CheckCircle2 } from "lucide-react";
 
 import useEmployeeStore from "../../store/employeeStore";
 import useAttendanceStore from "../../store/attendanceStore";
+
+// 🔴 1. استيراد نافذة التنبيه المخصصة
+import ConfirmAlert from '../ui/ConfirmAlert'; 
 
 const HR = () => {
   const { t, i18n } = useTranslation();
@@ -7291,7 +7400,7 @@ const HR = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({ name: "", role: "", pinCode: "" });
  
-const { submitPin, fetchTodayRecords, isLoading: attLoading } = useAttendanceStore();
+  const { submitPin, fetchTodayRecords, isLoading: attLoading } = useAttendanceStore();
   const [pinInput, setPinInput] = useState("");
   const [feedback, setFeedback] = useState(null);
   const inputRef = useRef(null);
@@ -7299,6 +7408,15 @@ const { submitPin, fetchTodayRecords, isLoading: attLoading } = useAttendanceSto
   const today = new Date().toISOString().split('T')[0];
   const [attendanceDate, setAttendanceDate] = useState(today);
   const [attendanceRecords, setAttendanceRecords] = useState([]);
+
+  // 🔴 2. متغيرات حالة النافذة المخصصة والإشعارات
+  const [employeeToDelete, setEmployeeToDelete] = useState(null); 
+  const [toast, setToast] = useState(null);
+
+  const showToast = (type, message) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   const fetchAttendanceForDate = async (date) => {
     try {
@@ -7311,13 +7429,14 @@ const { submitPin, fetchTodayRecords, isLoading: attLoading } = useAttendanceSto
     fetchAttendanceForDate(attendanceDate);
   }, [attendanceDate]);
 
-  // إيقاف الـ Infinite Loop بجعل المصفوفة فارغة []
-useEffect(() => {
+  useEffect(() => {
     fetchEmployees();
     fetchTodayRecords(); 
-  }, []); // <--- مصفوفة فارغة
+  }, []); 
 
-  const filteredEmployees = employees.filter((emp) => emp.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredEmployees = employees.filter((emp) =>
+    (emp?.name || "").toLowerCase().includes((searchQuery || "").toLowerCase())
+  );
 
   const handleAttendanceSubmit = async (e) => {
     e.preventDefault();
@@ -7328,7 +7447,7 @@ useEffect(() => {
     if (result && result.success) {
        const actionText = result.action === 'check_in' ? t('hr.messages.checkIn') : t('hr.messages.checkOut');
        setFeedback({ type: 'success', message: `${actionText}: ${result.employeeName}` });
-       fetchAttendanceForDate(attendanceDate); // تحديث فوري
+       fetchAttendanceForDate(attendanceDate); 
     } else if (result) {
        setFeedback({ type: 'error', message: result.message });
     }
@@ -7338,12 +7457,49 @@ useEffect(() => {
     setTimeout(() => setFeedback(null), 4000);
   };
 
-  // إصلاح أرقام الإحصائيات لتقرأ من السجل المحلي المرتبط بالتاريخ
+  // 🔴 3. دالة الحذف الآمنة (بدون تجميد)
+  const confirmDelete = async () => {
+    if (!employeeToDelete) return;
+    const store = useEmployeeStore.getState();
+    const idToDelete = employeeToDelete.id;
+    
+    setEmployeeToDelete(null); // إغلاق النافذة فوراً
+    
+    try {
+      const res = await window.api.deleteEmployee(idToDelete);
+      if (res && res.success) {
+        if (res.isSoftDeleted) {
+          showToast('warning', t('hr.employees.softDeleted', 'تم تعطيل الحساب لحماية السجلات.')); 
+        } else {
+          showToast('success', t('common.success', 'تم الحذف بنجاح'));
+        }
+        store.fetchEmployees();
+      } else {
+        showToast('error', t('common.error', 'حدث خطأ أثناء الحذف'));
+      }
+    } catch(e) { 
+      showToast('error', t('common.error', 'حدث خطأ غير متوقع'));
+    }
+  };
+
   const presentCount = attendanceRecords.filter(r => !r.time_out).length;
   const absentCount = Math.max(0, employees.length - attendanceRecords.length);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-6 font-sans flex flex-col gap-6">
+    <div className="min-h-screen bg-slate-950 text-slate-100 p-6 font-sans flex flex-col gap-6 relative">
+      
+      {/* 🔴 شريط الإشعارات الذكي (Toast) */}
+      {toast && (
+        <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 ${
+          toast.type === 'success' ? 'bg-emerald-600 text-white' :
+          toast.type === 'warning' ? 'bg-amber-600 text-white' :
+          'bg-red-600 text-white'
+        }`}>
+          {toast.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+          <span className="font-bold">{toast.message}</span>
+        </div>
+      )}
+
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">{t('hr.title')}</h1>
@@ -7470,18 +7626,16 @@ useEffect(() => {
                       </td>
                       <td className="px-6 py-4 text-center flex justify-center gap-2">
                         <button onClick={() => { setFormData({ name: emp.name, role: emp.role, pinCode: emp.pin_code }); setEditingEmployee(emp); setIsDialogOpen(true); }} className="p-2 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" title={t('hr.employees.actions.edit')}><Edit size={18} /></button>
-                        <button onClick={async () => {
-                          if(window.confirm(t('hr.employees.deleteConfirm', { name: emp.name }))) {
-                            const store = useEmployeeStore.getState();
-                            try {
-                              const res = await window.api.deleteEmployee(emp.id);
-                              if(res && res.success) {
-                                if (res.isSoftDeleted) alert(t('hr.employees.softDeleted'));
-                                store.fetchEmployees();
-                              } else alert(t('common.error'));
-                            } catch(e) { console.error(e); }
-                          }
-                        }} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors" title={t('hr.employees.actions.delete')}><Trash2 size={18} /></button>
+                        
+                        {/* 🔴 التعديل هنا: استخدام setEmployeeToDelete بدلاً من window.confirm */}
+                        <button 
+                          onClick={() => setEmployeeToDelete(emp)} 
+                          className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors" 
+                          title={t('hr.employees.actions.delete')}
+                        >
+                          <Trash2 size={18} />
+                        </button>
+
                       </td>
                     </tr>
                   ))
@@ -7506,12 +7660,21 @@ useEffect(() => {
                     if (!formData.name || !formData.pinCode) return;
                     const store = useEmployeeStore.getState();
                     let success;
+                    
                     if (editingEmployee) {
                        if (store.updateEmployee) success = await store.updateEmployee(editingEmployee.id, formData);
-                       else { alert("Error: updateEmployee not found"); return; }
+                       else { showToast('error', "Error: updateEmployee not found"); return; }
                     } else success = await store.addEmployee(formData);
-                    if (success) { setIsDialogOpen(false); setFormData({ name: "", role: "", pinCode: "" }); setEditingEmployee(null); store.fetchEmployees(); } 
-                    else alert(t('hr.messages.error'));
+                    
+                    if (success) { 
+                      setIsDialogOpen(false); 
+                      setFormData({ name: "", role: "", pinCode: "" }); 
+                      setEditingEmployee(null); 
+                      store.fetchEmployees(); 
+                      showToast('success', t('common.success', 'تمت العملية بنجاح')); // 🔴 بدلاً من alert
+                    } else {
+                      showToast('error', t('hr.messages.error', 'حدث خطأ غير متوقع')); // 🔴 بدلاً من alert
+                    }
                   }} className="flex flex-col gap-4 text-start">
                   <div>
                     <label className="block text-sm font-medium text-slate-300 mb-1">{t('hr.dialog.name')}</label>
@@ -7542,6 +7705,20 @@ useEffect(() => {
           )}
         </div>
       )}
+
+      {/* 🔴 4. مكون نافذة التأكيد السوداء المخصصة */}
+      <ConfirmAlert 
+        isOpen={!!employeeToDelete}
+        onClose={() => setEmployeeToDelete(null)}
+        onConfirm={confirmDelete}
+        title={t('hr.employees.actions.delete', 'حذف حساب الموظف')}
+        message={t('hr.employees.deleteConfirmMsg', { 
+          name: employeeToDelete?.name, 
+          defaultValue: `هل أنت متأكد من حذف حساب المستخدم:\n${employeeToDelete?.name}؟` 
+        })}
+        cancelText={t('common.cancel', 'إلغاء')}
+        confirmText={t('suppliers.actions.confirmDeleteBtn', 'تأكيد الحذف')}
+      />
 
     </div>
   );
@@ -7705,10 +7882,7 @@ const handleLogin = async (e) => {
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Calculator, Banknote, Clock, Users, Calendar, 
-  MinusCircle, CheckCircle, Plus, AlertCircle, FileText, Printer, Eye
-} from 'lucide-react';
+import { Calculator, Banknote, Clock, Users, Calendar, MinusCircle, CheckCircle, Plus, AlertCircle, FileText, Printer, Eye } from 'lucide-react';
 
 import useEmployeeStore from '../../store/employeeStore';
 import usePayrollStore from '../../store/payrollStore';
@@ -7722,10 +7896,7 @@ export default function Payroll() {
   const [activeTab, setActiveTab] = useState('calculator');
 
   const { employees, fetchEmployees } = useEmployeeStore();
-  const { 
-    advances, salaries, fetchAdvances, fetchSalaries, addAdvance, 
-    calculatePayroll, payrollResult, paySalary, clearPayrollResult 
-  } = usePayrollStore();
+  const { advances, salaries, fetchAdvances, fetchSalaries, addAdvance, calculatePayroll, payrollResult, paySalary, clearPayrollResult } = usePayrollStore();
 
   const today = new Date();
   const lastWeek = new Date(today);
@@ -7737,18 +7908,16 @@ export default function Payroll() {
   const [hourlyRate, setHourlyRate] = useState('');
   
   const [isAdvanceModalOpen, setIsAdvanceModalOpen] = useState(false);
-  const [advanceData, setAdvanceData] = useState({ 
-    employeeId: '', amount: '', date: today.toISOString().split('T')[0], caisseSource: '', note: '' 
-  });
+  const [advanceData, setAdvanceData] = useState({ employeeId: '', amount: '', date: today.toISOString().split('T')[0], caisseSource: '', note: '' });
 
-  // 🔴 الإصلاح الأول: إزالة الدوال من قائمة المراقبة لمنع التجميد 🔴
+  const [confirmModalData, setConfirmModalData] = useState(null);
+
   useEffect(() => {
     fetchEmployees();
     fetchAdvances();
     fetchSalaries();
-  }, []); // <-- يجب أن تكون فارغة هكذا
+  }, []);
 
-  // 🔴 الإصلاح الثاني: مسح النتيجة فقط عند تغيير الموظف 🔴
   useEffect(() => {
     if(selectedEmployee) {
        clearPayrollResult();
@@ -7758,112 +7927,78 @@ export default function Payroll() {
   const handleCalculate = async (e) => {
     if (e) e.preventDefault();
     if (!selectedEmployee || !hourlyRate || !startDate || !endDate) return;
-    await calculatePayroll({
-      employeeId: selectedEmployee,
-      startDate,
-      endDate,
-      hourlyRate: Number(hourlyRate)
-    });
+    await calculatePayroll({ employeeId: selectedEmployee, startDate, endDate, hourlyRate: Number(hourlyRate) });
   };
 
   const handleSaveAdvance = async (e) => {
     e.preventDefault();
     if (!advanceData.employeeId || !advanceData.caisseSource) return;
-    const success = await addAdvance({
-      employeeId: advanceData.employeeId,
-      amount: Number(advanceData.amount),
-      date: advanceData.date,
-      caisseSource: advanceData.caisseSource,
-      note: advanceData.note
-    });
+    const success = await addAdvance({ employeeId: advanceData.employeeId, amount: Number(advanceData.amount), date: advanceData.date, caisseSource: advanceData.caisseSource, note: advanceData.note });
     if (success) {
       setIsAdvanceModalOpen(false);
       setAdvanceData({ employeeId: '', amount: '', date: today.toISOString().split('T')[0], caisseSource: '', note: '' });
       if (payrollResult) handleCalculate(); 
-      // تحديث البيانات بعد الإضافة
       fetchAdvances();
     }
   };
 
-  const handlePaySalary = async () => {
+  const handlePaySalaryClick = () => {
     if (!payrollResult) return;
-    
-    if (payrollResult.netSalary < 0) {
-       if (!window.confirm(t('payroll.rolloverConfirm'))) return;
-    } else {
-       if (!window.confirm(t('payroll.standardConfirm'))) return;
-    }
-
     const employeeName = employees.find(e => e.id === Number(selectedEmployee))?.name || '';
-
     const payload = { 
       ...payrollResult, 
       date: today.toISOString().split('T')[0],
       rolloverNote: t('payroll.rolloverNote', { start: payrollResult.startDate, end: payrollResult.endDate }),
       expenseNote: t('payroll.expenseNote', { name: employeeName, start: payrollResult.startDate, end: payrollResult.endDate })
     };
-    
-    const res = await paySalary(payload);
+
+    if (payrollResult.netSalary < 0) {
+       setConfirmModalData({ type: 'rollover', payload });
+    } else {
+       setConfirmModalData({ type: 'standard', payload });
+    }
+  };
+
+  const executePayment = async () => {
+    if (!confirmModalData) return;
+    const res = await paySalary(confirmModalData.payload);
     if (res.success) {
-      alert(t('common.success'));
       setActiveTab('salaries');
-      // تحديث البيانات بعد الدفع لمنع البلوك
       fetchSalaries();
       fetchAdvances();
       clearPayrollResult();
     } else {
-      alert('فشلت العملية. السبب التقني: \n' + res.error);
+      alert(t('common.error') + ' \n' + res.error);
+      setTimeout(() => window.focus(), 100);
     }
+    setConfirmModalData(null);
   };
 
   const handlePrintPayslip = () => {
     if (!payrollResult) return;
-    
     const employeeData = employees.find(e => e.id === Number(selectedEmployee));
-    
     navigate('/preview', {
-      state: {
-        type: 'payslip',
-        employeeName: employeeData?.name || '',
-        period: `${startDate} - ${endDate}`,
-        date: today.toISOString().split('T')[0],
-        hours: payrollResult.totalHours,
-        rate: hourlyRate,
-        grossSalary: payrollResult.grossSalary,
-        deductions: payrollResult.totalAdvances,
-        netSalary: payrollResult.netSalary
-      }
+      state: { type: 'payslip', employeeName: employeeData?.name || '', period: `${startDate} - ${endDate}`, date: today.toISOString().split('T')[0], hours: payrollResult.totalHours, rate: hourlyRate, grossSalary: payrollResult.grossSalary, deductions: payrollResult.totalAdvances, netSalary: payrollResult.netSalary }
     });
   };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans flex flex-col gap-6 text-start">
-      
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-bold text-white flex items-center gap-3 mb-2">
-            <Banknote className="text-emerald-500" />
-            {t('payroll.title')}
-          </h1>
+          <h1 className="text-3xl font-bold text-white flex items-center gap-3 mb-2"><Banknote className="text-emerald-500" />{t('payroll.title')}</h1>
           <p className="text-sm text-slate-500">{t('payroll.subtitle')}</p>
         </div>
       </div>
 
       <div className="flex bg-slate-900 border border-slate-800 rounded-lg w-fit p-1 overflow-x-auto">
-        <button onClick={() => setActiveTab('calculator')} className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-medium transition-colors whitespace-nowrap ${activeTab === 'calculator' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
-          <Calculator size={18} /> {t('payroll.tabs.calculator')}
-        </button>
-        <button onClick={() => setActiveTab('advances')} className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-medium transition-colors whitespace-nowrap ${activeTab === 'advances' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
-          <MinusCircle size={18} /> {t('payroll.tabs.advances')}
-        </button>
-        <button onClick={() => setActiveTab('salaries')} className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-medium transition-colors whitespace-nowrap ${activeTab === 'salaries' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
-          <FileText size={18} /> {t('payroll.tabs.salaries')}
-        </button>
+        <button onClick={() => setActiveTab('calculator')} className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-medium transition-colors whitespace-nowrap ${activeTab === 'calculator' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><Calculator size={18} /> {t('payroll.tabs.calculator')}</button>
+        <button onClick={() => setActiveTab('advances')} className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-medium transition-colors whitespace-nowrap ${activeTab === 'advances' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><MinusCircle size={18} /> {t('payroll.tabs.advances')}</button>
+        <button onClick={() => setActiveTab('salaries')} className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-medium transition-colors whitespace-nowrap ${activeTab === 'salaries' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><FileText size={18} /> {t('payroll.tabs.salaries')}</button>
       </div>
 
       {activeTab === 'calculator' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg h-fit">
             <h2 className="text-xl font-bold text-white mb-6">{t('payroll.calculator')}</h2>
             <form onSubmit={handleCalculate} className="grid grid-cols-2 gap-4">
@@ -7884,7 +8019,7 @@ export default function Payroll() {
               </div>
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-slate-400 mb-2">{t('payroll.hourlyRate')}</label>
-                <input type="number" step="0.01" min="1" required value={hourlyRate} onChange={e => setHourlyRate(e.target.value)} placeholder="مثال: 130" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white" />
+                <input type="number" step="0.01" min="1" required value={hourlyRate} onChange={e => setHourlyRate(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white" />
               </div>
               <div className="col-span-2 mt-4">
                 <button type="submit" disabled={!selectedEmployee} className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2">
@@ -7909,48 +8044,32 @@ export default function Payroll() {
                   <p className="text-xl font-bold text-white">{payrollResult.grossSalary.toLocaleString()}</p>
                 </div>
                 <div className="bg-slate-950 p-4 rounded-lg border border-red-900/30 text-center col-span-2 flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <MinusCircle className="text-red-400" size={24} />
-                    <p className="text-slate-400 font-medium">{t('payroll.deductions')}</p>
-                  </div>
+                  <div className="flex items-center gap-3"><MinusCircle className="text-red-400" size={24} /><p className="text-slate-400 font-medium">{t('payroll.deductions')}</p></div>
                   <p className="text-xl font-bold text-red-400">-{payrollResult.totalAdvances.toLocaleString()}</p>
                 </div>
                 <div className={`p-5 rounded-lg border text-center col-span-2 ${payrollResult.netSalary < 0 ? 'bg-red-950/30 border-red-900/50 ring-1 ring-red-500/50' : 'bg-emerald-950/30 border-emerald-900/50 ring-1 ring-emerald-500/50'}`}>
                   <p className="text-sm text-slate-300 mb-2">{t('payroll.netSalary')}</p>
                   <p className={`text-4xl font-bold ${payrollResult.netSalary < 0 ? 'text-red-500' : 'text-emerald-400'}`}>
-                    {payrollResult.netSalary.toLocaleString()} {t('currency', 'DA')}
+                    {payrollResult.netSalary.toLocaleString()} {t('currency')}
                   </p>
                   {payrollResult.netSalary < 0 && <p className="text-xs text-red-400 mt-2">{t('payroll.negativeSalaryError')}</p>}
                 </div>
               </div>
-              
               <div className="flex gap-4">
-                <button 
-                  onClick={handlePaySalary} 
-                  className={`flex-1 text-white py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-2 transition-colors ${payrollResult.netSalary < 0 ? 'bg-orange-600 hover:bg-orange-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
-                >
-                  <CheckCircle size={24} /> 
-                  {payrollResult.netSalary < 0 ? t('payroll.rolloverBtn') : t('payroll.payBtn')}
+                <button onClick={handlePaySalaryClick} className={`flex-1 text-white py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-2 transition-colors ${payrollResult.netSalary < 0 ? 'bg-orange-600 hover:bg-orange-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
+                  <CheckCircle size={24} /> {payrollResult.netSalary < 0 ? t('payroll.rolloverBtn') : t('payroll.payBtn')}
                 </button>
-
-                <button 
-                  onClick={handlePrintPayslip} 
-                  className="bg-slate-800 hover:bg-slate-700 text-white py-4 px-6 rounded-lg font-bold transition-colors flex items-center justify-center gap-2"
-                  title="معاينة كشف الراتب للطباعة"
-                >
-                  <Eye size={24} />
-                </button>
+                <button onClick={handlePrintPayslip} title={t('payroll.previewPayslip')} className="bg-slate-800 hover:bg-slate-700 text-white py-4 px-6 rounded-lg font-bold transition-colors flex items-center justify-center gap-2"><Eye size={24} /></button>
               </div>
             </div>
           )}
-
         </div>
       )}
 
       {activeTab === 'advances' && (
         <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
           <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/30">
-            <h3 className="font-bold text-white flex items-center gap-2"><MinusCircle size={18} className="text-red-400" /> {t('payroll.tabs.advances')}</h3>
+            <h3 className="font-bold text-white flex items-center gap-2"><MinusCircle size={18} className="text-red-400" /> {t('payroll.advancesTitle')}</h3>
             <button onClick={() => setIsAdvanceModalOpen(true)} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-md transition-colors">
               <Plus size={18} /> {t('payroll.addAdvance')}
             </button>
@@ -7976,7 +8095,7 @@ export default function Payroll() {
                       <td className="px-6 py-4 font-medium text-white">{adv.employee_name}</td>
                       <td className="px-6 py-4 text-slate-400 text-sm">{adv.date}</td>
                       <td className="px-6 py-4 text-slate-300 text-sm">{adv.caisse_source || '-'}</td>
-                      <td className="px-6 py-4 font-bold text-red-400">{adv.amount.toLocaleString()} {t('currency', 'DA')}</td>
+                      <td className="px-6 py-4 font-bold text-red-400">{adv.amount.toLocaleString()} {t('currency')}</td>
                       <td className="px-6 py-4 text-slate-400 text-sm">{adv.note || '-'}</td>
                       <td className="px-6 py-4 text-center">
                         <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${adv.status === 'pending' ? 'bg-orange-950 text-orange-400 border-orange-900' : 'bg-emerald-950 text-emerald-400 border-emerald-900'}`}>
@@ -7998,23 +8117,15 @@ export default function Payroll() {
             <h3 className="font-bold text-white flex items-center gap-2">
               <FileText size={18} className="text-blue-400" /> {t('payroll.tabs.salaries')}
             </h3>
-            
-            <button 
-              onClick={() => {
-                if(salaries.length === 0) return alert('لا توجد رواتب لطباعتها!');
-                navigate('/preview', {
-                  state: {
-                    type: 'all-salaries',
-                    salaries: salaries
-                  }
-                });
+            <button onClick={() => {
+                if(salaries.length === 0) return alert(t('payroll.noSalariesToPrint'));
+                navigate('/preview', { state: { type: 'all-salaries', salaries: salaries }});
               }}
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-md"
             >
-              <Printer size={16} /> طباعة التقرير الشامل
+              <Printer size={16} /> {t('payroll.printReport')}
             </button>
           </div>
-          
           <div className="overflow-x-auto">
             <table className="w-full text-start border-collapse min-w-[800px]" dir={isRTL ? "rtl" : "ltr"}>
               <thead>
@@ -8033,15 +8144,12 @@ export default function Payroll() {
                 ) : (
                   salaries.map(sal => (
                     <tr key={sal.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
-                      <td className="px-6 py-4 font-medium text-white">
-                        {sal.employee_name}
-                        <div className="text-xs text-slate-500 mt-1">{t('payroll.date')}: {sal.payment_date}</div>
-                      </td>
+                      <td className="px-6 py-4 font-medium text-white">{sal.employee_name}<div className="text-xs text-slate-500 mt-1">{t('payroll.date')}: {sal.payment_date}</div></td>
                       <td className="px-6 py-4 text-slate-400 text-sm text-center">{sal.start_date} <br/> {sal.end_date}</td>
                       <td className="px-6 py-4 text-blue-400 font-medium text-center">{sal.total_hours}</td>
                       <td className="px-6 py-4 text-slate-300 text-center">{sal.total_hours * sal.hourly_rate}</td>
                       <td className="px-6 py-4 text-red-400 font-medium text-center">-{sal.total_advances}</td>
-                      <td className="px-6 py-4 font-bold text-emerald-400 text-center bg-slate-950/50">{sal.net_salary.toLocaleString()} {t('currency', 'DA')}</td>
+                      <td className="px-6 py-4 font-bold text-emerald-400 text-center bg-slate-950/50">{sal.net_salary.toLocaleString()} {t('currency')}</td>
                     </tr>
                   ))
                 )}
@@ -8064,13 +8172,13 @@ export default function Payroll() {
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-1">{t('payroll.caisse')}</label>
             <select required value={advanceData.caisseSource} onChange={e => setAdvanceData({...advanceData, caisseSource: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white" dir={isRTL ? "rtl" : "ltr"}>
-              <option value="" disabled>{t('payroll.selectCaisse')}</option>
+              <option value="" disabled>{t('payroll.selectCaisse', '-- اختر المصدر --')}</option>
               {employees.map(emp => <option key={emp.id} value={emp.name}>{emp.name} ({t(`hr.roles.${emp.role}`, emp.role)})</option>)}
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1">{t('payroll.amount')} (DA)</label>
+            <label className="block text-sm font-medium text-slate-400 mb-1">{t('payroll.amount')} ({t('currency')})</label>
             <input type="number" min="1" required value={advanceData.amount} onChange={e => setAdvanceData({...advanceData, amount: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white" />
           </div>
           <div>
@@ -8088,6 +8196,23 @@ export default function Payroll() {
         </form>
       </Modal>
 
+      <Modal isOpen={!!confirmModalData} onClose={() => setConfirmModalData(null)} title={t('payroll.payBtn')}>
+        <div className="p-4 text-start">
+          <p className="text-white mb-6 text-lg">
+            {confirmModalData?.type === 'rollover' 
+              ? t('payroll.rolloverConfirm') 
+              : t('payroll.standardConfirm')}
+          </p>
+          <div className="flex items-center justify-end gap-3 mt-4">
+            <button onClick={() => setConfirmModalData(null)} className="px-4 py-2 text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
+              {t('common.cancel')}
+            </button>
+            <button onClick={executePayment} className={`px-4 py-2 text-white rounded-lg transition-colors ${confirmModalData?.type === 'rollover' ? 'bg-orange-600 hover:bg-orange-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
+              {t('common.success')}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -8177,26 +8302,31 @@ import { useNavigate } from 'react-router-dom';
 import useSupplierStore from '../../store/supplierStore';
 import useEmployeeStore from '../../store/employeeStore'; 
 import Modal from '../ui/Modal';
-import PrintableTicket from '../ui/PrintableTicket';
-import { Plus, Search, ArrowUpDown, ArrowRight, ArrowLeft, FileText, Banknote, ArrowUpRight, ArrowDownRight, Calendar, Printer, Download, Eye, Edit, Trash2, Upload } from 'lucide-react';
+import { Plus, Search, ArrowUpDown, ArrowRight, ArrowLeft, FileText, Banknote, ArrowUpRight, ArrowDownRight, Calendar, Eye, Edit, Trash2, Upload } from 'lucide-react';
+
 export default function Suppliers() {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.dir() === 'rtl';
   const navigate = useNavigate();
-  const { employees, fetchEmployees } = useEmployeeStore();
-  const [supplierToDelete, setSupplierToDelete] = useState(null);
-  const [globalFilter, setGlobalFilter] = useState('');
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   
-  // دمج نوافذ الإضافة والتعديل
+  const { employees, fetchEmployees } = useEmployeeStore();
+  const { suppliers, fetchSuppliers, addSupplier, updateSupplier, deleteSupplier, currentSupplier, fetchSupplierDetails, clearCurrentSupplier, addReceipt, addPayment } = useSupplierStore();
+  
+  const [globalFilter, setGlobalFilter] = useState('');
+  
+  // حالات النوافذ (Modals)
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState(null);
+  const [supplierToDelete, setSupplierToDelete] = useState(null);
+
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
-  const [transactionType, setTransactionType] = useState('receipt'); // 'receipt' | 'payment'
+  const [transactionType, setTransactionType] = useState('receipt'); 
   const [editingTransactionId, setEditingTransactionId] = useState(null); 
+  const [transactionToDelete, setTransactionToDelete] = useState(null); // 🔴 حالة جديدة لحذف المعاملات
 
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
-  const [printData, setPrintData] = useState(null);
-  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
 
+  // حالات البيانات (Forms)
   const [formData, setFormData] = useState({ name: '', phone: '', initialDebt: 0 });
   const [transactionData, setTransactionData] = useState({ amount: '', date: new Date().toISOString().split('T')[0], note: '', caisseSource: '' });
   const [scheduleData, setScheduleData] = useState({ amount: '', date: new Date().toISOString().split('T')[0], time: '10:00', note: '' });
@@ -8204,7 +8334,6 @@ export default function Suppliers() {
   useEffect(() => { fetchSuppliers(); fetchEmployees(); }, []);
 
   const handlePreview = (type, item) => { navigate('/preview', { state: { type, item, supplierName: currentSupplier.name } }); };
-  const executePrint = () => { setTimeout(() => { window.print(); }, 100); };
 
   const handleSaveSupplier = async (e) => { 
     e.preventDefault(); 
@@ -8222,17 +8351,33 @@ export default function Suppliers() {
       fetchSuppliers();
     } else {
       alert(t('suppliers.messages.saveError'));
+      setTimeout(() => window.focus(), 100);
     }
   };
-  // أضف الدوال الجديدة من المخزن
-  const { suppliers, fetchSuppliers, addSupplier, updateSupplier, deleteSupplier, currentSupplier, fetchSupplierDetails, clearCurrentSupplier, addReceipt, addPayment } = useSupplierStore();
-  
-  // أضف هذه الحالة
-  const [editingSupplier, setEditingSupplier] = useState(null);
 
+  const openEditSupplierModal = (supplier) => {
+    setEditingSupplier(supplier);
+    setFormData({ name: supplier.name, phone: supplier.phone || '', initialDebt: supplier.initial_debt || 0 });
+    setIsAddModalOpen(true);
+  };
 
+  const confirmDeleteSupplier = (id) => {
+    setSupplierToDelete(id);
+  };
 
-  // فتح نافذة المعاملات للإضافة
+  const executeDeleteSupplier = async () => {
+    if (!supplierToDelete) return;
+    const res = await deleteSupplier(supplierToDelete);
+    if (res && res.success) {
+      fetchSuppliers();
+    } else {
+      const errorMessage = res?.errorKey ? t(`suppliers.messages.${res.errorKey}`) : t('suppliers.messages.deleteError');
+      alert(errorMessage);
+      setTimeout(() => window.focus(), 100);
+    }
+    setSupplierToDelete(null); 
+  };
+
   const openTransactionModal = (type) => {
     setTransactionType(type);
     setEditingTransactionId(null);
@@ -8240,7 +8385,6 @@ export default function Suppliers() {
     setIsTransactionModalOpen(true);
   };
 
-  // فتح نافذة المعاملات للتعديل
   const openEditTransactionModal = (type, item) => {
     setTransactionType(type);
     setEditingTransactionId(item.id);
@@ -8265,61 +8409,55 @@ export default function Suppliers() {
     } catch (error) { console.error("Error saving transaction:", error); }
   };
 
-const handleDeleteTransaction = async (type, id) => {
-    // 1. إصلاح مفتاح الترجمة لرسالة التأكيد
-    if (window.confirm(t('suppliers.actions.deleteConfirm'))) {
-      
-      // 2. حل مشكلة تجمّد الشاشة (Focus Bug)
-      setTimeout(() => window.focus(), 100); 
-
-      try {
-        let res;
-        // استدعاء الباك إند
-        if (type === 'receipt') {
-          res = await window.api.deleteReceipt(id);
-        } else {
-          res = await window.api.deletePayment(id);
-        }
-
-        // 3. التحقق من النجاح قبل تحديث الشاشة
-        if (res && res.success) {
-          fetchSupplierDetails(currentSupplier.id); 
-          fetchSuppliers(); 
-        } else {
-          // إظهار الخطأ إذا فشلت العملية
-          alert("حدث خطأ أثناء الحذف: " + (res?.error || "غير معروف"));
-        }
-      } catch (error) { 
-        console.error("Error deleting transaction:", error); 
-      }
-    }
+  // 🔴 دالة لفتح مودال حذف المعاملة المالية
+  const handleDeleteTransactionClick = (type, id) => {
+    setTransactionToDelete({ type, id });
   };
 
-  
+  // 🔴 التنفيذ الفعلي لحذف المعاملة
+  const executeDeleteTransaction = async () => {
+    if (!transactionToDelete) return;
+    try {
+      let res;
+      if (transactionToDelete.type === 'receipt') {
+        res = await window.api.deleteReceipt(transactionToDelete.id);
+      } else {
+        res = await window.api.deletePayment(transactionToDelete.id);
+      }
+
+      if (res && res.success) {
+        fetchSupplierDetails(currentSupplier.id); 
+        fetchSuppliers(); 
+      } else {
+        alert(t('common.error'));
+        setTimeout(() => window.focus(), 100);
+      }
+    } catch (error) { console.error(error); }
+    setTransactionToDelete(null);
+  };
+
   const handleImportExcel = async () => {
     try {
       if (window.api && window.api.importSuppliersExcel) {
         const res = await window.api.importSuppliersExcel();
         if (res && res.success) {
-          // استخدام دالة الترجمة وتمرير عدد الموردين المستوردين
           alert(t('suppliers.actions.importSuccess', { count: res.count }));
+          setTimeout(() => window.focus(), 100);
           fetchSuppliers(); 
         } else if (res && !res.canceled) {
-          // استخدام الترجمة لرسالة الخطأ
           alert(t('suppliers.actions.importError') + "\n" + res.error);
+          setTimeout(() => window.focus(), 100);
         }
       }
-    } catch (error) {
-      console.error(error);
-    }
+    } catch (error) { console.error(error); }
   };
 
   const columns = useMemo(() => [
     { accessorKey: 'name', header: ({ column }) => ( <button className="flex items-center gap-2 hover:text-white outline-none transition-colors" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}> {t('suppliers.table.name')} <ArrowUpDown size={14} /> </button> ), cell: (info) => <span className="font-medium text-white">{info.getValue()}</span> },
     { accessorKey: 'phone', header: t('suppliers.table.phone'), cell: (info) => <span className="text-slate-400">{info.getValue() || '-'}</span> },
-    { accessorKey: 'total_debt', header: t('suppliers.table.totalDebt'), cell: (info) => { const amount = info.getValue() || 0; return <span className={`font-bold ${amount > 0 ? 'text-red-400' : 'text-emerald-400'}`}>{amount.toLocaleString()} DA</span>; } },
+    { accessorKey: 'total_debt', header: t('suppliers.table.totalDebt'), cell: (info) => { const amount = info.getValue() || 0; return <span className={`font-bold ${amount > 0 ? 'text-red-400' : 'text-emerald-400'}`}>{amount.toLocaleString()} {t('currency')}</span>; } },
     { id: 'status', header: t('suppliers.table.status'), cell: ({ row }) => { const amount = row.original.total_debt || 0; const isClear = amount <= 0; return ( <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${isClear ? 'bg-emerald-950 text-emerald-400 border-emerald-900' : 'bg-red-950 text-red-400 border-red-900'}`}> {isClear ? t('suppliers.status.clear') : t('suppliers.status.indebted')} </span> ); } },
-  { 
+    { 
       id: 'actions', 
       header: t('suppliers.table.actions'), 
       cell: ({ row }) => ( 
@@ -8330,48 +8468,19 @@ const handleDeleteTransaction = async (type, id) => {
           <button onClick={() => openEditSupplierModal(row.original)} className="p-2 text-emerald-400 hover:bg-emerald-900/50 rounded-lg transition-colors" title={t('suppliers.actions.edit')}>
             <Edit size={18} />
           </button>
-<button onClick={() => confirmDeleteSupplier(row.original.id)} className="p-2 text-red-400 hover:bg-red-900/50 rounded-lg transition-colors" title={t('suppliers.actions.delete')}>
-  <Trash2 size={18} />
-</button>
+          <button onClick={() => confirmDeleteSupplier(row.original.id)} className="p-2 text-red-400 hover:bg-red-900/50 rounded-lg transition-colors" title={t('suppliers.actions.delete')}>
+            <Trash2 size={18} />
+          </button>
         </div>
       ) 
-    }, ], [t, fetchSupplierDetails]);
+    }, 
+  ], [t, fetchSupplierDetails]);
 
   const table = useReactTable({ data: suppliers, columns, state: { globalFilter }, onGlobalFilterChange: setGlobalFilter, getCoreRowModel: getCoreRowModel(), getFilteredRowModel: getFilteredRowModel(), getSortedRowModel: getSortedRowModel() });
   
-  const openEditSupplierModal = (supplier) => {
-    setEditingSupplier(supplier);
-    setFormData({ name: supplier.name, phone: supplier.phone || '', initialDebt: supplier.initial_debt || 0 });
-    setIsAddModalOpen(true);
-  };
-
-
-// هذه الدالة تفتح نافذة التأكيد فقط
-const confirmDeleteSupplier = (id) => {
-  setSupplierToDelete(id);
-};
-
-// هذه الدالة تنفذ الحذف الفعلي عند الضغط على "نعم"
-const executeDelete = async () => {
-  if (!supplierToDelete) return;
-
-  const res = await deleteSupplier(supplierToDelete);
-  if (res && res.success) {
-    fetchSuppliers();
-    setSupplierToDelete(null); // إغلاق النافذة بعد النجاح
-  } else {
-    // عرض رسالة الخطأ داخل الواجهة أفضل من استخدام alert
-    const errorMessage = res?.errorKey 
-      ? t(`suppliers.messages.${res.errorKey}`) 
-      : t('suppliers.messages.deleteError') + (res?.message ? `: ${res.message}` : '');
-    alert(errorMessage); // إذا استمر التجمّد بسبب هذه الـ alert، سنستبدلها بـ Toast لاحقاً
-    setSupplierToDelete(null);
-  }
-};
-
   if (currentSupplier) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans relative">
+      <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans relative text-start">
         <div className="flex justify-between items-center mb-8 border-b border-slate-800 pb-6 print:hidden">
           <div className="flex items-center gap-4">
             <button onClick={clearCurrentSupplier} className="p-2 bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
@@ -8385,7 +8494,7 @@ const executeDelete = async () => {
           <div className="text-end">
             <p className="text-sm text-slate-400 mb-1">{t('suppliers.table.totalDebt')}</p>
             <h2 className={`text-3xl font-bold ${currentSupplier.total_debt > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-              {currentSupplier.total_debt.toLocaleString()} DA
+              {currentSupplier.total_debt.toLocaleString()} {t('currency')}
             </h2>
           </div>
         </div>
@@ -8420,14 +8529,14 @@ const executeDelete = async () => {
                     <div className="flex-1">
                       <div className="flex justify-between items-start mb-2">
                         <span className="text-sm text-slate-400">{r.date}</span>
-                        <span className="font-bold text-red-400">+{r.amount.toLocaleString()} DA</span>
+                        <span className="font-bold text-red-400">+{r.amount.toLocaleString()} {t('currency')}</span>
                       </div>
                       <p className="text-sm text-slate-300">{r.note || '-'}</p>
                     </div>
                     <div className="flex gap-2 ms-4 border-s border-slate-800 ps-4">
                       <button onClick={() => handlePreview('receipt', r)} className="p-2 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-colors border border-slate-800" title="معاينة المستند"><Eye size={18} /></button>
                       <button onClick={() => openEditTransactionModal('receipt', r)} className="p-2 text-blue-400 hover:bg-slate-800 hover:text-blue-300 rounded-lg transition-colors border border-slate-800" title="تعديل"><Edit size={18} /></button>
-                      <button onClick={() => handleDeleteTransaction('receipt', r.id)} className="p-2 text-red-400 hover:bg-slate-800 hover:text-red-300 rounded-lg transition-colors border border-slate-800" title="حذف"><Trash2 size={18} /></button>
+                      <button onClick={() => handleDeleteTransactionClick('receipt', r.id)} className="p-2 text-red-400 hover:bg-slate-800 hover:text-red-300 rounded-lg transition-colors border border-slate-800" title="حذف"><Trash2 size={18} /></button>
                     </div>
                   </div>
                 ))
@@ -8449,14 +8558,14 @@ const executeDelete = async () => {
                     <div className="flex-1">
                       <div className="flex justify-between items-start mb-2">
                         <span className="text-sm text-slate-400">{p.date} • <span className="text-emerald-500/70">{p.caisse_source}</span></span>
-                        <span className="font-bold text-emerald-400">-{p.amount.toLocaleString()} DA</span>
+                        <span className="font-bold text-emerald-400">-{p.amount.toLocaleString()} {t('currency')}</span>
                       </div>
                       <p className="text-sm text-slate-300">{p.note || '-'}</p>
                     </div>
                     <div className="flex gap-2 ms-4 border-s border-slate-800 ps-4">
                       <button onClick={() => handlePreview('payment', p)} className="p-2 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-colors border border-slate-800" title="معاينة المستند"><Eye size={18} /></button>
                       <button onClick={() => openEditTransactionModal('payment', p)} className="p-2 text-blue-400 hover:bg-slate-800 hover:text-blue-300 rounded-lg transition-colors border border-slate-800" title="تعديل"><Edit size={18} /></button>
-                      <button onClick={() => handleDeleteTransaction('payment', p.id)} className="p-2 text-red-400 hover:bg-slate-800 hover:text-red-300 rounded-lg transition-colors border border-slate-800" title="حذف"><Trash2 size={18} /></button>
+                      <button onClick={() => handleDeleteTransactionClick('payment', p.id)} className="p-2 text-red-400 hover:bg-slate-800 hover:text-red-300 rounded-lg transition-colors border border-slate-800" title="حذف"><Trash2 size={18} /></button>
                     </div>
                   </div>
                 ))
@@ -8465,10 +8574,10 @@ const executeDelete = async () => {
           </div>
         </div>
 
-        <Modal isOpen={isTransactionModalOpen} onClose={() => setIsTransactionModalOpen(false)} title={transactionType === 'receipt' ? (editingTransactionId ? t('expenses.editExpense', 'تعديل') : t('suppliers.details.addReceipt')) : (editingTransactionId ? t('expenses.editExpense', 'تعديل') : t('suppliers.details.addPayment'))}>
+        <Modal isOpen={isTransactionModalOpen} onClose={() => setIsTransactionModalOpen(false)} title={transactionType === 'receipt' ? (editingTransactionId ? t('expenses.editExpense') : t('suppliers.details.addReceipt')) : (editingTransactionId ? t('expenses.editExpense') : t('suppliers.details.addPayment'))}>
           <form onSubmit={handleSaveTransaction} className="space-y-4 text-start">
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.amount')} (DA)</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.amount')} ({t('currency')})</label>
               <input type="number" min="1" required value={transactionData.amount} onChange={e => setTransactionData({...transactionData, amount: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start" />
             </div>
             
@@ -8476,7 +8585,7 @@ const executeDelete = async () => {
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.caisse')}</label>
                 <select required value={transactionData.caisseSource} onChange={e => setTransactionData({...transactionData, caisseSource: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start" dir={isRTL ? "rtl" : "ltr"}>
-                  <option value="" disabled>{t('suppliers.modal.selectEmployee')}</option>
+                  <option value="" disabled>{t('payroll.selectCaisse')}</option>
                   {employees.map(emp => (
                     <option key={emp.id} value={emp.name}>{emp.name} ({t(`hr.roles.${emp.role}`, emp.role)})</option>
                   ))}
@@ -8495,13 +8604,13 @@ const executeDelete = async () => {
             <div className="pt-4 flex justify-end gap-3 mt-6">
               <button type="button" onClick={() => setIsTransactionModalOpen(false)} className="px-4 py-2 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">{t('common.cancel')}</button>
               <button type="submit" className={`px-4 py-2 text-white rounded-lg font-medium transition-colors ${transactionType === 'receipt' ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
-                {editingTransactionId ? t('expenses.saveChanges', 'حفظ التعديلات') : t('common.success', 'تأكيد')}
+                {editingTransactionId ? t('expenses.saveChanges') : t('common.success')}
               </button>
             </div>
           </form>
         </Modal>
 
-        <Modal isOpen={isScheduleModalOpen} onClose={() => setIsScheduleModalOpen(false)} title={t('suppliers.modal.scheduleTitle', 'جدولة دفعة قادمة')}>
+        <Modal isOpen={isScheduleModalOpen} onClose={() => setIsScheduleModalOpen(false)} title={t('suppliers.modal.scheduleTitle')}>
           <form onSubmit={async (e) => {
             e.preventDefault();
             try {
@@ -8514,10 +8623,11 @@ const executeDelete = async () => {
                });
                setIsScheduleModalOpen(false);
                alert(t('common.success'));
+               setTimeout(() => window.focus(), 100);
             } catch(error) { console.error(error); }
           }} className="space-y-4 text-start">
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.amount')} (DA)</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.amount')} ({t('currency')})</label>
               <input type="number" required value={scheduleData.amount} onChange={e => setScheduleData({...scheduleData, amount: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-start" />
             </div>
             <div>
@@ -8525,14 +8635,29 @@ const executeDelete = async () => {
               <input type="date" required value={scheduleData.date} onChange={e => setScheduleData({...scheduleData, date: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-start" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.time', 'الوقت')} ({t('common.optional', 'اختياري')})</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.time')} ({t('common.optional')})</label>
               <input type="time" value={scheduleData.time} onChange={e => setScheduleData({...scheduleData, time: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-start" />
             </div>
             <div className="pt-4 flex justify-end gap-3 mt-6">
               <button type="button" onClick={() => setIsScheduleModalOpen(false)} className="px-4 py-2 text-slate-300 hover:bg-slate-800 rounded-lg">{t('common.cancel')}</button>
-              <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">{t('suppliers.modal.confirmScheduleBtn', 'تأكيد الجدولة')}</button>
+              <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">{t('suppliers.modal.confirmScheduleBtn')}</button>
             </div>
           </form>
+        </Modal>
+
+        {/* 🔴 مودال تأكيد حذف المعاملة المالية */}
+        <Modal isOpen={!!transactionToDelete} onClose={() => setTransactionToDelete(null)} title={t('suppliers.actions.delete')}>
+          <div className="p-4 text-start">
+            <p className="text-white mb-6 text-lg">{t('suppliers.actions.deleteConfirm')}</p>
+            <div className="flex items-center justify-end gap-3 mt-4">
+              <button onClick={() => setTransactionToDelete(null)} className="px-4 py-2 text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
+                {t('common.cancel')}
+              </button>
+              <button onClick={executeDeleteTransaction} className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
+                {t('suppliers.actions.confirmDeleteBtn')}
+              </button>
+            </div>
+          </div>
         </Modal>
 
       </div>
@@ -8540,7 +8665,7 @@ const executeDelete = async () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans relative">
+    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans relative text-start">
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-white">{t('suppliers.title')}</h1>
@@ -8603,12 +8728,8 @@ const executeDelete = async () => {
         )}
       </div>
 
-<Modal 
-  isOpen={isAddModalOpen} 
-  onClose={() => { setIsAddModalOpen(false); setEditingSupplier(null); }} 
-  title={editingSupplier ? t('suppliers.messages.editTitle') : t('suppliers.addSupplier')}
->
-          <form onSubmit={handleSaveSupplier} className="space-y-4 text-start">
+      <Modal isOpen={isAddModalOpen} onClose={() => { setIsAddModalOpen(false); setEditingSupplier(null); }} title={editingSupplier ? t('suppliers.messages.editTitle') : t('suppliers.addSupplier')}>
+        <form onSubmit={handleSaveSupplier} className="space-y-4 text-start">
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-2">{t('suppliers.modal.nameLabel')}</label>
             <input type="text" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start" />
@@ -8628,33 +8749,101 @@ const executeDelete = async () => {
         </form>
       </Modal>
     
-    <Modal 
-     isOpen={!!supplierToDelete} 
-     onClose={() => setSupplierToDelete(null)} 
-     title={t('suppliers.actions.delete')}
-   >
-     <div className="p-4">
-       <p className="text-white mb-6 text-lg">{t('suppliers.actions.deleteConfirm')}</p>
-       <div className="flex items-center justify-end gap-3">
-         <button 
-           onClick={() => setSupplierToDelete(null)}
-           className="px-4 py-2 text-white bg-gray-600 rounded-md hover:bg-gray-700 transition-colors"
-         >
-           {t('suppliers.actions.cancel')}
-         </button>
-         <button 
-           onClick={executeDelete}
-           className="px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
-         >
-           {t('suppliers.actions.confirmDeleteBtn')}
-         </button>
-       </div>
-     </div>
-   </Modal>
+      {/* 🔴 مودال تأكيد حذف المورد */}
+      <Modal isOpen={!!supplierToDelete} onClose={() => setSupplierToDelete(null)} title={t('suppliers.actions.delete')}>
+        <div className="p-4 text-start">
+          <p className="text-white mb-6 text-lg">{t('suppliers.actions.deleteConfirm')}</p>
+          <div className="flex items-center justify-end gap-3 mt-4">
+            <button onClick={() => setSupplierToDelete(null)} className="px-4 py-2 text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
+              {t('common.cancel')}
+            </button>
+            <button onClick={executeDeleteSupplier} className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
+              {t('suppliers.actions.confirmDeleteBtn')}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
     </div>
   );
 }
+```
+
+---
+
+## `frontend\src\components\ui\ConfirmAlert.jsx`
+
+```javascript
+import React from 'react';
+import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+
+const ConfirmAlert = ({ 
+  isOpen, 
+  onClose, 
+  onConfirm, 
+  title, 
+  message, 
+  confirmText, 
+  cancelText,
+  confirmColor = "bg-[#e11d48] hover:bg-[#be123c]" // أحمر كافتراضي (كما في الصورة)
+}) => {
+  const { t, i18n } = useTranslation();
+
+  if (!isOpen) return null;
+
+  return (
+    // الخلفية الضبابية والطبقة العلوية
+    <div 
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm" 
+      dir={i18n.dir()}
+    >
+      {/* جسم النافذة بألوان مطابقة للصورة */}
+      <div className="bg-[#111827] border border-slate-700/50 rounded-xl shadow-2xl w-full max-w-[450px] overflow-hidden animate-in zoom-in-95 duration-200">
+        
+        {/* شريط العنوان (Header) */}
+        <div className="flex justify-between items-center px-5 py-4 border-b border-slate-700/50">
+          <h2 className="text-white text-xl font-bold tracking-wide">
+            {title || t('common.alert', 'تنبيه')}
+          </h2>
+          <button 
+            onClick={onClose}
+            className="bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg p-1.5 transition-colors"
+          >
+            <X size={20} />
+          </button>
+        </div>
+        
+        {/* محتوى الرسالة (Body) */}
+        <div className="p-6 mt-2">
+          <p className="text-white text-lg text-center leading-relaxed">
+            {message}
+          </p>
+        </div>
+
+        {/* الأزرار (Footer) */}
+        {/* justify-end يجعل الأزرار على اليسار في العربية وعلى اليمين في الإنجليزية */}
+        <div className="flex justify-end items-center gap-3 px-6 pb-6 mt-2">
+          <button 
+            onClick={onClose} 
+            className="px-6 py-2.5 bg-[#334155] hover:bg-[#475569] text-white rounded-lg font-medium transition-colors"
+          >
+            {cancelText || t('common.cancel', 'إلغاء')}
+          </button>
+          
+          <button 
+            onClick={onConfirm} 
+            className={`px-6 py-2.5 text-white rounded-lg font-medium transition-colors ${confirmColor}`}
+          >
+            {confirmText || t('common.confirm', 'تأكيد')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ConfirmAlert;
 ```
 
 ---
@@ -9019,15 +9208,14 @@ export default function PrintableTicket({ data }) {
     "superAdmin": "المدير العام",
     "systemOwner": "مالك النظام",
     "noResults": "لا توجد نتائج مطابقة لبحثك.",
-    "success": "تمت العملية بنجاح",
-    "errorScheduling": "حدث خطأ أثناء الجدولة",
+    "success": "تمت العملية بنجاح!",
+    "error": "حدث خطأ غير متوقع",
     "cancel": "إلغاء",
     "to": "إلى",
     "optional": "اختياري",
-    "error": "حدث خطأ",
-    "serverOnlyFeature": "هذه الميزة محظورة وتعمل فقط من حاسوب الإدارة المركزي (السيرفر).",
-    "networkError": "خطأ في الاتصال بالشبكة. يرجى التأكد من تشغيل حاسوب الإدارة المركزي."
-
+    "serverOnlyFeature": "هذه الميزة تعمل فقط من حاسوب الإدارة المركزي (السيرفر).",
+    "networkError": "خطأ في الاتصال بالشبكة. يرجى التأكد من تشغيل السيرفر.",
+    "back": "رجوع"
   },
   "currency": "د.ج",
   "sidebar": {
@@ -9052,11 +9240,13 @@ export default function PrintableTicket({ data }) {
     "advances": "سلف العمال",
     "opening_balance": "الرصيد الافتتاحي (الصرف)",
     "actual_cash": "النقد الفعلي (الموجود في الدرج)",
+    "actualCashHint": "أَدخل المبلغ الإجمالي المتواجد في درج النقود حالياً.",
     "total_deducted": "إجمالي المبالغ الخارجة",
     "today_sales": "المداخيل المحصلة (صافي المبيعات)",
     "notes": "ملاحظات الإغلاق",
+    "notesPlaceholder": "ملاحظات حول الإغلاق أو فوارق الدرج...",
     "save_btn": "تأكيد وإغلاق الوردية",
-    "confirmClose": "هل أنت متأكد من إنهاء هذه الوردية وإغلاق الصندوق؟",
+    "confirmClose": "هل أنت متأكد من إنهاء هذه الوردية وإغلاق الصندوق نهائياً؟",
     "closeSuccess": "تم إغلاق الوردية بنجاح وتسجيل المبيعات."
   },
   "dashboard": {
@@ -9065,34 +9255,34 @@ export default function PrintableTicket({ data }) {
     "quickAction": "إجراء سريع",
     "quickActionExpense": "إضافة مصروف سريع",
     "kpi": {
-      "totalDebts": "إجمالي ديون الموردين",
+      "totalDebts": "ديون الموردين",
       "dueThisWeek": "مستحقة هذا الأسبوع",
-      "activeEmployees": "العمال النشطون",
+      "activeEmployees": "العمال الحاضرون",
       "expenses": "المصاريف والسلفيات"
     },
     "charts": {
       "topCreditors": "أكبر 5 دائنين",
       "expensesDist": "توزيع المصاريف"
     },
-    "actions": {
-      "payNow": "دفع الآن"
-    },
     "lists": {
       "urgentAlerts": "تنبيهات عاجلة",
-      "recentAudit": "سجل النشاطات الأخير",
-      "noAuditLogs": "لا توجد نشاطات مسجلة حتى الآن."
+      "recentAudit": "سجل النشاطات",
+      "noAuditLogs": "لا توجد نشاطات مسجلة."
     },
     "alerts": {
       "systemTitle": "تنبيهات النظام عاجلة ⚠️",
       "urgentBody": "لديك {{count}} مهام مستحقة اليوم أو متأخرة!",
       "noTasks": "لا توجد مهام مستحقة أو متأخرة حالياً."
+    },
+    "actions": {
+      "payNow": "دفع الآن"
     }
   },
   "suppliers": {
     "title": "الموردين والديون",
-    "subtitle": "إدارة حسابات الموردين والفواتير غير المدفوعة",
+    "subtitle": "إدارة حسابات الموردين والفواتير",
     "addSupplier": "مورد جديد",
-    "searchPlaceholder": "ابحث عن مورد بالاسم أو الهاتف...",
+    "searchPlaceholder": "ابحث عن مورد...",
     "table": {
       "name": "اسم المورد",
       "phone": "رقم الهاتف",
@@ -9101,36 +9291,34 @@ export default function PrintableTicket({ data }) {
       "actions": "الإجراءات"
     },
     "status": {
-      "clear": "صافي (لا يوجد دين)",
+      "clear": "صافي (لا دين)",
       "indebted": "مدين"
     },
     "messages": {
       "editTitle": "تعديل بيانات المورد",
       "deleteProtected": "حماية النظام: لا يمكن حذف مورد لديه فواتير أو دفعات سابقة. قم بحذف معاملاته المالية أولاً.",
-      "deleteError": "حدث خطأ أثناء الحذف",
-      "saveError": "حدث خطأ أثناء الحفظ"
+      "deleteError": "حدث خطأ أثناء الحذف.",
+      "saveError": "حدث خطأ أثناء الحفظ."
     },
     "actions": {
       "view": "التفاصيل",
-      "pay": "تسديد دفعة",
-      "importExcel": "استيراد إكسيل",
-      "importExcelTooltip": "يجب أن يحتوي الملف على أعمدة بالترتيب: الاسم | الهاتف | الدين الأولي",
-      "importSuccess": "تم استيراد {{count}} مورد بنجاح!",
       "edit": "تعديل",
       "delete": "حذف",
-      "deleteConfirm": "هل أنت متأكد من حذف هذا المورد نهائياً؟",
-      "importError": "حدث خطأ أثناء الاستيراد:",
-      "cancel": "إلغاء",
-      "confirmDeleteBtn": "تأكيد الحذف"
+      "deleteConfirm": "هل أنت متأكد من الحذف نهائياً؟ لا يمكن التراجع.",
+      "confirmDeleteBtn": "تأكيد الحذف",
+      "importExcel": "استيراد إكسيل",
+      "importExcelTooltip": "يجب أن يحتوي الملف على أعمدة: الاسم | الهاتف | الدين الأولي",
+      "importSuccess": "تم استيراد {{count}} مورد بنجاح!",
+      "importError": "حدث خطأ أثناء الاستيراد:"
     },
     "details": {
-      "caisse": "مصدر الصندوق (الكاشير)",
+      "caisse": "الصندوق (الكاشير)",
       "caisseLabel": "صندوق: ",
       "receipts": "فواتير الاستلام",
       "payments": "الدفعات المسددة",
       "addReceipt": "إضافة فاتورة (Bon)",
       "addPayment": "تسديد دفعة",
-      "schedulePayment": "جدولة دفعة (أجندة)",
+      "schedulePayment": "جدولة دفعة",
       "amount": "المبلغ",
       "date": "التاريخ",
       "time": "الوقت",
@@ -9141,7 +9329,7 @@ export default function PrintableTicket({ data }) {
       "selectSupplier": "-- حدد اسم المورد --",
       "nameLabel": "اسم المورد",
       "phoneLabel": "رقم الهاتف",
-      "debtLabel": "الدين الأولي (د.ج)",
+      "debtLabel": "الدين الأولي",
       "saveBtn": "حفظ المورد",
       "cancelBtn": "إلغاء",
       "scheduleTitle": "جدولة دفعة قادمة",
@@ -9151,283 +9339,261 @@ export default function PrintableTicket({ data }) {
   },
   "payroll": {
     "title": "الرواتب والسلفيات",
-    "subtitle": "إدارة ساعات العمل، السلف، ودفع الرواتب الأسبوعية",
+    "subtitle": "إدارة الرواتب الأسبوعية وسلف العمال",
+    "payBtn": "اعتماد ودفع الراتب",
+    "rolloverBtn": "ترحيل الدين (سلفة)",
+    "rolloverConfirm": "تنبيه: الصافي للسداد بالسالب! هل توافق على ترحيل الباقي كسلفة للأسبوع القادم؟",
+    "standardConfirm": "هل أنت متأكد من اعتماد ودفع هذا الراتب للموظف؟",
     "tabs": {
       "calculator": "حاسبة الرواتب",
-      "advances": "سجل السلفيات العام",
-      "salaries": "سجل الرواتب المدفوعة"
+      "advances": "سجل السلفيات",
+      "salaries": "سجل الرواتب"
     },
-    "calculator": "حاسبة الرواتب",
     "selectEmployee": "-- اختر الموظف --",
-    "selectCaisse": "-- اختر الكاشير --",
-    "caisse": "الكاشير (الدافع)",
-    "period": "الفترة (من - إلى)",
-    "startDate": "من تاريخ (بداية الأسبوع)",
-    "endDate": "إلى تاريخ (نهاية الأسبوع)",
+    "selectCaisse": "-- اختر الصندوق --",
+    "caisse": "مصدر الدفع",
+    "period": "الفترة",
+    "startDate": "من تاريخ",
+    "endDate": "إلى تاريخ",
     "hourlyRate": "سعر الساعة (د.ج)",
     "calculateBtn": "حساب الراتب",
     "results": "النتيجة النهائية",
-    "totalHours": "إجمالي ساعات العمل",
+    "totalHours": "إجمالي الساعات",
     "grossSalary": "الراتب الإجمالي",
-    "deductions": "الخصومات (السلفيات)",
+    "deductions": "الخصومات",
     "netSalary": "الصافي للدفع",
-    "negativeSalaryError": "لا يمكن دفع الراتب! السلفيات والخصومات تتجاوز الراتب الإجمالي.",
-    "payBtn": "اعتماد ودفع الراتب",
-    "advancesTitle": "سجل السلفيات",
+    "negativeSalaryError": "لا يمكن الدفع! السلفيات تتجاوز الراتب الإجمالي.",
+    "advancesTitle": "سجل السلفيات العام",
     "addAdvance": "إضافة سلفة",
     "noAdvances": "لا توجد سلفيات مسجلة",
     "statusPending": "معلقة",
     "statusPaid": "تم الخصم",
     "amount": "المبلغ",
     "date": "التاريخ",
-    "rolloverConfirm": "الصافي بالسالب! هل تريد تأكيد السجل لترحيل الباقي كسلفة للأسبوع القادم؟",
-    "standardConfirm": "هل أنت متأكد من دفع الراتب واعتماده؟",
-    "rolloverBtn": "تأكيد السجل وترحيل السلفة",
-    "rolloverNote": "ترحيل ديون سلفيات بعد اقتطاع راتب ({{start}} إلى {{end}})",
-    "expenseNote": "راتب الموظف {{name}} ({{start}} إلى {{end}})",
     "note": "ملاحظة",
-    "reportTitle": "تقرير الرواتب الشامل وحركة الحضور",
-    "dailyAttendanceDetail": "تفاصيل الحضور والانصراف اليومي (دخول - خروج):",
-    "noAttendanceLogs": "لا توجد سجلات حضور لهذه الفترة.",
-    "netPayable": "الصافي للدفع"
+    "rolloverNote": "ترحيل دين الفترة من {{start}} إلى {{end}}",
+    "expenseNote": "راتب: {{name}} ({{start}} إلى {{end}})",
+    "noSalariesToPrint": "لا توجد رواتب مسجلة لطباعتها!",
+    "previewPayslip": "معاينة كشف الراتب للطباعة",
+    "printReport": "طباعة التقرير الشامل"
   },
   "hr": {
     "title": "الموارد البشرية",
-    "subtitle": "إدارة الحضور، الورديات، وسجلات العمال",
-    "attendanceLog": "سجل الحضور والانصراف",
+    "subtitle": "إدارة الحضور والانصراف والعمال",
     "tabs": {
-      "attendance": "سجل الحضور اليومي",
-      "employees": "إدارة الموظفين"
-    },
-    "scanner": {
-      "title": "سجل الدخول والخروج",
-      "placeholder": "أدخل الرمز أو امسح الباركود...",
-      "submit": "تسجيل"
-    },
-    "kpi": {
-      "present": "حاضر اليوم",
-      "absent": "غائب"
-    },
-    "table": {
-      "name": "اسم العامل",
-      "nameWithRole": "اسم الموظف (المنصب)",
-      "employee": "الموظف",
-      "timeIn": "وقت الدخول",
-      "timeOut": "وقت الخروج",
-      "status": "الحالة",
-      "empty": "لا توجد سجلات لليوم",
-      "emptyRecord": "لا توجد سجلات حضور لهذا التاريخ",
-      "loading": "جاري التحميل..."
-    },
-    "status": {
-      "present": "حاضر الآن",
-      "departed": "انصرف",
-      "active": "نشط",
-      "inactive": "غير نشط"
+      "attendance": "الحضور",
+      "employees": "العمال"
     },
     "employees": {
-      "addBtn": "موظف جديد",
-      "search": "ابحث عن موظف بالاسم...",
-      "empty": "لا يوجد موظفين",
+      "search": "بحث عن عامل...",
+      "empty": "لا يوجد عمال مسجلون.",
+      "addBtn": "إضافة موظف",
+      "deleteConfirm": "تأكيد حذف حساب الموظف : {{name}} ؟",
+      "softDeleted": "تم تعطيل الحساب بنجاح. لا يمكن الحذف النهائي لوجود سجلات مالية لحمايتها.",
       "table": {
-        "name": "اسم الموظف",
+        "name": "الاسم الكامل",
         "role": "المنصب",
         "status": "الحالة",
         "actions": "الإجراءات"
       },
-      "status": {
-        "active": "نشط",
-        "inactive": "غير نشط"
-      },
       "actions": {
         "edit": "تعديل",
         "delete": "حذف"
-      },
-      "deleteConfirm": "هل أنت متأكد من حذف الموظف {{name}}؟",
-      "softDeleted": "تم تعطيل حساب الموظف. لا يمكن حذفه نهائياً لوجود سجلات مالية لحمايتها."
+      }
+    },
+    "dialog": {
+      "title": "إضافة موظف جديد",
+      "editTitle": "تعديل موظف",
+      "desc": "أدخل تفاصيل الموظف ورمز PIN السري.",
+      "name": "الاسم الكامل",
+      "namePlaceholder": "محمد أمين...",
+      "role": "المنصب",
+      "rolePlaceholder": "اختر منصباً",
+      "pin": "رمز PIN الدخول",
+      "cancel": "إلغاء",
+      "save": "حفظ بيانات الموظف",
+      "saveChanges": "حفظ التعديلات"
     },
     "roles": {
       "cashier": "بائع (كاشير)",
       "scale": "عامل ميزان",
-      "stock": "ترتيبات",
-      "admin": "أدمين",
-      "superadmin": "مالك النظام (سوبر أدمين)"
+      "stock": "عامل ترتيب",
+      "admin": "إدارة (مسير)"
     },
-    "dialog": {
-      "title": "إضافة موظف جديد",
-      "editTitle": "تعديل بيانات الموظف",
-      "desc": "أدخل بيانات الموظف. يجب أن يكون رمز (PIN) فريداً لكل موظف.",
-      "name": "الاسم الكامل",
-      "namePlaceholder": "مثال: يحيى جباري",
+    "scanner": {
+      "title": "جهاز البصمة (الباركود / الرمز)",
+      "placeholder": "قم بتمرير الباركود أو اكتب الرمز...",
+      "submit": "تسجيل الدخول / الخروج"
+    },
+    "kpi": {
+      "present": "حاضر اليوم",
+      "absent": "غائب",
+      "late": "متأخر"
+    },
+    "table": {
+      "name": "اسم العامل",
+      "nameWithRole": "اسم الموظف ومنصبه",
       "role": "المنصب",
-      "rolePlaceholder": "-- اختر المنصب --",
-      "pin": "رمز الدخول (PIN)",
-      "cancel": "إلغاء",
-      "save": "حفظ الموظف",
-      "saveChanges": "حفظ التعديلات"
+      "timeIn": "وقت الدخول",
+      "timeOut": "وقت الخروج",
+      "status": "الحالة",
+      "loading": "جاري التحميل...",
+      "emptyRecord": "لا توجد سجلات حضور لهذا اليوم."
+    },
+    "status": {
+      "present": "متواجد حالياً",
+      "absent": "غائب",
+      "late": "تأخر",
+      "active": "نشط",
+      "inactive": "معطل",
+      "departed": "أنهى الدوام"
     },
     "messages": {
+      "error": "حدث خطأ غير متوقع.",
       "checkIn": "تم تسجيل الدخول",
-      "checkOut": "تم تسجيل الخروج",
-      "error": "حدث خطأ. قد يكون الرمز مستخدماً."
-    }
+      "checkOut": "تم تسجيل الانصراف"
+    },
+    "attendanceLog": "سجل الحركات اليومية"
   },
   "expenses": {
-    "title": "المصاريف والسلفيات",
-    "subtitle": "تتبع مصاريف المتجر اليومية وسلفيات العمال",
+    "title": "المصاريف التشغيلية",
+    "subtitle": "سجل مصاريف المحل اليومية والدفعات",
+    "deleteConfirm": "هل أنت متأكد من حذف سجل هذا المصروف نهائياً؟",
     "addExpense": "إضافة مصروف",
     "editExpense": "تعديل المصروف",
-    "saveChanges": "حفظ التعديلات",
-    "deleteConfirm": "هل أنت متأكد من حذف هذا المصروف؟ لا يمكن التراجع عن هذا الإجراء.",
-    "searchPlaceholder": "ابحث في الوصف...",
+    "saveChanges": "حفظ التعديل",
+    "searchPlaceholder": "ابحث في المصاريف والبيانات...",
     "kpi": {
       "today": "مصاريف اليوم",
-      "month": "مصاريف هذا الشهر"
-    },
-    "prefixes": {
-      "advance": "سلفة",
-      "supplier": "دفعة مورد"
+      "month": "مصاريف الشهر"
     },
     "table": {
       "date": "التاريخ",
-      "description": "الوصف",
+      "description": "البيان / الوصف",
       "category": "التصنيف",
-      "amount": "المبلغ",
+      "amount": "المبلغ (د.ج)",
       "actions": "الإجراءات",
-      "locked": "مقفلة",
-      "managedElsewhere": "لا يمكن التعديل من هنا. اذهب لصفحة السلف أو الموردين."
+      "locked": "مقفل",
+      "managedElsewhere": "تتم إدارته عبر قسم آخر"
     },
     "categories": {
-      "utilities": "فواتير ومرافق",
-      "maintenance": "صيانة",
-      "supplies": "مستلزمات المتجر",
+      "utilities": "فواتير كهرباء ومازوت",
+      "maintenance": "صيانة وخدمات",
+      "supplies": "مستلزمات عامة",
       "advance": "سلفة عامل",
-      "supplier_payment": "تسديد دفعة مورد",
-      "salaries": "رواتب"
+      "supplier_payment": "تسديد دفعة لمورد"
+    },
+    "prefixes": {
+      "advance": "سلفة",
+      "supplier": "مورد"
     }
   },
   "agenda": {
-    "title": "أجندة المتجر",
-    "subtitle": "إدارة مواعيد الاستلام، المدفوعات القادمة، والمهام",
-    "addTask": "مهمة جديدة",
-    "scheduledPaymentDesc": "دفعة مجدولة للمورد: {{name}} (المبلغ: {{amount}} د.ج)",
-    "dueThisWeek": "مستحق هذا الأسبوع",
+    "title": "الأجندة والمهام",
+    "subtitle": "متابعة المواعيد، التوريدات، والدفعات المجدولة",
+    "addTask": "إضافة مهمة",
+    "allDay": "طوال اليوم",
+    "rescheduleTask": "تأجيل المهمة",
+    "scheduledPaymentDesc": "تسديد دفعة لمورد: {{name}}",
+    "deleteConfirm": "هل أنت متأكد من حذف هذه المهمة من الأجندة؟",
     "filters": {
       "all": "كل المهام",
       "pending": "قيد الانتظار",
-      "completed": "مكتملة"
-    },
-    "types": {
-      "delivery": "استلام سلع",
-      "payment": "تسديد مستحقات",
-      "maintenance": "صيانة"
+      "completed": "المكتملة"
     },
     "sections": {
-      "today": "جدول اليوم",
-      "upcoming": "المهام القادمة"
+      "today": "مهام اليوم",
+      "upcoming": "المهام القادمة",
+      "overdue": "مهام متأخرة"
+    },
+    "types": {
+      "delivery": "استلام سلعة",
+      "payment": "تسديد أموال",
+      "maintenance": "صيانة"
     },
     "modal": {
-      "taskTitleLabel": "عنوان المهمة",
+      "taskTitleLabel": "وصف المهمة",
       "taskTypeLabel": "نوع المهمة",
       "dateLabel": "التاريخ",
       "timeLabel": "الوقت",
-      "saveBtn": "إضافة المهمة",
-      "cancelBtn": "إلغاء"
+      "cancelBtn": "إلغاء",
+      "saveBtn": "حفظ المهمة"
     }
   },
-  "login": {
-    "title": "مرحباً بعودتك",
-    "subtitle": "قم بتسجيل الدخول للوصول إلى لوحة التحكم",
-    "username": "اسم المستخدم",
-    "password": "كلمة المرور",
-    "submit": "تسجيل الدخول",
-    "loading": "جاري التحقق...",
-    "error": "اسم المستخدم أو كلمة المرور غير صحيحة",
-    "serverError": "حدث خطأ في الاتصال بقاعدة البيانات"
-  },
   "settings": {
-    "title": "إدارة الحسابات والصلاحيات",
-    "subtitle": "إضافة وتعديل حسابات النظام وتحديد صلاحياتهم",
-    "newUser": "مستخدم جديد",
-    "errorFillFields": "يرجى إدخال اسم المستخدم وكلمة المرور",
+    "title": "إعدادات النظام",
+    "subtitle": "إدارة حسابات المستخدمين والنسخ الاحتياطي",
+    "newUser": "مستخدم إداري جديد",
+    "errorFillFields": "الرجاء تعبئة جميع الحقول المطلوبة.",
+    "addError": "فشلت الإضافة. قد يكون الاسم مستخدماً مسبقاً.",
+    "deleteAlert": "حماية: لا يمكنك حذف حسابك الحالي أو حساب الأدمن الجذري.",
+    "deleteConfirm": "هل أنت متأكد من حذف الحساب الإداري للمستخدم: {{name}}؟",
+    "deleteError": "حدث خطأ أثناء محاولة الحذف.",
+    "accessDenied": "تم رفض الوصول: هذه الصفحة مخصصة للإدارة فقط.",
+    "loading": "جاري تحميل المستخدمين...",
+    "noUsers": "لا يوجد مستخدمين إضافيين.",
     "username": "اسم المستخدم",
-    "usernamePlaceholder": "مثال: cashier1",
     "password": "كلمة المرور",
-    "passwordPlaceholder": "••••••••",
-    "role": "الصلاحية (الرتبة)",
-    "roleCashier": "كاشير (صلاحيات محدودة)",
-    "roleAdmin": "مدير (صلاحيات كاملة)",
-    "addAccountBtn": "إضافة الحساب",
+    "role": "الصلاحية",
+    "addAccountBtn": "إنشاء الحساب",
+    "deleteTooltip": "حذف الحساب",
     "table": {
       "username": "اسم المستخدم",
       "role": "الرتبة",
       "actions": "الإجراءات"
     },
-    "badges": {
-      "admin": "مدير عام",
-      "cashier": "كاشير"
-    },
-    "deleteAlert": "لا يمكنك حذف حسابك الحالي أو حساب المدير الأساسي.",
-    "deleteConfirm": "هل أنت متأكد من حذف حساب ({{name}})؟",
-    "deleteTooltip": "حذف الحساب",
-    "noUsers": "لا يوجد مستخدمين.",
-    "loading": "جاري التحميل...",
-    "accessDenied": "عذراً، ليس لديك صلاحية للوصول إلى هذه الصفحة.",
-    "addError": "حدث خطأ أثناء إضافة المستخدم",
-    "deleteError": "حدث خطأ أثناء الحذف",
     "modal": {
-      "title": "إعدادات النظام والطباعة",
-      "storeNameLabel": "اسم المحل (يظهر بجانب علامتنا التجارية في المطبوعات)",
-      "storeNamePlaceholder": "مثال: سوبر ماركت الهدى",
-      "saveBtn": "حفظ التغييرات"
+      "title": "إعدادات المؤسسة والطباعة",
+      "saveBtn": "حفظ التغييرات",
+      "saveSuccess": "تم حفظ الإعدادات بنجاح!",
+      "storeNameLabel": "اسم المحل (يظهر بجانب شعارنا في المطبوعات)",
+      "storeNamePlaceholder": "مثال: سوبر ماركت الهدى"
     }
   },
   "database": {
     "title": "إدارة قاعدة البيانات",
-    "backup": "إنشاء نسخة احتياطية",
+    "backup": "نسخة احتياطية",
     "restore": "استعادة البيانات",
-    "backupDesc": "حفظ نسخة من جميع بيانات النظام في ملف خارجي للحماية.",
-    "restoreDesc": "استرجاع بيانات النظام من ملف نسخة احتياطية سابق.",
+    "backupDesc": "إنشاء نسخة آمنة من النظام واستخراج تقرير إكسيل مفصل.",
+    "restoreDesc": "استعادة النظام بالكامل من ملف نسخة احتياطية (.sqlite).",
     "messages": {
-      "backupSuccess": "تم حفظ النسخة الاحتياطية بنجاح!",
-      "restoreSuccess": "تمت استعادة البيانات بنجاح! سيتم إعادة تشغيل النظام.",
-      "restoreConfirm": "تحذير: استعادة البيانات ستحذف البيانات الحالية. هل أنت متأكد؟",
+      "backupSuccess": "تم حفظ النسخة الاحتياطية وتقرير الإكسيل بنجاح!",
+      "restoreConfirm": "تحذير خطير: سيتم مسح البيانات الحالية واستبدالها بالنسخة المحددة. هل أنت متأكد؟",
+      "restoreSuccess": "تمت استعادة البيانات بنجاح! سيتم إعادة تشغيل النظام الآن.",
       "error": "حدث خطأ أثناء العملية."
     }
   },
-  "audit": {
-    "actions": {
-      "DELETE_EXPENSE": "حذف مصروف",
-      "ADD_EXPENSE": "إضافة مصروف",
-      "UPDATE_EXPENSE": "تعديل مصروف"
-    },
-    "details": {
-      "ADD_EXPENSE": "إضافة مصروف: {{desc}} بقيمة {{amount}} د.ج",
-      "DELETE_EXPENSE": "حذف مصروف: {{desc}} بقيمة {{amount}} د.ج",
-      "UPDATE_EXPENSE": "تعديل مصروف: {{desc}}"
-    }
-  },
   "print": {
+    "printBtn": "طباعة",
+    "savePdfBtn": "تحميل PDF",
     "systemProvider": "مزود النظام",
     "issueDate": "تاريخ الإصدار",
     "validFor": "صالح لـ",
+    "auditorSignature": "توقيع المراجع / المحاسب",
+    "managerSignature": "توقيع الإدارة / الختم",
     "payslipTitle": "كشف راتب",
-    "receiptTicket": "وصل استلام بضاعة",
-    "paymentTicket": "وصل تسديد دفعة",
-    "thankYou": "شكراً لتعاملكم معنا",
-    "date": "التاريخ",
     "employeeName": "اسم الموظف",
-    "period": "فترة العمل",
-    "description": "البيان / ملاحظة",
+    "description": "البيان / التفصيل",
     "hours": "الساعات",
-    "rate": "الأجر/ساعة",
-    "amount": "المبلغ الإجمالي",
+    "rate": "الأجر الساعي",
+    "amount": "المبلغ",
     "grossSalary": "الراتب الأساسي",
-    "deductions": "الخصومات (سلفيات)",
+    "deductions": "الخصومات",
     "netSalary": "الصافي للدفع",
     "employeeSignature": "توقيع الموظف",
-    "managerSignature": "توقيع الإدارة",
-    "auditorSignature": "توقيع المحاسب / المراجع"
+    "receiptTicket": "وصل استلام (Bon)",
+    "paymentTicket": "وصل تسديد",
+    "thankYou": "شكراً لتعاملكم معنا",
+    "date": "التاريخ",
+    "period": "فترة العمل"
+  },
+  "audit": {
+    "actions": {
+      "DELETE_EXPENSE": "حذف مصروف"
+    },
+    "details": {
+      "DELETE_EXPENSE": "قام بحذف مصروف: {{desc}} بمبلغ ({{amount}} د.ج)"
+    }
   }
 }
 ```
@@ -9443,16 +9609,16 @@ export default function PrintableTicket({ data }) {
     "superAdmin": "Super Admin",
     "systemOwner": "System Owner",
     "noResults": "No results found.",
-    "success": "Operation successful",
-    "errorScheduling": "Error scheduling task",
+    "success": "Success! Action completed.",
+    "error": "An error occurred.",
     "cancel": "Cancel",
     "to": "to",
     "optional": "Optional",
-    "error": "An error occurred",
-    "serverOnlyFeature": "This feature is restricted and only works on the main server (Admin PC).",
-    "networkError": "Network connection error. Please check if the main server is running."
-},
-  "currency": "DZD",
+    "serverOnlyFeature": "This feature is restricted to the main server.",
+    "networkError": "Network connection error. Check server.",
+    "back": "Back"
+  },
+  "currency": "DA",
   "sidebar": {
     "dashboard": "Dashboard",
     "suppliers": "Suppliers",
@@ -9464,20 +9630,22 @@ export default function PrintableTicket({ data }) {
     "settings": "System Settings"
   },
   "eod": {
-    "title": "Close Shift",
+    "title": "End of Day",
     "open_shift_title": "Open New Shift",
-    "open_shift_desc": "Enter opening balance to start shift for:",
+    "open_shift_desc": "Enter opening balance for",
     "open_shift_btn": "Start Shift",
     "active_shift": "Active Shift",
     "closure_date": "Closure Date",
     "total_expenses": "Total Expenses",
     "supplier_payments": "Supplier Payments",
-    "advances": "Employee Advances",
+    "advances": "Staff Advances",
     "opening_balance": "Opening Balance",
-    "actual_cash": "Actual Cash (in drawer)",
-    "total_deducted": "Total Deductions (Out)",
-    "today_sales": "Collected Income (Net Sales)",
+    "actual_cash": "Actual Cash in Drawer",
+    "actualCashHint": "Enter the total amount currently in the cash drawer.",
+    "total_deducted": "Total Deductions",
+    "today_sales": "Net Sales Collected",
     "notes": "Closure Notes",
+    "notesPlaceholder": "Notes regarding closure or drawer differences...",
     "save_btn": "Confirm & Close Shift",
     "confirmClose": "Are you sure you want to end this shift and close the register?",
     "closeSuccess": "Shift closed successfully."
@@ -9486,36 +9654,36 @@ export default function PrintableTicket({ data }) {
     "title": "Dashboard",
     "subtitle": "System overview & financial metrics",
     "quickAction": "Quick Action",
-    "quickActionExpense": "Add Expense",
+    "quickActionExpense": "Quick Expense",
     "kpi": {
-      "totalDebts": "Total Debts (Suppliers)",
+      "totalDebts": "Supplier Debts",
       "dueThisWeek": "Due This Week",
-      "activeEmployees": "Active Employees",
+      "activeEmployees": "Active Staff",
       "expenses": "Expenses & Advances"
     },
     "charts": {
       "topCreditors": "Top 5 Creditors",
       "expensesDist": "Expenses Distribution"
     },
-    "actions": {
-      "payNow": "Pay Now"
-    },
     "lists": {
-      "urgentAlerts": "Urgent Agenda Alerts",
+      "urgentAlerts": "Urgent Alerts",
       "recentAudit": "Recent Audit Logs",
-      "noAuditLogs": "No audit logs available."
+      "noAuditLogs": "No recent activity."
     },
     "alerts": {
-      "systemTitle": "Urgent System Alerts ⚠️",
-      "urgentBody": "You have {{count}} overdue or scheduled tasks today!",
-      "noTasks": "No urgent tasks currently."
+      "systemTitle": "System Alerts ⚠️",
+      "urgentBody": "You have {{count}} urgent tasks today!",
+      "noTasks": "No urgent tasks today."
+    },
+    "actions": {
+      "payNow": "Pay Now"
     }
   },
   "suppliers": {
     "title": "Suppliers & Debts",
     "subtitle": "Manage supplier accounts and unpaid invoices",
     "addSupplier": "New Supplier",
-    "searchPlaceholder": "Search suppliers by name or phone...",
+    "searchPlaceholder": "Search by name or phone...",
     "table": {
       "name": "Supplier Name",
       "phone": "Phone Number",
@@ -9527,24 +9695,23 @@ export default function PrintableTicket({ data }) {
       "clear": "Clear (No Debt)",
       "indebted": "Indebted"
     },
+    "messages": {
+      "editTitle": "Edit Supplier",
+      "deleteProtected": "System Protection: Cannot delete supplier with existing financial records.",
+      "deleteError": "Error during deletion.",
+      "saveError": "Error during saving."
+    },
     "actions": {
       "view": "View Details",
       "pay": "Make Payment",
-      "importExcel": "Import Excel",
-      "importExcelTooltip": "File must contain columns in order: Name | Phone | Initial Debt",
-      "importSuccess": "Successfully imported {{count}} suppliers!",
       "edit": "Edit",
       "delete": "Delete",
-      "deleteConfirm": "Are you sure you want to permanently delete this supplier?",
-      "importError": "An error occurred during import:",
-      "cancel": "Cancel",
-      "confirmDeleteBtn": "Confirm Delete"
-    },
-    "messages": {
-      "editTitle": "Edit Supplier Details",
-      "deleteProtected": "System Protection: Cannot delete a supplier with existing bills or payments. Please delete their financial records first.",
-      "deleteError": "An error occurred during deletion",
-      "saveError": "An error occurred while saving"
+      "deleteConfirm": "Are you sure you want to permanently delete this record?",
+      "confirmDeleteBtn": "Confirm Delete",
+      "importExcel": "Import Excel",
+      "importExcelTooltip": "File must contain columns: Name | Phone | Initial Debt",
+      "importSuccess": "Successfully imported {{count}} suppliers!",
+      "importError": "Error importing from Excel:"
     },
     "details": {
       "caisse": "Caisse Source",
@@ -9553,163 +9720,153 @@ export default function PrintableTicket({ data }) {
       "payments": "Payments",
       "addReceipt": "Add Receipt",
       "addPayment": "Make Payment",
-      "time": "Time",
       "schedulePayment": "Schedule Payment",
       "amount": "Amount",
       "date": "Date",
-      "note": "Note"
+      "time": "Time",
+      "note": "Note / Description"
     },
     "modal": {
       "selectEmployee": "-- Select Employee --",
       "selectSupplier": "-- Select Supplier --",
       "nameLabel": "Supplier Name",
       "phoneLabel": "Phone Number",
-      "debtLabel": "Initial Debt (DZD)",
+      "debtLabel": "Initial Debt (DA)",
       "saveBtn": "Save Supplier",
       "cancelBtn": "Cancel",
-      "scheduleTitle": "Schedule Payment",
-      "notePlaceholder": "Reminder note...",
+      "scheduleTitle": "Schedule Future Payment",
+      "notePlaceholder": "Note...",
       "confirmScheduleBtn": "Confirm Schedule"
     }
   },
   "payroll": {
     "title": "Payroll & Advances",
-    "subtitle": "Manage work hours, advances, and weekly payouts",
+    "subtitle": "Manage staff shifts, advances, and weekly payroll",
+    "payBtn": "Approve & Pay",
+    "rolloverBtn": "Rollover Debt",
+    "rolloverConfirm": "Net salary is negative! Rollover the remaining debt to next week?",
+    "standardConfirm": "Are you sure you want to approve and pay this salary?",
     "tabs": {
       "calculator": "Payroll Calculator",
-      "advances": "Advances Log",
+      "advances": "Advances History",
       "salaries": "Paid Salaries"
     },
-    "calculator": "Payroll Calculator",
     "selectEmployee": "-- Select Employee --",
     "selectCaisse": "-- Select Caisse --",
-    "caisse": "Caisse (Payer)",
+    "caisse": "Caisse Source",
     "period": "Period",
     "startDate": "Start Date",
     "endDate": "End Date",
-    "hourlyRate": "Hourly Rate (DZD)",
+    "hourlyRate": "Hourly Rate (DA)",
     "calculateBtn": "Calculate Salary",
-    "results": "Calculation Results",
+    "results": "Final Result",
     "totalHours": "Total Hours",
     "grossSalary": "Gross Salary",
     "deductions": "Deductions (Advances)",
-    "netSalary": "Net Salary",
-    "negativeSalaryError": "Cannot pay salary! Deductions exceed gross salary.",
-    "payBtn": "Approve & Pay",
-    "advancesTitle": "Advances Log",
+    "netSalary": "Net Payable",
+    "negativeSalaryError": "Cannot pay! Advances exceed the gross salary.",
+    "advancesTitle": "Advances Record",
     "addAdvance": "Add Advance",
-    "noAdvances": "No advances recorded",
     "statusPending": "Pending",
-    "statusPaid": "Paid/Deducted",
+    "statusPaid": "Deducted",
     "amount": "Amount",
     "date": "Date",
-    "rolloverConfirm": "Net salary is negative! Save record and rollover remaining debt to next week?",
-    "standardConfirm": "Are you sure you want to approve and pay this salary?",
-    "rolloverBtn": "Confirm & Rollover Debt",
-    "rolloverNote": "Rollover debt after salary deduction ({{start}} to {{end}})",
-    "expenseNote": "Salary for {{name}} ({{start}} to {{end}})",
     "note": "Note",
-    "reportTitle": "Comprehensive Payroll & Attendance Report",
-    "dailyAttendanceDetail": "Daily Attendance & Departure Details (In - Out):",
-    "noAttendanceLogs": "No attendance logs found for this period.",
-    "netPayable": "Net Payable"
+    "rolloverNote": "Debt rollover for period {{start}} to {{end}}",
+    "expenseNote": "Salary: {{name}} ({{start}} to {{end}})",
+    "noSalariesToPrint": "No salaries available to print!",
+    "previewPayslip": "Preview Payslip for Printing",
+    "printReport": "Print Full Report"
   },
   "hr": {
     "title": "HR & Staff",
     "subtitle": "Manage attendance, shifts, and employee records",
-    "attendanceLog": "Attendance Log",
     "tabs": {
-      "attendance": "Daily Attendance",
-      "employees": "Manage Employees"
-    },
-    "scanner": {
-      "title": "Time Clock (Check-In / Out)",
-      "placeholder": "Scan Barcode or Enter PIN...",
-      "submit": "Record"
-    },
-    "kpi": {
-      "present": "Present Today",
-      "absent": "Absent"
-    },
-    "table": {
-      "name": "Employee Name",
-      "nameWithRole": "Employee (Role)",
-      "employee": "Employee",
-      "timeIn": "Time In",
-      "timeOut": "Time Out",
-      "status": "Status",
-      "empty": "No records for today",
-      "emptyRecord": "No attendance records for this date",
-      "loading": "Loading..."
-    },
-    "status": {
-      "present": "Present",
-      "departed": "Departed",
-      "active": "Active",
-      "inactive": "Inactive"
+      "attendance": "Attendance",
+      "employees": "Employees"
     },
     "employees": {
-      "addBtn": "New Employee",
-      "search": "Search employee by name...",
-      "empty": "No employees found",
+      "search": "Search employees...",
+      "empty": "No employees found.",
+      "addBtn": "Add Employee",
+      "deleteConfirm": "Are you sure you want to delete the account for {{name}}?",
+      "softDeleted": "Account disabled successfully. Hard delete prevented due to financial records.",
       "table": {
         "name": "Employee Name",
         "role": "Role",
         "status": "Status",
         "actions": "Actions"
       },
-      "status": {
-        "active": "Active",
-        "inactive": "Inactive"
-      },
       "actions": {
         "edit": "Edit",
         "delete": "Delete"
-      },
-      "deleteConfirm": "Are you sure you want to delete {{name}}?",
-      "softDeleted": "Employee deactivated successfully. Cannot be permanently deleted to protect financial records."
-    },
-    "roles": {
-      "cashier": "Cashier",
-      "scale": "Scale Worker",
-      "stock": "Stock Worker",
-      "admin": "Admin",
-      "superadmin": "Super Admin"
+      }
     },
     "dialog": {
       "title": "Add New Employee",
-      "editTitle": "Edit Employee Details",
-      "desc": "Enter employee details. PIN code must be unique.",
+      "editTitle": "Edit Employee",
+      "desc": "Enter employee details and access PIN.",
       "name": "Full Name",
-      "namePlaceholder": "e.g., John Doe",
-      "role": "Role",
-      "rolePlaceholder": "-- Select Role --",
+      "namePlaceholder": "John Doe",
+      "role": "Position",
+      "rolePlaceholder": "Select a position",
       "pin": "PIN Code",
       "cancel": "Cancel",
       "save": "Save Employee",
       "saveChanges": "Save Changes"
     },
+    "roles": {
+      "cashier": "Cashier",
+      "scale": "Scale Worker",
+      "stock": "Stock Clerk",
+      "admin": "Store Manager"
+    },
+    "scanner": {
+      "title": "Time Clock (Check-In / Out)",
+      "placeholder": "Scan Barcode or Enter PIN...",
+      "submit": "Record Attendance"
+    },
+    "kpi": {
+      "present": "Present",
+      "absent": "Absent",
+      "late": "Late"
+    },
+    "table": {
+      "name": "Employee Name",
+      "nameWithRole": "Employee & Role",
+      "role": "Position",
+      "timeIn": "Time In",
+      "timeOut": "Time Out",
+      "status": "Status",
+      "loading": "Loading...",
+      "emptyRecord": "No attendance records for this date."
+    },
+    "status": {
+      "present": "Present",
+      "absent": "Absent",
+      "late": "Late",
+      "active": "Active",
+      "inactive": "Inactive",
+      "departed": "Departed"
+    },
     "messages": {
+      "error": "Error during operation.",
       "checkIn": "Checked In",
-      "checkOut": "Checked Out",
-      "error": "An error occurred. PIN might already be in use."
-    }
+      "checkOut": "Checked Out"
+    },
+    "attendanceLog": "Attendance Log"
   },
   "expenses": {
-    "title": "Expenses & Advances",
-    "subtitle": "Track daily store expenses and employee advances",
+    "title": "Operating Expenses",
+    "subtitle": "Manage daily store expenses and external payments",
+    "deleteConfirm": "Are you sure you want to permanently delete this expense record?",
     "addExpense": "Add Expense",
     "editExpense": "Edit Expense",
     "saveChanges": "Save Changes",
-    "deleteConfirm": "Are you sure you want to delete this expense?",
-    "searchPlaceholder": "Search descriptions...",
+    "searchPlaceholder": "Search expenses...",
     "kpi": {
       "today": "Today's Expenses",
       "month": "This Month's Expenses"
-    },
-    "prefixes": {
-      "advance": "Advance",
-      "supplier": "Supplier Payment"
     },
     "table": {
       "date": "Date",
@@ -9718,139 +9875,126 @@ export default function PrintableTicket({ data }) {
       "amount": "Amount",
       "actions": "Actions",
       "locked": "Locked",
-      "managedElsewhere": "Managed elsewhere. Go to Advances or Suppliers to edit."
+      "managedElsewhere": "Managed in external section"
     },
     "categories": {
-      "utilities": "Utilities & Bills",
+      "utilities": "Utilities (Elec/Gas)",
       "maintenance": "Maintenance",
-      "supplies": "Store Supplies",
-      "advance": "Employee Advance",
-      "supplier_payment": "Supplier Payment",
-      "salaries": "Salaries"
+      "supplies": "General Supplies",
+      "advance": "Staff Advance",
+      "supplier_payment": "Supplier Payment"
+    },
+    "prefixes": {
+      "advance": "Advance",
+      "supplier": "Supplier"
     }
   },
   "agenda": {
-    "title": "Store Agenda",
-    "subtitle": "Manage upcoming deliveries, payments, and tasks",
-    "addTask": "New Task",
-    "dueThisWeek": "Due this week",
-    "scheduledPaymentDesc": "Scheduled Payment for {{name}} (Amount: {{amount}} DZD)",
+    "title": "Agenda & Tasks",
+    "subtitle": "Schedule tasks, deliveries, and payments",
+    "addTask": "Add Task",
+    "allDay": "All Day",
+    "rescheduleTask": "Reschedule Task",
+    "scheduledPaymentDesc": "Scheduled payment to supplier: {{name}}",
+    "deleteConfirm": "Are you sure you want to delete this scheduled task?",
     "filters": {
       "all": "All Tasks",
       "pending": "Pending",
       "completed": "Completed"
+    },
+    "sections": {
+      "today": "Today's Tasks",
+      "upcoming": "Upcoming Tasks",
+      "overdue": "Overdue Tasks"
     },
     "types": {
       "delivery": "Delivery",
       "payment": "Payment",
       "maintenance": "Maintenance"
     },
-    "sections": {
-      "today": "Today's Schedule",
-      "upcoming": "Upcoming Tasks"
-    },
     "modal": {
-      "taskTitleLabel": "Task Title",
+      "taskTitleLabel": "Task Description",
       "taskTypeLabel": "Task Type",
       "dateLabel": "Date",
       "timeLabel": "Time",
-      "saveBtn": "Save Task",
-      "cancelBtn": "Cancel"
+      "cancelBtn": "Cancel",
+      "saveBtn": "Save Task"
     }
   },
-  "login": {
-    "title": "Welcome Back",
-    "subtitle": "Login to access the dashboard",
-    "username": "Username",
-    "password": "Password",
-    "submit": "Login",
-    "loading": "Verifying...",
-    "error": "Invalid username or password",
-    "serverError": "Database connection error"
-  },
   "settings": {
-    "title": "Accounts & Permissions",
-    "subtitle": "Manage system users (Admin / Cashier)",
-    "newUser": "New User",
-    "errorFillFields": "Please enter username and password",
+    "title": "System Settings",
+    "subtitle": "Manage users and system configurations",
+    "newUser": "New Administrative User",
+    "errorFillFields": "Please fill all required fields.",
+    "addError": "Failed to add user. Username may exist.",
+    "deleteAlert": "You cannot delete the root admin or your own account.",
+    "deleteConfirm": "Are you sure you want to delete account: {{name}}?",
+    "deleteError": "Failed to delete account.",
+    "accessDenied": "Access Denied: Only Admins can view this page.",
+    "loading": "Loading users...",
+    "noUsers": "No additional users found.",
     "username": "Username",
-    "usernamePlaceholder": "e.g., cashier1",
     "password": "Password",
-    "passwordPlaceholder": "••••••••",
-    "role": "Role / Permission",
-    "roleCashier": "Cashier (Limited)",
-    "roleAdmin": "Admin (Full Access)",
-    "addAccountBtn": "Add Account",
+    "role": "Role Level",
+    "addAccountBtn": "Create Account",
+    "deleteTooltip": "Delete Account",
     "table": {
       "username": "Username",
       "role": "Role",
       "actions": "Actions"
     },
-    "badges": {
-      "admin": "Super Admin",
-      "cashier": "Cashier"
-    },
-    "deleteAlert": "You cannot delete the primary admin or your own account.",
-    "deleteConfirm": "Are you sure you want to delete ({{name}})?",
-    "deleteTooltip": "Delete Account",
-    "noUsers": "No users found.",
-    "loading": "Loading...",
-    "accessDenied": "Sorry, you do not have permission to access this page.",
-    "addError": "Error adding user.",
-    "deleteError": "Error deleting user.",
     "modal": {
-      "title": "System & Print Settings",
-      "storeNameLabel": "Store Name (Shows on printed receipts)",
-      "storeNamePlaceholder": "e.g., Ultra Mart",
-      "saveBtn": "Save Settings"
+      "title": "Store & Print Settings",
+      "saveBtn": "Save Settings",
+      "saveSuccess": "Settings saved successfully!",
+      "storeNameLabel": "Store Name (Appears on receipts/payslips)",
+      "storeNamePlaceholder": "e.g. Supermarket ABC"
     }
   },
   "database": {
-    "title": "Database Management",
-    "backup": "Create Backup",
-    "restore": "Restore Data",
-    "backupDesc": "Save a copy of all system data to an external file for protection.",
-    "restoreDesc": "Restore system data from a previous backup file.",
+    "title": "Database & Backups",
+    "backup": "Backup Database",
+    "restore": "Restore Database",
+    "backupDesc": "Create a secure backup of all system data and export an Excel report.",
+    "restoreDesc": "Restore system from a previous .sqlite backup file.",
     "messages": {
-      "backupSuccess": "Backup saved successfully!",
-      "restoreSuccess": "Data restored! The system will now restart.",
-      "restoreConfirm": "Warning: Restoring will overwrite current data. Are you sure?",
-      "error": "An error occurred. Please try again."
-    }
-  },
-  "audit": {
-    "actions": {
-      "DELETE_EXPENSE": "Delete Expense",
-      "ADD_EXPENSE": "Add Expense",
-      "UPDATE_EXPENSE": "Update Expense"
-    },
-    "details": {
-      "ADD_EXPENSE": "Added expense: {{desc}} for {{amount}} DZD",
-      "DELETE_EXPENSE": "Deleted expense: {{desc}} for {{amount}} DZD",
-      "UPDATE_EXPENSE": "Updated expense: {{desc}}"
+      "backupSuccess": "Database backup & Excel export created successfully!",
+      "restoreConfirm": "WARNING: All current data will be erased and replaced with the backup. Continue?",
+      "restoreSuccess": "Database restored! The app will now restart.",
+      "error": "Database operation failed."
     }
   },
   "print": {
-    "systemProvider": "SYSTEM PROVIDER",
+    "printBtn": "Print",
+    "savePdfBtn": "Save PDF",
+    "systemProvider": "System Provider",
     "issueDate": "Issue Date",
     "validFor": "Valid For",
+    "auditorSignature": "Auditor Signature",
+    "managerSignature": "Manager / Stamp",
     "payslipTitle": "Payslip",
+    "employeeName": "Employee Name",
+    "description": "Description",
+    "hours": "Hours",
+    "rate": "Rate/H",
+    "amount": "Amount",
+    "grossSalary": "Gross Salary",
+    "deductions": "Deductions",
+    "netSalary": "Net Payable",
+    "employeeSignature": "Employee Signature",
     "receiptTicket": "Receipt Ticket",
     "paymentTicket": "Payment Ticket",
     "thankYou": "Thank you for your business",
     "date": "Date",
-    "employeeName": "Employee Name",
-    "period": "Work Period",
-    "description": "Description / Note",
-    "hours": "Hours",
-    "rate": "Rate/Hr",
-    "amount": "Total Amount",
-    "grossSalary": "Gross Salary",
-    "deductions": "Deductions (Advances)",
-    "netSalary": "Net Salary",
-    "employeeSignature": "Employee Signature",
-    "managerSignature": "Manager Signature",
-    "auditorSignature": "Auditor / Reviewer Signature"
+    "period": "Period"
+  },
+  "audit": {
+    "actions": {
+      "DELETE_EXPENSE": "Deleted Expense"
+    },
+    "details": {
+      "DELETE_EXPENSE": "Deleted expense: {{desc}} ({{amount}} DA)"
+    }
   }
 }
 ```

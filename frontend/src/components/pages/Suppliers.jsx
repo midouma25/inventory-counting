@@ -5,26 +5,31 @@ import { useNavigate } from 'react-router-dom';
 import useSupplierStore from '../../store/supplierStore';
 import useEmployeeStore from '../../store/employeeStore'; 
 import Modal from '../ui/Modal';
-import PrintableTicket from '../ui/PrintableTicket';
-import { Plus, Search, ArrowUpDown, ArrowRight, ArrowLeft, FileText, Banknote, ArrowUpRight, ArrowDownRight, Calendar, Printer, Download, Eye, Edit, Trash2, Upload } from 'lucide-react';
+import { Plus, Search, ArrowUpDown, ArrowRight, ArrowLeft, FileText, Banknote, ArrowUpRight, ArrowDownRight, Calendar, Eye, Edit, Trash2, Upload } from 'lucide-react';
+
 export default function Suppliers() {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.dir() === 'rtl';
   const navigate = useNavigate();
-  const { employees, fetchEmployees } = useEmployeeStore();
-  const [supplierToDelete, setSupplierToDelete] = useState(null);
-  const [globalFilter, setGlobalFilter] = useState('');
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   
-  // دمج نوافذ الإضافة والتعديل
+  const { employees, fetchEmployees } = useEmployeeStore();
+  const { suppliers, fetchSuppliers, addSupplier, updateSupplier, deleteSupplier, currentSupplier, fetchSupplierDetails, clearCurrentSupplier, addReceipt, addPayment } = useSupplierStore();
+  
+  const [globalFilter, setGlobalFilter] = useState('');
+  
+  // حالات النوافذ (Modals)
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState(null);
+  const [supplierToDelete, setSupplierToDelete] = useState(null);
+
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
-  const [transactionType, setTransactionType] = useState('receipt'); // 'receipt' | 'payment'
+  const [transactionType, setTransactionType] = useState('receipt'); 
   const [editingTransactionId, setEditingTransactionId] = useState(null); 
+  const [transactionToDelete, setTransactionToDelete] = useState(null); // 🔴 حالة جديدة لحذف المعاملات
 
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
-  const [printData, setPrintData] = useState(null);
-  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
 
+  // حالات البيانات (Forms)
   const [formData, setFormData] = useState({ name: '', phone: '', initialDebt: 0 });
   const [transactionData, setTransactionData] = useState({ amount: '', date: new Date().toISOString().split('T')[0], note: '', caisseSource: '' });
   const [scheduleData, setScheduleData] = useState({ amount: '', date: new Date().toISOString().split('T')[0], time: '10:00', note: '' });
@@ -32,7 +37,6 @@ export default function Suppliers() {
   useEffect(() => { fetchSuppliers(); fetchEmployees(); }, []);
 
   const handlePreview = (type, item) => { navigate('/preview', { state: { type, item, supplierName: currentSupplier.name } }); };
-  const executePrint = () => { setTimeout(() => { window.print(); }, 100); };
 
   const handleSaveSupplier = async (e) => { 
     e.preventDefault(); 
@@ -50,17 +54,33 @@ export default function Suppliers() {
       fetchSuppliers();
     } else {
       alert(t('suppliers.messages.saveError'));
+      setTimeout(() => window.focus(), 100);
     }
   };
-  // أضف الدوال الجديدة من المخزن
-  const { suppliers, fetchSuppliers, addSupplier, updateSupplier, deleteSupplier, currentSupplier, fetchSupplierDetails, clearCurrentSupplier, addReceipt, addPayment } = useSupplierStore();
-  
-  // أضف هذه الحالة
-  const [editingSupplier, setEditingSupplier] = useState(null);
 
+  const openEditSupplierModal = (supplier) => {
+    setEditingSupplier(supplier);
+    setFormData({ name: supplier.name, phone: supplier.phone || '', initialDebt: supplier.initial_debt || 0 });
+    setIsAddModalOpen(true);
+  };
 
+  const confirmDeleteSupplier = (id) => {
+    setSupplierToDelete(id);
+  };
 
-  // فتح نافذة المعاملات للإضافة
+  const executeDeleteSupplier = async () => {
+    if (!supplierToDelete) return;
+    const res = await deleteSupplier(supplierToDelete);
+    if (res && res.success) {
+      fetchSuppliers();
+    } else {
+      const errorMessage = res?.errorKey ? t(`suppliers.messages.${res.errorKey}`) : t('suppliers.messages.deleteError');
+      alert(errorMessage);
+      setTimeout(() => window.focus(), 100);
+    }
+    setSupplierToDelete(null); 
+  };
+
   const openTransactionModal = (type) => {
     setTransactionType(type);
     setEditingTransactionId(null);
@@ -68,7 +88,6 @@ export default function Suppliers() {
     setIsTransactionModalOpen(true);
   };
 
-  // فتح نافذة المعاملات للتعديل
   const openEditTransactionModal = (type, item) => {
     setTransactionType(type);
     setEditingTransactionId(item.id);
@@ -93,61 +112,55 @@ export default function Suppliers() {
     } catch (error) { console.error("Error saving transaction:", error); }
   };
 
-const handleDeleteTransaction = async (type, id) => {
-    // 1. إصلاح مفتاح الترجمة لرسالة التأكيد
-    if (window.confirm(t('suppliers.actions.deleteConfirm'))) {
-      
-      // 2. حل مشكلة تجمّد الشاشة (Focus Bug)
-      setTimeout(() => window.focus(), 100); 
-
-      try {
-        let res;
-        // استدعاء الباك إند
-        if (type === 'receipt') {
-          res = await window.api.deleteReceipt(id);
-        } else {
-          res = await window.api.deletePayment(id);
-        }
-
-        // 3. التحقق من النجاح قبل تحديث الشاشة
-        if (res && res.success) {
-          fetchSupplierDetails(currentSupplier.id); 
-          fetchSuppliers(); 
-        } else {
-          // إظهار الخطأ إذا فشلت العملية
-          alert("حدث خطأ أثناء الحذف: " + (res?.error || "غير معروف"));
-        }
-      } catch (error) { 
-        console.error("Error deleting transaction:", error); 
-      }
-    }
+  // 🔴 دالة لفتح مودال حذف المعاملة المالية
+  const handleDeleteTransactionClick = (type, id) => {
+    setTransactionToDelete({ type, id });
   };
 
-  
+  // 🔴 التنفيذ الفعلي لحذف المعاملة
+  const executeDeleteTransaction = async () => {
+    if (!transactionToDelete) return;
+    try {
+      let res;
+      if (transactionToDelete.type === 'receipt') {
+        res = await window.api.deleteReceipt(transactionToDelete.id);
+      } else {
+        res = await window.api.deletePayment(transactionToDelete.id);
+      }
+
+      if (res && res.success) {
+        fetchSupplierDetails(currentSupplier.id); 
+        fetchSuppliers(); 
+      } else {
+        alert(t('common.error'));
+        setTimeout(() => window.focus(), 100);
+      }
+    } catch (error) { console.error(error); }
+    setTransactionToDelete(null);
+  };
+
   const handleImportExcel = async () => {
     try {
       if (window.api && window.api.importSuppliersExcel) {
         const res = await window.api.importSuppliersExcel();
         if (res && res.success) {
-          // استخدام دالة الترجمة وتمرير عدد الموردين المستوردين
           alert(t('suppliers.actions.importSuccess', { count: res.count }));
+          setTimeout(() => window.focus(), 100);
           fetchSuppliers(); 
         } else if (res && !res.canceled) {
-          // استخدام الترجمة لرسالة الخطأ
           alert(t('suppliers.actions.importError') + "\n" + res.error);
+          setTimeout(() => window.focus(), 100);
         }
       }
-    } catch (error) {
-      console.error(error);
-    }
+    } catch (error) { console.error(error); }
   };
 
   const columns = useMemo(() => [
     { accessorKey: 'name', header: ({ column }) => ( <button className="flex items-center gap-2 hover:text-white outline-none transition-colors" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}> {t('suppliers.table.name')} <ArrowUpDown size={14} /> </button> ), cell: (info) => <span className="font-medium text-white">{info.getValue()}</span> },
     { accessorKey: 'phone', header: t('suppliers.table.phone'), cell: (info) => <span className="text-slate-400">{info.getValue() || '-'}</span> },
-    { accessorKey: 'total_debt', header: t('suppliers.table.totalDebt'), cell: (info) => { const amount = info.getValue() || 0; return <span className={`font-bold ${amount > 0 ? 'text-red-400' : 'text-emerald-400'}`}>{amount.toLocaleString()} DA</span>; } },
+    { accessorKey: 'total_debt', header: t('suppliers.table.totalDebt'), cell: (info) => { const amount = info.getValue() || 0; return <span className={`font-bold ${amount > 0 ? 'text-red-400' : 'text-emerald-400'}`}>{amount.toLocaleString()} {t('currency')}</span>; } },
     { id: 'status', header: t('suppliers.table.status'), cell: ({ row }) => { const amount = row.original.total_debt || 0; const isClear = amount <= 0; return ( <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${isClear ? 'bg-emerald-950 text-emerald-400 border-emerald-900' : 'bg-red-950 text-red-400 border-red-900'}`}> {isClear ? t('suppliers.status.clear') : t('suppliers.status.indebted')} </span> ); } },
-  { 
+    { 
       id: 'actions', 
       header: t('suppliers.table.actions'), 
       cell: ({ row }) => ( 
@@ -158,48 +171,19 @@ const handleDeleteTransaction = async (type, id) => {
           <button onClick={() => openEditSupplierModal(row.original)} className="p-2 text-emerald-400 hover:bg-emerald-900/50 rounded-lg transition-colors" title={t('suppliers.actions.edit')}>
             <Edit size={18} />
           </button>
-<button onClick={() => confirmDeleteSupplier(row.original.id)} className="p-2 text-red-400 hover:bg-red-900/50 rounded-lg transition-colors" title={t('suppliers.actions.delete')}>
-  <Trash2 size={18} />
-</button>
+          <button onClick={() => confirmDeleteSupplier(row.original.id)} className="p-2 text-red-400 hover:bg-red-900/50 rounded-lg transition-colors" title={t('suppliers.actions.delete')}>
+            <Trash2 size={18} />
+          </button>
         </div>
       ) 
-    }, ], [t, fetchSupplierDetails]);
+    }, 
+  ], [t, fetchSupplierDetails]);
 
   const table = useReactTable({ data: suppliers, columns, state: { globalFilter }, onGlobalFilterChange: setGlobalFilter, getCoreRowModel: getCoreRowModel(), getFilteredRowModel: getFilteredRowModel(), getSortedRowModel: getSortedRowModel() });
   
-  const openEditSupplierModal = (supplier) => {
-    setEditingSupplier(supplier);
-    setFormData({ name: supplier.name, phone: supplier.phone || '', initialDebt: supplier.initial_debt || 0 });
-    setIsAddModalOpen(true);
-  };
-
-
-// هذه الدالة تفتح نافذة التأكيد فقط
-const confirmDeleteSupplier = (id) => {
-  setSupplierToDelete(id);
-};
-
-// هذه الدالة تنفذ الحذف الفعلي عند الضغط على "نعم"
-const executeDelete = async () => {
-  if (!supplierToDelete) return;
-
-  const res = await deleteSupplier(supplierToDelete);
-  if (res && res.success) {
-    fetchSuppliers();
-    setSupplierToDelete(null); // إغلاق النافذة بعد النجاح
-  } else {
-    // عرض رسالة الخطأ داخل الواجهة أفضل من استخدام alert
-    const errorMessage = res?.errorKey 
-      ? t(`suppliers.messages.${res.errorKey}`) 
-      : t('suppliers.messages.deleteError') + (res?.message ? `: ${res.message}` : '');
-    alert(errorMessage); // إذا استمر التجمّد بسبب هذه الـ alert، سنستبدلها بـ Toast لاحقاً
-    setSupplierToDelete(null);
-  }
-};
-
   if (currentSupplier) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans relative">
+      <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans relative text-start">
         <div className="flex justify-between items-center mb-8 border-b border-slate-800 pb-6 print:hidden">
           <div className="flex items-center gap-4">
             <button onClick={clearCurrentSupplier} className="p-2 bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
@@ -213,7 +197,7 @@ const executeDelete = async () => {
           <div className="text-end">
             <p className="text-sm text-slate-400 mb-1">{t('suppliers.table.totalDebt')}</p>
             <h2 className={`text-3xl font-bold ${currentSupplier.total_debt > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-              {currentSupplier.total_debt.toLocaleString()} DA
+              {currentSupplier.total_debt.toLocaleString()} {t('currency')}
             </h2>
           </div>
         </div>
@@ -248,14 +232,14 @@ const executeDelete = async () => {
                     <div className="flex-1">
                       <div className="flex justify-between items-start mb-2">
                         <span className="text-sm text-slate-400">{r.date}</span>
-                        <span className="font-bold text-red-400">+{r.amount.toLocaleString()} DA</span>
+                        <span className="font-bold text-red-400">+{r.amount.toLocaleString()} {t('currency')}</span>
                       </div>
                       <p className="text-sm text-slate-300">{r.note || '-'}</p>
                     </div>
                     <div className="flex gap-2 ms-4 border-s border-slate-800 ps-4">
                       <button onClick={() => handlePreview('receipt', r)} className="p-2 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-colors border border-slate-800" title="معاينة المستند"><Eye size={18} /></button>
                       <button onClick={() => openEditTransactionModal('receipt', r)} className="p-2 text-blue-400 hover:bg-slate-800 hover:text-blue-300 rounded-lg transition-colors border border-slate-800" title="تعديل"><Edit size={18} /></button>
-                      <button onClick={() => handleDeleteTransaction('receipt', r.id)} className="p-2 text-red-400 hover:bg-slate-800 hover:text-red-300 rounded-lg transition-colors border border-slate-800" title="حذف"><Trash2 size={18} /></button>
+                      <button onClick={() => handleDeleteTransactionClick('receipt', r.id)} className="p-2 text-red-400 hover:bg-slate-800 hover:text-red-300 rounded-lg transition-colors border border-slate-800" title="حذف"><Trash2 size={18} /></button>
                     </div>
                   </div>
                 ))
@@ -277,14 +261,14 @@ const executeDelete = async () => {
                     <div className="flex-1">
                       <div className="flex justify-between items-start mb-2">
                         <span className="text-sm text-slate-400">{p.date} • <span className="text-emerald-500/70">{p.caisse_source}</span></span>
-                        <span className="font-bold text-emerald-400">-{p.amount.toLocaleString()} DA</span>
+                        <span className="font-bold text-emerald-400">-{p.amount.toLocaleString()} {t('currency')}</span>
                       </div>
                       <p className="text-sm text-slate-300">{p.note || '-'}</p>
                     </div>
                     <div className="flex gap-2 ms-4 border-s border-slate-800 ps-4">
                       <button onClick={() => handlePreview('payment', p)} className="p-2 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-colors border border-slate-800" title="معاينة المستند"><Eye size={18} /></button>
                       <button onClick={() => openEditTransactionModal('payment', p)} className="p-2 text-blue-400 hover:bg-slate-800 hover:text-blue-300 rounded-lg transition-colors border border-slate-800" title="تعديل"><Edit size={18} /></button>
-                      <button onClick={() => handleDeleteTransaction('payment', p.id)} className="p-2 text-red-400 hover:bg-slate-800 hover:text-red-300 rounded-lg transition-colors border border-slate-800" title="حذف"><Trash2 size={18} /></button>
+                      <button onClick={() => handleDeleteTransactionClick('payment', p.id)} className="p-2 text-red-400 hover:bg-slate-800 hover:text-red-300 rounded-lg transition-colors border border-slate-800" title="حذف"><Trash2 size={18} /></button>
                     </div>
                   </div>
                 ))
@@ -293,10 +277,10 @@ const executeDelete = async () => {
           </div>
         </div>
 
-        <Modal isOpen={isTransactionModalOpen} onClose={() => setIsTransactionModalOpen(false)} title={transactionType === 'receipt' ? (editingTransactionId ? t('expenses.editExpense', 'تعديل') : t('suppliers.details.addReceipt')) : (editingTransactionId ? t('expenses.editExpense', 'تعديل') : t('suppliers.details.addPayment'))}>
+        <Modal isOpen={isTransactionModalOpen} onClose={() => setIsTransactionModalOpen(false)} title={transactionType === 'receipt' ? (editingTransactionId ? t('expenses.editExpense') : t('suppliers.details.addReceipt')) : (editingTransactionId ? t('expenses.editExpense') : t('suppliers.details.addPayment'))}>
           <form onSubmit={handleSaveTransaction} className="space-y-4 text-start">
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.amount')} (DA)</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.amount')} ({t('currency')})</label>
               <input type="number" min="1" required value={transactionData.amount} onChange={e => setTransactionData({...transactionData, amount: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start" />
             </div>
             
@@ -304,7 +288,7 @@ const executeDelete = async () => {
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.caisse')}</label>
                 <select required value={transactionData.caisseSource} onChange={e => setTransactionData({...transactionData, caisseSource: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start" dir={isRTL ? "rtl" : "ltr"}>
-                  <option value="" disabled>{t('suppliers.modal.selectEmployee')}</option>
+                  <option value="" disabled>{t('payroll.selectCaisse')}</option>
                   {employees.map(emp => (
                     <option key={emp.id} value={emp.name}>{emp.name} ({t(`hr.roles.${emp.role}`, emp.role)})</option>
                   ))}
@@ -323,13 +307,13 @@ const executeDelete = async () => {
             <div className="pt-4 flex justify-end gap-3 mt-6">
               <button type="button" onClick={() => setIsTransactionModalOpen(false)} className="px-4 py-2 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">{t('common.cancel')}</button>
               <button type="submit" className={`px-4 py-2 text-white rounded-lg font-medium transition-colors ${transactionType === 'receipt' ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
-                {editingTransactionId ? t('expenses.saveChanges', 'حفظ التعديلات') : t('common.success', 'تأكيد')}
+                {editingTransactionId ? t('expenses.saveChanges') : t('common.success')}
               </button>
             </div>
           </form>
         </Modal>
 
-        <Modal isOpen={isScheduleModalOpen} onClose={() => setIsScheduleModalOpen(false)} title={t('suppliers.modal.scheduleTitle', 'جدولة دفعة قادمة')}>
+        <Modal isOpen={isScheduleModalOpen} onClose={() => setIsScheduleModalOpen(false)} title={t('suppliers.modal.scheduleTitle')}>
           <form onSubmit={async (e) => {
             e.preventDefault();
             try {
@@ -342,10 +326,11 @@ const executeDelete = async () => {
                });
                setIsScheduleModalOpen(false);
                alert(t('common.success'));
+               setTimeout(() => window.focus(), 100);
             } catch(error) { console.error(error); }
           }} className="space-y-4 text-start">
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.amount')} (DA)</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.amount')} ({t('currency')})</label>
               <input type="number" required value={scheduleData.amount} onChange={e => setScheduleData({...scheduleData, amount: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-start" />
             </div>
             <div>
@@ -353,14 +338,29 @@ const executeDelete = async () => {
               <input type="date" required value={scheduleData.date} onChange={e => setScheduleData({...scheduleData, date: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-start" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.time', 'الوقت')} ({t('common.optional', 'اختياري')})</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">{t('suppliers.details.time')} ({t('common.optional')})</label>
               <input type="time" value={scheduleData.time} onChange={e => setScheduleData({...scheduleData, time: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-start" />
             </div>
             <div className="pt-4 flex justify-end gap-3 mt-6">
               <button type="button" onClick={() => setIsScheduleModalOpen(false)} className="px-4 py-2 text-slate-300 hover:bg-slate-800 rounded-lg">{t('common.cancel')}</button>
-              <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">{t('suppliers.modal.confirmScheduleBtn', 'تأكيد الجدولة')}</button>
+              <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">{t('suppliers.modal.confirmScheduleBtn')}</button>
             </div>
           </form>
+        </Modal>
+
+        {/* 🔴 مودال تأكيد حذف المعاملة المالية */}
+        <Modal isOpen={!!transactionToDelete} onClose={() => setTransactionToDelete(null)} title={t('suppliers.actions.delete')}>
+          <div className="p-4 text-start">
+            <p className="text-white mb-6 text-lg">{t('suppliers.actions.deleteConfirm')}</p>
+            <div className="flex items-center justify-end gap-3 mt-4">
+              <button onClick={() => setTransactionToDelete(null)} className="px-4 py-2 text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
+                {t('common.cancel')}
+              </button>
+              <button onClick={executeDeleteTransaction} className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
+                {t('suppliers.actions.confirmDeleteBtn')}
+              </button>
+            </div>
+          </div>
         </Modal>
 
       </div>
@@ -368,7 +368,7 @@ const executeDelete = async () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans relative">
+    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans relative text-start">
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-white">{t('suppliers.title')}</h1>
@@ -431,12 +431,8 @@ const executeDelete = async () => {
         )}
       </div>
 
-<Modal 
-  isOpen={isAddModalOpen} 
-  onClose={() => { setIsAddModalOpen(false); setEditingSupplier(null); }} 
-  title={editingSupplier ? t('suppliers.messages.editTitle') : t('suppliers.addSupplier')}
->
-          <form onSubmit={handleSaveSupplier} className="space-y-4 text-start">
+      <Modal isOpen={isAddModalOpen} onClose={() => { setIsAddModalOpen(false); setEditingSupplier(null); }} title={editingSupplier ? t('suppliers.messages.editTitle') : t('suppliers.addSupplier')}>
+        <form onSubmit={handleSaveSupplier} className="space-y-4 text-start">
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-2">{t('suppliers.modal.nameLabel')}</label>
             <input type="text" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start" />
@@ -456,29 +452,20 @@ const executeDelete = async () => {
         </form>
       </Modal>
     
-    <Modal 
-     isOpen={!!supplierToDelete} 
-     onClose={() => setSupplierToDelete(null)} 
-     title={t('suppliers.actions.delete')}
-   >
-     <div className="p-4">
-       <p className="text-white mb-6 text-lg">{t('suppliers.actions.deleteConfirm')}</p>
-       <div className="flex items-center justify-end gap-3">
-         <button 
-           onClick={() => setSupplierToDelete(null)}
-           className="px-4 py-2 text-white bg-gray-600 rounded-md hover:bg-gray-700 transition-colors"
-         >
-           {t('suppliers.actions.cancel')}
-         </button>
-         <button 
-           onClick={executeDelete}
-           className="px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
-         >
-           {t('suppliers.actions.confirmDeleteBtn')}
-         </button>
-       </div>
-     </div>
-   </Modal>
+      {/* 🔴 مودال تأكيد حذف المورد */}
+      <Modal isOpen={!!supplierToDelete} onClose={() => setSupplierToDelete(null)} title={t('suppliers.actions.delete')}>
+        <div className="p-4 text-start">
+          <p className="text-white mb-6 text-lg">{t('suppliers.actions.deleteConfirm')}</p>
+          <div className="flex items-center justify-end gap-3 mt-4">
+            <button onClick={() => setSupplierToDelete(null)} className="px-4 py-2 text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
+              {t('common.cancel')}
+            </button>
+            <button onClick={executeDeleteSupplier} className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
+              {t('suppliers.actions.confirmDeleteBtn')}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
     </div>
   );

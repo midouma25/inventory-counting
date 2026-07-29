@@ -9,6 +9,7 @@ export default function Agenda() {
   const [filter, setFilter] = useState('all'); 
   const [tasks, setTasks] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState(null);
 
   const [currentDate, setCurrentDate] = useState(new Date());
   
@@ -78,15 +79,15 @@ export default function Agenda() {
     } catch (error) { console.error("Error toggling task status:", error); }
   };
 
-  const handleDeleteTask = async (id) => {
-    if (window.confirm(t('common.cancel', 'تأكيد الحذف؟'))) {
-      try {
-        if (window.api && window.api.deleteAgendaTask) {
-          await window.api.deleteAgendaTask(id);
-          setTasks(tasks.filter(task => task.id !== id));
-        }
-      } catch (error) { console.error("Error deleting task:", error); }
-    }
+  const confirmDeleteTask = async () => {
+    if (!taskToDelete) return;
+    try {
+      if (window.api && window.api.deleteAgendaTask) {
+        await window.api.deleteAgendaTask(taskToDelete);
+        setTasks(tasks.filter(task => task.id !== taskToDelete));
+      }
+    } catch (error) { console.error(error); }
+    setTaskToDelete(null);
   };
 
   const handleReschedule = async (id, newDate) => {
@@ -116,7 +117,7 @@ export default function Agenda() {
   const TaskCard = ({ task, isOverdue }) => {
     const typeConfig = getTypeConfig(task.type);
     const isCompleted = task.status === 'completed';
-    const displayTime = task.time && task.time !== 'undefined' ? task.time : 'طوال اليوم';
+    const displayTime = task.time && task.time !== 'undefined' ? task.time : t('agenda.allDay', 'طوال اليوم');
     const cardStyle = isCompleted ? 'bg-slate-900/50 border-slate-800/50 opacity-60' : isOverdue ? 'bg-red-950/20 border-red-900/50 hover:border-red-800' : 'bg-slate-900 border-slate-800 hover:border-slate-700';
 
     return (
@@ -131,19 +132,19 @@ export default function Agenda() {
             <div className="flex items-center gap-3 mt-2 text-xs">
               <span className={`flex items-center gap-1 ${isOverdue ? 'text-red-400' : 'text-slate-400'}`}><Clock size={14} /> {displayTime} {task.date !== todayString && `| ${task.date}`}</span>
               <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full border ${typeConfig.color}`}>{typeConfig.icon}{t(`agenda.types.${task.type}`, task.type)}</span>
-              {task.amount > 0 && <span className="font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded-full">{task.amount.toLocaleString()} DA</span>}
+              {task.amount > 0 && <span className="font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded-full">{task.amount.toLocaleString()} {t('currency')}</span>}
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           {!isCompleted && (
-            <div className="relative" title="تأجيل المهمة">
+            <div className="relative" title={t('agenda.rescheduleTask', 'تأجيل المهمة')}>
               <input type="date" className="opacity-0 absolute inset-0 w-full h-full cursor-pointer" onChange={(e) => handleReschedule(task.id, e.target.value)} />
               <button className="p-2 text-slate-500 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-colors"><CalendarClock size={18} /></button>
             </div>
           )}
-          <button onClick={() => handleDeleteTask(task.id)} className="p-2 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors"><Trash2 size={18} /></button>
+          <button onClick={() => setTaskToDelete(task.id)} className="p-2 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors" title={t('suppliers.actions.delete')}><Trash2 size={18} /></button>
         </div>
       </div>
     );
@@ -176,21 +177,14 @@ export default function Agenda() {
               </div>
               
               <div className="grid grid-cols-7 gap-1 text-center text-sm">
-                {/* الأيام الفارغة للشهر السابق */}
                 {[...Array(firstDayOfMonth)].map((_, i) => (
                    <div key={`empty-prev-${i}`} className="p-1.5 text-slate-700">{prevMonthDays - firstDayOfMonth + i + 1}</div>
                 ))}
-                
-                {/* أيام الشهر الحالي */}
                 {[...Array(daysInMonth)].map((_, i) => (
-                  <div key={i} className={`p-1.5 rounded-md cursor-pointer transition-colors ${
-                    isCurrentMonth && (i + 1 === currentDay) ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'
-                  }`}>
+                  <div key={i} className={`p-1.5 rounded-md cursor-pointer transition-colors ${isCurrentMonth && (i + 1 === currentDay) ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'}`}>
                     {i + 1}
                   </div>
                 ))}
-
-                {/* استكمال الأيام الفارغة للشهر القادم (لتكوين 42 مربع كامل) */}
                 {[...Array(42 - (firstDayOfMonth + daysInMonth))].map((_, i) => (
                    <div key={`empty-next-${i}`} className="p-1.5 text-slate-700">{i + 1}</div>
                 ))}
@@ -210,7 +204,7 @@ export default function Agenda() {
         <div className="lg:col-span-3 space-y-8">
           {overdueTasks.length > 0 && (
             <div>
-              <h3 className="text-lg font-medium text-red-400 mb-4 flex items-center gap-2 border-b border-red-900/50 pb-2"><AlertCircle size={18} /> مهام متأخرة</h3>
+              <h3 className="text-lg font-medium text-red-400 mb-4 flex items-center gap-2 border-b border-red-900/50 pb-2"><AlertCircle size={18} /> {t('agenda.sections.overdue', 'مهام متأخرة')}</h3>
               <div className="space-y-3">{overdueTasks.map(task => <TaskCard key={task.id} task={task} isOverdue={true} />)}</div>
             </div>
           )}
@@ -259,11 +253,26 @@ export default function Agenda() {
              <input type="number" min="0" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 text-start" />
           </div>
           <div className="pt-4 flex justify-end gap-3 mt-4">
-            <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800 transition-colors">{t('agenda.modal.cancelBtn')}</button>
-            <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">{t('agenda.modal.saveBtn')}</button>
+            <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800 transition-colors">{t('agenda.modal.cancelBtn', 'إلغاء')}</button>
+            <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">{t('agenda.modal.saveBtn', 'حفظ المهمة')}</button>
           </div>
         </form>
       </Modal>
+
+      <Modal isOpen={!!taskToDelete} onClose={() => setTaskToDelete(null)} title={t('suppliers.actions.delete')}>
+        <div className="p-4 text-start">
+          <p className="text-white mb-6 text-lg">{t('agenda.deleteConfirm', 'هل أنت متأكد من حذف هذه المهمة من الأجندة؟')}</p>
+          <div className="flex items-center justify-end gap-3 mt-4">
+            <button onClick={() => setTaskToDelete(null)} className="px-4 py-2 text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
+              {t('common.cancel')}
+            </button>
+            <button onClick={confirmDeleteTask} className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
+              {t('suppliers.actions.confirmDeleteBtn')}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
     </div>
   );
 }
