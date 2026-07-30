@@ -21,7 +21,6 @@ export default function EndOfDay() {
   const [summary, setSummary] = useState({ expenses: 0, supplierPayments: 0, advances: 0, totalOut: 0 });
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 
-  // 🔴 نظام الإشعارات الذكي بدلاً من Alert
   const [toast, setToast] = useState(null);
   const showToast = (type, message) => {
     setToast({ type, message });
@@ -69,7 +68,9 @@ export default function EndOfDay() {
           setOpeningBalanceInput('');
           fetchShiftData();
         } else {
-          showToast('error', res.message || t('common.error')); // 🔴 استبدال الـ alert
+          // 🔴 التعديل هنا لترجمة خطأ "الوردية مفتوحة مسبقاً"
+          const errorMsg = res.message ? t(`backendErrors.${res.message}`, { defaultValue: res.message }) : t('common.error');
+          showToast('error', errorMsg);
         }
       }
     } catch (err) {
@@ -116,7 +117,6 @@ export default function EndOfDay() {
     return <div className="p-6 text-center text-slate-500">{t('hr.table.loading')}</div>;
   }
 
-  // وضع الإشعار في مستوى عام ليظهر في كلتا الحالتين
   const renderToast = () => toast && (
     <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[9999] px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 ${
       toast.type === 'success' ? 'bg-emerald-600 text-white' :

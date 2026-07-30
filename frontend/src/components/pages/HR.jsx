@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Search, Plus, MoreHorizontal, UserCheck, AlertCircle, ScanLine, Users, X, Clock, Edit, Trash2, CheckCircle2 } from "lucide-react";
+import { Search, Plus, UserCheck, AlertCircle, ScanLine, Users, X, Clock, Edit, Trash2, CheckCircle2 } from "lucide-react";
 
 import useEmployeeStore from "../../store/employeeStore";
 import useAttendanceStore from "../../store/attendanceStore";
-
-// 🔴 1. استيراد نافذة التنبيه المخصصة
 import ConfirmAlert from '../ui/ConfirmAlert'; 
 
 const HR = () => {
@@ -28,7 +26,6 @@ const HR = () => {
   const [attendanceDate, setAttendanceDate] = useState(today);
   const [attendanceRecords, setAttendanceRecords] = useState([]);
 
-  // 🔴 2. متغيرات حالة النافذة المخصصة والإشعارات
   const [employeeToDelete, setEmployeeToDelete] = useState(null); 
   const [toast, setToast] = useState(null);
 
@@ -68,7 +65,9 @@ const HR = () => {
        setFeedback({ type: 'success', message: `${actionText}: ${result.employeeName}` });
        fetchAttendanceForDate(attendanceDate); 
     } else if (result) {
-       setFeedback({ type: 'error', message: result.message });
+       // 🔴 ترجمة رسائل الخطأ القادمة من الباك إند ديناميكياً
+       const errorMsg = result.message ? t(`backendErrors.${result.message}`, { name: result.employeeName, defaultValue: result.message }) : t('hr.messages.error');
+       setFeedback({ type: 'error', message: errorMsg });
     }
     
     setPinInput("");
@@ -76,28 +75,27 @@ const HR = () => {
     setTimeout(() => setFeedback(null), 4000);
   };
 
-  // 🔴 3. دالة الحذف الآمنة (بدون تجميد)
   const confirmDelete = async () => {
     if (!employeeToDelete) return;
     const store = useEmployeeStore.getState();
     const idToDelete = employeeToDelete.id;
     
-    setEmployeeToDelete(null); // إغلاق النافذة فوراً
+    setEmployeeToDelete(null);
     
     try {
       const res = await window.api.deleteEmployee(idToDelete);
       if (res && res.success) {
         if (res.isSoftDeleted) {
-          showToast('warning', t('hr.employees.softDeleted', 'تم تعطيل الحساب لحماية السجلات.')); 
+          showToast('warning', t('hr.employees.softDeleted')); 
         } else {
-          showToast('success', t('common.success', 'تم الحذف بنجاح'));
+          showToast('success', t('common.success'));
         }
         store.fetchEmployees();
       } else {
-        showToast('error', t('common.error', 'حدث خطأ أثناء الحذف'));
+        showToast('error', t('common.error'));
       }
     } catch(e) { 
-      showToast('error', t('common.error', 'حدث خطأ غير متوقع'));
+      showToast('error', t('common.error'));
     }
   };
 
@@ -107,7 +105,6 @@ const HR = () => {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-6 font-sans flex flex-col gap-6 relative">
       
-      {/* 🔴 شريط الإشعارات الذكي (Toast) */}
       {toast && (
         <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 ${
           toast.type === 'success' ? 'bg-emerald-600 text-white' :
@@ -147,6 +144,12 @@ const HR = () => {
                 <input ref={inputRef} type="password" placeholder={t('hr.scanner.placeholder')} value={pinInput} onChange={(e) => setPinInput(e.target.value)} className="w-full text-center text-xl py-6 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500 tracking-widest" autoFocus />
                 <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white text-lg py-4 rounded-lg font-medium transition-colors">{t('hr.scanner.submit')}</button>
               </form>
+              
+              {/* 🔴 استخدام الترجمة للنص التوضيحي للباركود */}
+              <p className="text-xs text-slate-500 text-center mt-3">
+                {t('hr.scannerHint')}
+              </p>
+
               {feedback && <div className={`mt-4 p-3 rounded-lg text-sm text-center border ${feedback.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>{feedback.message}</div>}
             </div>
 
@@ -246,7 +249,6 @@ const HR = () => {
                       <td className="px-6 py-4 text-center flex justify-center gap-2">
                         <button onClick={() => { setFormData({ name: emp.name, role: emp.role, pinCode: emp.pin_code }); setEditingEmployee(emp); setIsDialogOpen(true); }} className="p-2 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" title={t('hr.employees.actions.edit')}><Edit size={18} /></button>
                         
-                        {/* 🔴 التعديل هنا: استخدام setEmployeeToDelete بدلاً من window.confirm */}
                         <button 
                           onClick={() => setEmployeeToDelete(emp)} 
                           className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors" 
@@ -290,9 +292,9 @@ const HR = () => {
                       setFormData({ name: "", role: "", pinCode: "" }); 
                       setEditingEmployee(null); 
                       store.fetchEmployees(); 
-                      showToast('success', t('common.success', 'تمت العملية بنجاح')); // 🔴 بدلاً من alert
+                      showToast('success', t('common.success'));
                     } else {
-                      showToast('error', t('hr.messages.error', 'حدث خطأ غير متوقع')); // 🔴 بدلاً من alert
+                      showToast('error', t('hr.messages.error')); 
                     }
                   }} className="flex flex-col gap-4 text-start">
                   <div>
@@ -325,18 +327,17 @@ const HR = () => {
         </div>
       )}
 
-      {/* 🔴 4. مكون نافذة التأكيد السوداء المخصصة */}
       <ConfirmAlert 
         isOpen={!!employeeToDelete}
         onClose={() => setEmployeeToDelete(null)}
         onConfirm={confirmDelete}
-        title={t('hr.employees.actions.delete', 'حذف حساب الموظف')}
+        title={t('hr.employees.actions.delete')}
         message={t('hr.employees.deleteConfirmMsg', { 
           name: employeeToDelete?.name, 
           defaultValue: `هل أنت متأكد من حذف حساب المستخدم:\n${employeeToDelete?.name}؟` 
         })}
-        cancelText={t('common.cancel', 'إلغاء')}
-        confirmText={t('suppliers.actions.confirmDeleteBtn', 'تأكيد الحذف')}
+        cancelText={t('common.cancel')}
+        confirmText={t('suppliers.actions.confirmDeleteBtn')}
       />
 
     </div>

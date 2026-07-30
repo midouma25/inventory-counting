@@ -24,24 +24,23 @@ const handleLogin = async (e) => {
         const response = await window.api.login({ username, password });
         
         if (response && response.success) {
-          login(response.user); // تسجيل بيانات المستخدم في حالة التطبيق (Zustand)
+          login(response.user); 
           
-          // التوجيه الذكي بعد تسجيل الدخول بناءً على الصلاحية
           if (response.user.role === 'admin' || response.user.role === 'superadmin') {
-            navigate('/'); // توجيه المدير إلى لوحة القيادة
+            navigate('/'); 
           } else {
-            navigate('/end-of-day'); // توجيه الكاشير إجبارياً إلى منصته
+            navigate('/end-of-day'); 
           }
           
         } else {
-          setError(response.message || t('login.error'));
+          // 🔴 التعديل هنا لترجمة أخطاء الباك إند
+          setError(response.message ? t(`backendErrors.${response.message}`, { defaultValue: response.message }) : t('login.error'));
         }
       } else {
-        // وضع الاختبار (Fallback)
         if(username === 'admin' && password === 'admin123') {
            login({ username: 'admin', role: 'superadmin' });
            navigate('/');
-        } else if (username === 'cashier' && password === '123') { // اختبار دخول كاشير
+        } else if (username === 'cashier' && password === '123') { 
            login({ username: 'cashier', role: 'cashier' });
            navigate('/end-of-day');
         } else {
@@ -93,13 +92,11 @@ const handleLogin = async (e) => {
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-2">{t('login.username')}</label>
             <div className="relative flex items-center">
-              {/* تم استخدام start-3 بدلاً من left/right ليتبدل مكان الأيقونة تلقائياً */}
               <User size={18} className="absolute start-4 text-slate-500" />
               <input 
                 type="text" 
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                /* تم استخدام ps-10 (Padding Start) لدفع النص بعيداً عن الأيقونة */
                 className="w-full bg-slate-950 border border-slate-700 rounded-lg py-3 ps-11 pe-4 text-white focus:outline-none focus:border-blue-500 transition-colors"
                 placeholder="admin"
                 required
