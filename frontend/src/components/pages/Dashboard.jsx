@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { TrendingUp, AlertCircle, Users, Wallet, Plus, Settings } from 'lucide-react';
+import { TrendingUp, AlertCircle, Users, Wallet, Plus, Settings, CheckCircle2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import ExpensesPieChart from '../ExpensesPieChart';
@@ -23,6 +23,13 @@ export default function Dashboard() {
   
   const { logs, fetchLogs } = useAuditStore();
 
+  // 🔴 نظام الإشعارات الذكي بدلاً من Alert
+  const [toast, setToast] = useState(null);
+  const showToast = (type, message) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 4000);
+  };
+
   useEffect(() => {
     fetchLogs();
   }, [fetchLogs]);
@@ -43,8 +50,7 @@ export default function Dashboard() {
     e.preventDefault();
     localStorage.setItem('storeName', storeName);
     setIsSettingsOpen(false);
-    alert(t('settings.modal.saveSuccess', 'تم حفظ التغييرات بنجاح!'));
-    setTimeout(() => window.focus(), 100);
+    showToast('success', t('settings.modal.saveSuccess', 'تم حفظ التغييرات بنجاح!')); // 🔴 استبدال الـ alert
   };
 
   useEffect(() => {
@@ -116,7 +122,20 @@ export default function Dashboard() {
   const customTooltipStyle = { backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc', borderRadius: '0.5rem', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)' };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans text-start">
+    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans text-start relative">
+      
+      {/* 🔴 مكون الـ Toast */}
+      {toast && (
+        <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[9999] px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 ${
+          toast.type === 'success' ? 'bg-emerald-600 text-white' :
+          toast.type === 'warning' ? 'bg-amber-600 text-white' :
+          'bg-red-600 text-white'
+        }`}>
+          {toast.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+          <span className="font-bold">{toast.message}</span>
+        </div>
+      )}
+
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-white">{t('dashboard.title')}</h1>

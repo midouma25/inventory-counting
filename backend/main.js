@@ -167,7 +167,7 @@ function startLocalNetworkServer() {
   });
 
   // بث الواجهة الأمامية (Frontend) ليتمكن الكاشير من فتحها بمتصفح كروم
-  const frontendPath = path.join(__dirname, '..', 'dist'); // المسار بعد عمل Build للـ Vite
+  const frontendPath = path.join(__dirname, '..', 'frontend', 'dist'); // المسار بعد عمل Build للـ Vite
   if (fs.existsSync(frontendPath)) {
     apiApp.use(express.static(frontendPath));
   }

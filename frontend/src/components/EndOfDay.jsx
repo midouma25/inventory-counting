@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Play, Lock, Calculator, Banknote, AlertCircle, Clock } from 'lucide-react';
+import { Play, Lock, Calculator, Banknote, AlertCircle, Clock, CheckCircle2 } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 import Modal from './ui/Modal'; 
 
@@ -20,6 +20,13 @@ export default function EndOfDay() {
   
   const [summary, setSummary] = useState({ expenses: 0, supplierPayments: 0, advances: 0, totalOut: 0 });
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+
+  // 🔴 نظام الإشعارات الذكي بدلاً من Alert
+  const [toast, setToast] = useState(null);
+  const showToast = (type, message) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   const fetchShiftData = async () => {
     setIsLoading(true);
@@ -62,7 +69,7 @@ export default function EndOfDay() {
           setOpeningBalanceInput('');
           fetchShiftData();
         } else {
-          alert(res.message || t('common.error'));
+          showToast('error', res.message || t('common.error')); // 🔴 استبدال الـ alert
         }
       }
     } catch (err) {
@@ -109,9 +116,22 @@ export default function EndOfDay() {
     return <div className="p-6 text-center text-slate-500">{t('hr.table.loading')}</div>;
   }
 
+  // وضع الإشعار في مستوى عام ليظهر في كلتا الحالتين
+  const renderToast = () => toast && (
+    <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[9999] px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 ${
+      toast.type === 'success' ? 'bg-emerald-600 text-white' :
+      toast.type === 'warning' ? 'bg-amber-600 text-white' :
+      'bg-red-600 text-white'
+    }`}>
+      {toast.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+      <span className="font-bold">{toast.message}</span>
+    </div>
+  );
+
   if (!activeShift) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans flex items-center justify-center">
+      <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans flex items-center justify-center relative">
+        {renderToast()}
         <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl">
           <div className="text-center mb-8">
             <div className="mx-auto w-16 h-16 bg-blue-600/10 rounded-full flex items-center justify-center mb-4">
@@ -149,8 +169,8 @@ export default function EndOfDay() {
   const shiftStartTime = new Date(activeShift.start_time).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans">
-      
+    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans relative">
+      {renderToast()}
       <div className="flex justify-between items-end mb-8">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">

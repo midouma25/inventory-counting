@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Calendar as CalendarIcon, CheckCircle2, Clock, Truck, Banknote, Wrench, Trash2, CalendarClock, AlertCircle, ChevronRight, ChevronLeft } from 'lucide-react';
 import Modal from '../ui/Modal';
+import ConfirmAlert from '../ui/ConfirmAlert'; // 🔴 استيراد نافذة التنبيه المخصصة
 
 export default function Agenda() {
   const { t, i18n } = useTranslation();
@@ -9,7 +10,15 @@ export default function Agenda() {
   const [filter, setFilter] = useState('all'); 
   const [tasks, setTasks] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
   const [taskToDelete, setTaskToDelete] = useState(null);
+
+  // 🔴 نظام الإشعارات الذكي (Toast)
+  const [toast, setToast] = useState(null);
+  const showToast = (type, message) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   const [currentDate, setCurrentDate] = useState(new Date());
   
@@ -65,8 +74,12 @@ export default function Agenda() {
         const normalizedTask = { ...addedTask, date: addedTask.task_date || newTask.date, time: addedTask.task_time || newTask.time };
         setTasks(prev => [...prev, normalizedTask].sort((a, b) => new Date(`${a.date} ${a.time || '00:00'}`) - new Date(`${b.date} ${b.time || '00:00'}`)));
         setIsModalOpen(false);
+        showToast('success', t('common.success')); // 🔴 إشعار بدلاً من التنبيه الأصلي
       }
-    } catch (error) { console.error("Error adding task:", error); }
+    } catch (error) { 
+      console.error("Error adding task:", error); 
+      showToast('error', t('common.error'));
+    }
   };
 
   const toggleTaskStatus = async (id, currentStatus) => {
@@ -83,10 +96,11 @@ export default function Agenda() {
     if (!taskToDelete) return;
     try {
       if (window.api && window.api.deleteAgendaTask) {
-        await window.api.deleteAgendaTask(taskToDelete);
-        setTasks(tasks.filter(task => task.id !== taskToDelete));
+        await window.api.deleteAgendaTask(taskToDelete.id);
+        setTasks(tasks.filter(task => task.id !== taskToDelete.id));
+        showToast('success', t('common.success'));
       }
-    } catch (error) { console.error(error); }
+    } catch (error) { console.error(error); showToast('error', t('common.error')); }
     setTaskToDelete(null);
   };
 
@@ -96,6 +110,7 @@ export default function Agenda() {
       if (window.api && window.api.rescheduleAgendaTask) {
         await window.api.rescheduleAgendaTask(id, newDate);
         setTasks(tasks.map(task => task.id === id ? { ...task, date: newDate, task_date: newDate } : task));
+        showToast('success', t('common.success'));
       }
     } catch (error) { console.error("Error rescheduling task:", error); }
   };
@@ -144,14 +159,27 @@ export default function Agenda() {
               <button className="p-2 text-slate-500 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-colors"><CalendarClock size={18} /></button>
             </div>
           )}
-          <button onClick={() => setTaskToDelete(task.id)} className="p-2 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors" title={t('suppliers.actions.delete')}><Trash2 size={18} /></button>
+          <button onClick={() => setTaskToDelete(task)} className="p-2 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors" title={t('suppliers.actions.delete')}><Trash2 size={18} /></button>
         </div>
       </div>
     );
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans text-start">
+    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans text-start relative">
+      
+      {/* 🔴 مكون الـ Toast */}
+      {toast && (
+        <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[9999] px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 ${
+          toast.type === 'success' ? 'bg-emerald-600 text-white' :
+          toast.type === 'warning' ? 'bg-amber-600 text-white' :
+          'bg-red-600 text-white'
+        }`}>
+          {toast.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+          <span className="font-bold">{toast.message}</span>
+        </div>
+      )}
+
       <div className="flex justify-between items-center mb-8 text-start">
         <div>
           <h1 className="text-3xl font-bold text-white">{t('agenda.title')}</h1>
@@ -259,19 +287,16 @@ export default function Agenda() {
         </form>
       </Modal>
 
-      <Modal isOpen={!!taskToDelete} onClose={() => setTaskToDelete(null)} title={t('suppliers.actions.delete')}>
-        <div className="p-4 text-start">
-          <p className="text-white mb-6 text-lg">{t('agenda.deleteConfirm', 'هل أنت متأكد من حذف هذه المهمة من الأجندة؟')}</p>
-          <div className="flex items-center justify-end gap-3 mt-4">
-            <button onClick={() => setTaskToDelete(null)} className="px-4 py-2 text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
-              {t('common.cancel')}
-            </button>
-            <button onClick={confirmDeleteTask} className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
-              {t('suppliers.actions.confirmDeleteBtn')}
-            </button>
-          </div>
-        </div>
-      </Modal>
+      {/* 🔴 استخدام النافذة السوداء المخصصة بدلاً من النافذة العادية */}
+      <ConfirmAlert 
+        isOpen={!!taskToDelete}
+        onClose={() => setTaskToDelete(null)}
+        onConfirm={confirmDeleteTask}
+        title={t('suppliers.actions.delete', 'حذف')}
+        message={t('agenda.deleteConfirm', 'هل أنت متأكد من حذف هذه المهمة من الأجندة؟')}
+        cancelText={t('common.cancel', 'إلغاء')}
+        confirmText={t('suppliers.actions.confirmDeleteBtn', 'تأكيد الحذف')}
+      />
 
     </div>
   );

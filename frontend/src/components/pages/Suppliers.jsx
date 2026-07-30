@@ -4,8 +4,9 @@ import { useReactTable, getCoreRowModel, getFilteredRowModel, getSortedRowModel,
 import { useNavigate } from 'react-router-dom';
 import useSupplierStore from '../../store/supplierStore';
 import useEmployeeStore from '../../store/employeeStore'; 
+import ConfirmAlert from '../ui/ConfirmAlert'; // 🔴 إضافة النافذة المخصصة
 import Modal from '../ui/Modal';
-import { Plus, Search, ArrowUpDown, ArrowRight, ArrowLeft, FileText, Banknote, ArrowUpRight, ArrowDownRight, Calendar, Eye, Edit, Trash2, Upload } from 'lucide-react';
+import { Plus, Search, ArrowUpDown, ArrowRight, ArrowLeft, FileText, Banknote, ArrowUpRight, ArrowDownRight, Calendar, Eye, Edit, Trash2, Upload, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export default function Suppliers() {
   const { t, i18n } = useTranslation();
@@ -17,7 +18,6 @@ export default function Suppliers() {
   
   const [globalFilter, setGlobalFilter] = useState('');
   
-  // حالات النوافذ (Modals)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState(null);
   const [supplierToDelete, setSupplierToDelete] = useState(null);
@@ -25,14 +25,20 @@ export default function Suppliers() {
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   const [transactionType, setTransactionType] = useState('receipt'); 
   const [editingTransactionId, setEditingTransactionId] = useState(null); 
-  const [transactionToDelete, setTransactionToDelete] = useState(null); // 🔴 حالة جديدة لحذف المعاملات
+  const [transactionToDelete, setTransactionToDelete] = useState(null); 
 
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
 
-  // حالات البيانات (Forms)
   const [formData, setFormData] = useState({ name: '', phone: '', initialDebt: 0 });
   const [transactionData, setTransactionData] = useState({ amount: '', date: new Date().toISOString().split('T')[0], note: '', caisseSource: '' });
   const [scheduleData, setScheduleData] = useState({ amount: '', date: new Date().toISOString().split('T')[0], time: '10:00', note: '' });
+
+  // 🔴 نظام الإشعارات الذكي (Toast)
+  const [toast, setToast] = useState(null);
+  const showToast = (type, message) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   useEffect(() => { fetchSuppliers(); fetchEmployees(); }, []);
 
@@ -52,9 +58,9 @@ export default function Suppliers() {
       setEditingSupplier(null);
       setFormData({ name: '', phone: '', initialDebt: 0 }); 
       fetchSuppliers();
+      showToast('success', t('common.success'));
     } else {
-      alert(t('suppliers.messages.saveError'));
-      setTimeout(() => window.focus(), 100);
+      showToast('error', t('suppliers.messages.saveError')); // 🔴 استبدال Alert
     }
   };
 
@@ -73,10 +79,10 @@ export default function Suppliers() {
     const res = await deleteSupplier(supplierToDelete);
     if (res && res.success) {
       fetchSuppliers();
+      showToast('success', t('common.success'));
     } else {
       const errorMessage = res?.errorKey ? t(`suppliers.messages.${res.errorKey}`) : t('suppliers.messages.deleteError');
-      alert(errorMessage);
-      setTimeout(() => window.focus(), 100);
+      showToast('error', errorMessage); // 🔴 استبدال Alert
     }
     setSupplierToDelete(null); 
   };
@@ -109,15 +115,17 @@ export default function Suppliers() {
       setIsTransactionModalOpen(false);
       fetchSupplierDetails(currentSupplier.id); 
       fetchSuppliers(); 
-    } catch (error) { console.error("Error saving transaction:", error); }
+      showToast('success', t('common.success'));
+    } catch (error) { 
+      console.error("Error saving transaction:", error); 
+      showToast('error', t('common.error'));
+    }
   };
 
-  // 🔴 دالة لفتح مودال حذف المعاملة المالية
   const handleDeleteTransactionClick = (type, id) => {
     setTransactionToDelete({ type, id });
   };
 
-  // 🔴 التنفيذ الفعلي لحذف المعاملة
   const executeDeleteTransaction = async () => {
     if (!transactionToDelete) return;
     try {
@@ -131,9 +139,9 @@ export default function Suppliers() {
       if (res && res.success) {
         fetchSupplierDetails(currentSupplier.id); 
         fetchSuppliers(); 
+        showToast('success', t('common.success'));
       } else {
-        alert(t('common.error'));
-        setTimeout(() => window.focus(), 100);
+        showToast('error', t('common.error')); // 🔴 استبدال Alert
       }
     } catch (error) { console.error(error); }
     setTransactionToDelete(null);
@@ -144,12 +152,10 @@ export default function Suppliers() {
       if (window.api && window.api.importSuppliersExcel) {
         const res = await window.api.importSuppliersExcel();
         if (res && res.success) {
-          alert(t('suppliers.actions.importSuccess', { count: res.count }));
-          setTimeout(() => window.focus(), 100);
+          showToast('success', t('suppliers.actions.importSuccess', { count: res.count })); // 🔴 استبدال Alert
           fetchSuppliers(); 
         } else if (res && !res.canceled) {
-          alert(t('suppliers.actions.importError') + "\n" + res.error);
-          setTimeout(() => window.focus(), 100);
+          showToast('error', t('suppliers.actions.importError') + " \n" + res.error); // 🔴 استبدال Alert
         }
       }
     } catch (error) { console.error(error); }
@@ -181,9 +187,23 @@ export default function Suppliers() {
 
   const table = useReactTable({ data: suppliers, columns, state: { globalFilter }, onGlobalFilterChange: setGlobalFilter, getCoreRowModel: getCoreRowModel(), getFilteredRowModel: getFilteredRowModel(), getSortedRowModel: getSortedRowModel() });
   
+  // وظيفة مخصصة لعرض الإشعار (مكررة داخل الـ Render) لتجنب التكرار في الحالتين
+  const renderToast = () => toast && (
+    <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[9999] px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 ${
+      toast.type === 'success' ? 'bg-emerald-600 text-white' :
+      toast.type === 'warning' ? 'bg-amber-600 text-white' :
+      'bg-red-600 text-white'
+    }`}>
+      {toast.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+      <span className="font-bold">{toast.message}</span>
+    </div>
+  );
+
   if (currentSupplier) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans relative text-start">
+        {renderToast()}
+        
         <div className="flex justify-between items-center mb-8 border-b border-slate-800 pb-6 print:hidden">
           <div className="flex items-center gap-4">
             <button onClick={clearCurrentSupplier} className="p-2 bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
@@ -325,8 +345,7 @@ export default function Suppliers() {
                  amount: Number(scheduleData.amount)
                });
                setIsScheduleModalOpen(false);
-               alert(t('common.success'));
-               setTimeout(() => window.focus(), 100);
+               showToast('success', t('common.success')); // 🔴 استبدال Alert
             } catch(error) { console.error(error); }
           }} className="space-y-4 text-start">
             <div>
@@ -348,20 +367,15 @@ export default function Suppliers() {
           </form>
         </Modal>
 
-        {/* 🔴 مودال تأكيد حذف المعاملة المالية */}
-        <Modal isOpen={!!transactionToDelete} onClose={() => setTransactionToDelete(null)} title={t('suppliers.actions.delete')}>
-          <div className="p-4 text-start">
-            <p className="text-white mb-6 text-lg">{t('suppliers.actions.deleteConfirm')}</p>
-            <div className="flex items-center justify-end gap-3 mt-4">
-              <button onClick={() => setTransactionToDelete(null)} className="px-4 py-2 text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
-                {t('common.cancel')}
-              </button>
-              <button onClick={executeDeleteTransaction} className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
-                {t('suppliers.actions.confirmDeleteBtn')}
-              </button>
-            </div>
-          </div>
-        </Modal>
+        {/* 🔴 استخدام النافذة السوداء المخصصة بدلاً من Modal العادية */}
+        <ConfirmAlert 
+          isOpen={!!transactionToDelete}
+          onClose={() => setTransactionToDelete(null)}
+          onConfirm={executeDeleteTransaction}
+          title={t('suppliers.actions.delete')}
+          message={t('suppliers.actions.deleteConfirm')}
+          confirmText={t('suppliers.actions.confirmDeleteBtn')}
+        />
 
       </div>
     );
@@ -369,6 +383,7 @@ export default function Suppliers() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans relative text-start">
+      {renderToast()}
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-white">{t('suppliers.title')}</h1>
@@ -452,20 +467,15 @@ export default function Suppliers() {
         </form>
       </Modal>
     
-      {/* 🔴 مودال تأكيد حذف المورد */}
-      <Modal isOpen={!!supplierToDelete} onClose={() => setSupplierToDelete(null)} title={t('suppliers.actions.delete')}>
-        <div className="p-4 text-start">
-          <p className="text-white mb-6 text-lg">{t('suppliers.actions.deleteConfirm')}</p>
-          <div className="flex items-center justify-end gap-3 mt-4">
-            <button onClick={() => setSupplierToDelete(null)} className="px-4 py-2 text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
-              {t('common.cancel')}
-            </button>
-            <button onClick={executeDeleteSupplier} className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
-              {t('suppliers.actions.confirmDeleteBtn')}
-            </button>
-          </div>
-        </div>
-      </Modal>
+      {/* 🔴 استخدام النافذة السوداء المخصصة بدلاً من Modal العادية */}
+      <ConfirmAlert 
+        isOpen={!!supplierToDelete}
+        onClose={() => setSupplierToDelete(null)}
+        onConfirm={executeDeleteSupplier}
+        title={t('suppliers.actions.delete')}
+        message={t('suppliers.actions.deleteConfirm')}
+        confirmText={t('suppliers.actions.confirmDeleteBtn')}
+      />
 
     </div>
   );

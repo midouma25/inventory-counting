@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Calculator, Banknote, Clock, Users, Calendar, MinusCircle, CheckCircle, Plus, AlertCircle, FileText, Printer, Eye } from 'lucide-react';
+import { Calculator, Banknote, Clock, Users, Calendar, MinusCircle, CheckCircle, Plus, AlertCircle, FileText, Printer, Eye, CheckCircle2 } from 'lucide-react';
 
 import useEmployeeStore from '../../store/employeeStore';
 import usePayrollStore from '../../store/payrollStore';
-import Modal from '../ui/Modal';
+import ConfirmAlert from '../ui/ConfirmAlert'; // 🔴 إضافة النافذة المخصصة
+import Modal from '../ui/Modal'; // لا يزال مستخدماً لإضافة السلفة لأنه Form
 
 export default function Payroll() {
   const { t, i18n } = useTranslation();
@@ -30,6 +31,13 @@ export default function Payroll() {
   const [advanceData, setAdvanceData] = useState({ employeeId: '', amount: '', date: today.toISOString().split('T')[0], caisseSource: '', note: '' });
 
   const [confirmModalData, setConfirmModalData] = useState(null);
+
+  // 🔴 نظام الإشعارات الذكي (Toast)
+  const [toast, setToast] = useState(null);
+  const showToast = (type, message) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   useEffect(() => {
     fetchEmployees();
@@ -58,6 +66,9 @@ export default function Payroll() {
       setAdvanceData({ employeeId: '', amount: '', date: today.toISOString().split('T')[0], caisseSource: '', note: '' });
       if (payrollResult) handleCalculate(); 
       fetchAdvances();
+      showToast('success', t('common.success', 'تمت إضافة السلفة بنجاح'));
+    } else {
+      showToast('error', t('common.error', 'حدث خطأ غير متوقع'));
     }
   };
 
@@ -86,9 +97,9 @@ export default function Payroll() {
       fetchSalaries();
       fetchAdvances();
       clearPayrollResult();
+      showToast('success', t('common.success'));
     } else {
-      alert(t('common.error') + ' \n' + res.error);
-      setTimeout(() => window.focus(), 100);
+      showToast('error', t('common.error') + ' \n' + res.error); // 🔴 استبدال Alert
     }
     setConfirmModalData(null);
   };
@@ -102,7 +113,20 @@ export default function Payroll() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans flex flex-col gap-6 text-start">
+    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans flex flex-col gap-6 text-start relative">
+      
+      {/* 🔴 مكون الـ Toast */}
+      {toast && (
+        <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[9999] px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 ${
+          toast.type === 'success' ? 'bg-emerald-600 text-white' :
+          toast.type === 'warning' ? 'bg-amber-600 text-white' :
+          'bg-red-600 text-white'
+        }`}>
+          {toast.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+          <span className="font-bold">{toast.message}</span>
+        </div>
+      )}
+
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-bold text-white flex items-center gap-3 mb-2"><Banknote className="text-emerald-500" />{t('payroll.title')}</h1>
@@ -237,7 +261,7 @@ export default function Payroll() {
               <FileText size={18} className="text-blue-400" /> {t('payroll.tabs.salaries')}
             </h3>
             <button onClick={() => {
-                if(salaries.length === 0) return alert(t('payroll.noSalariesToPrint'));
+                if(salaries.length === 0) return showToast('warning', t('payroll.noSalariesToPrint')); // 🔴 استبدال Alert
                 navigate('/preview', { state: { type: 'all-salaries', salaries: salaries }});
               }}
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-md"
@@ -315,23 +339,16 @@ export default function Payroll() {
         </form>
       </Modal>
 
-      <Modal isOpen={!!confirmModalData} onClose={() => setConfirmModalData(null)} title={t('payroll.payBtn')}>
-        <div className="p-4 text-start">
-          <p className="text-white mb-6 text-lg">
-            {confirmModalData?.type === 'rollover' 
-              ? t('payroll.rolloverConfirm') 
-              : t('payroll.standardConfirm')}
-          </p>
-          <div className="flex items-center justify-end gap-3 mt-4">
-            <button onClick={() => setConfirmModalData(null)} className="px-4 py-2 text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
-              {t('common.cancel')}
-            </button>
-            <button onClick={executePayment} className={`px-4 py-2 text-white rounded-lg transition-colors ${confirmModalData?.type === 'rollover' ? 'bg-orange-600 hover:bg-orange-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
-              {t('common.success')}
-            </button>
-          </div>
-        </div>
-      </Modal>
+      {/* 🔴 استخدام النافذة السوداء المخصصة بدلاً من Modal العادية */}
+      <ConfirmAlert 
+        isOpen={!!confirmModalData}
+        onClose={() => setConfirmModalData(null)}
+        onConfirm={executePayment}
+        title={t('payroll.payBtn')}
+        message={confirmModalData?.type === 'rollover' ? t('payroll.rolloverConfirm') : t('payroll.standardConfirm')}
+        confirmText={t('common.success')}
+        confirmColor={confirmModalData?.type === 'rollover' ? 'bg-orange-600 hover:bg-orange-700' : 'bg-emerald-600 hover:bg-emerald-700'}
+      />
     </div>
   );
 }

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Shield, UserPlus, Trash2, Users, Key, AlertCircle, Save, Upload } from 'lucide-react';
+import { Shield, UserPlus, Trash2, Users, Key, AlertCircle, Save, Upload, CheckCircle2 } from 'lucide-react';
 import useAuthStore from '../store/authStore';
-import Modal from './ui/Modal';
+import ConfirmAlert from './ui/ConfirmAlert'; // 🔴 إضافة النافذة المخصصة
 
 export default function UsersManagement() {
   const { t, i18n } = useTranslation();
@@ -15,10 +15,17 @@ export default function UsersManagement() {
   const [role, setRole] = useState('cashier');
   
   const [userToDelete, setUserToDelete] = useState(null); 
-  const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false); // مودال استعادة النسخة
+  const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false); 
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // 🔴 نظام الإشعارات الذكي
+  const [toast, setToast] = useState(null);
+  const showToast = (type, message) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   const fetchUsers = async () => {
     setIsLoading(true);
@@ -46,6 +53,7 @@ export default function UsersManagement() {
         if (res.success) {
           setUsername(''); setPassword(''); setRole('cashier');
           fetchUsers();
+          showToast('success', t('common.success'));
         } else {
           setError(res.message || t('settings.addError'));
         }
@@ -55,8 +63,7 @@ export default function UsersManagement() {
 
   const handleDeleteUserClick = (id, name) => {
     if (name === 'admin' || name === currentUser?.username) {
-      alert(t('settings.deleteAlert')); 
-      setTimeout(() => window.focus(), 100);
+      showToast('warning', t('settings.deleteAlert')); // 🔴 Toast بدل alert
       return;
     }
     setUserToDelete({ id, name }); 
@@ -69,16 +76,16 @@ export default function UsersManagement() {
         const res = await window.api.deleteUser(userToDelete.id);
         if (res.success) {
           if (res.isSoftDeleted) {
-              alert(t('hr.employees.softDeleted', 'تم تعطيل الحساب لحماية سجلاته المالية.')); 
-              setTimeout(() => window.focus(), 100);
+              showToast('warning', t('hr.employees.softDeleted', 'تم تعطيل الحساب لحماية سجلاته المالية.')); 
+          } else {
+              showToast('success', t('common.success'));
           }
           fetchUsers();
         } else { 
-            alert(res.error || t('settings.deleteError')); 
-            setTimeout(() => window.focus(), 100);
+            showToast('error', res.error || t('settings.deleteError')); 
         }
       }
-    } catch (err) { console.error(err); }
+    } catch (err) { console.error(err); showToast('error', t('settings.deleteError')); }
     setUserToDelete(null); 
   };
 
@@ -94,15 +101,14 @@ export default function UsersManagement() {
     try {
       const result = await window.api.backupDatabase();
       if (result.success) { 
-          alert(t('database.messages.backupSuccess')); 
+          showToast('success', t('database.messages.backupSuccess')); 
       } 
       else if (!result.canceled) { 
-          alert(t('database.messages.error') + "\n" + (result.error || '')); 
+          showToast('error', t('database.messages.error') + "\n" + (result.error || '')); 
       }
     } catch (error) { 
-        alert(t('database.messages.error')); 
+        showToast('error', t('database.messages.error')); 
     }
-    setTimeout(() => window.focus(), 100); 
   };
 
   const confirmRestore = async () => {
@@ -110,19 +116,31 @@ export default function UsersManagement() {
       try {
         const result = await window.api.restoreDatabase();
         if (result.success) { 
-            alert(t('database.messages.restoreSuccess')); 
+            showToast('success', t('database.messages.restoreSuccess')); 
         } 
         else if (!result.canceled) { 
-            alert(t('database.messages.error') + "\n" + (result.error || '')); 
+            showToast('error', t('database.messages.error') + "\n" + (result.error || '')); 
         }
       } catch (error) { 
-          alert(t('database.messages.error')); 
+          showToast('error', t('database.messages.error')); 
       }
-      setTimeout(() => window.focus(), 100); 
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans text-start">
+    <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans text-start relative">
+      
+      {/* 🔴 مكون الـ Toast */}
+      {toast && (
+        <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[9999] px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 ${
+          toast.type === 'success' ? 'bg-emerald-600 text-white' :
+          toast.type === 'warning' ? 'bg-amber-600 text-white' :
+          'bg-red-600 text-white'
+        }`}>
+          {toast.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+          <span className="font-bold">{toast.message}</span>
+        </div>
+      )}
+
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
           <Shield className="text-blue-500" /> {t('settings.title')}
@@ -159,10 +177,10 @@ export default function UsersManagement() {
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-2">{t('settings.role')}</label>
                 <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-blue-500 text-start" dir={isRTL ? "rtl" : "ltr"}>
-                  <option value="cashier">{t('hr.roles.cashier', 'بائع (كاشير)')}</option>
-                  <option value="scale">{t('hr.roles.scale', 'عامل ميزان')}</option>
-                  <option value="stock">{t('hr.roles.stock', 'ترتيبات')}</option>
-                  <option value="admin">{t('hr.roles.admin', 'مدير عام')}</option>
+                  <option value="cashier">{t('hr.roles.cashier')}</option>
+                  <option value="scale">{t('hr.roles.scale')}</option>
+                  <option value="stock">{t('hr.roles.stock')}</option>
+                  <option value="admin">{t('hr.roles.admin')}</option>
                 </select>
               </div>
 
@@ -247,38 +265,26 @@ export default function UsersManagement() {
         </div>
       </div>
 
-      <Modal isOpen={!!userToDelete} onClose={() => setUserToDelete(null)} title={t('suppliers.actions.delete')}>
-        <div className="p-4 text-start">
-          <p className="text-white mb-6 text-lg">
-            {t('settings.deleteConfirm', { name: userToDelete?.name })}
-          </p>
-          <div className="flex items-center justify-end gap-3 mt-4">
-            <button onClick={() => setUserToDelete(null)} className="px-4 py-2 text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
-              {t('common.cancel')}
-            </button>
-            <button onClick={confirmDelete} className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
-              {t('suppliers.actions.confirmDeleteBtn')}
-            </button>
-          </div>
-        </div>
-      </Modal>
+      {/* 🔴 استخدام النافذة السوداء المخصصة بدلاً من Modal العادية */}
+      <ConfirmAlert 
+        isOpen={!!userToDelete}
+        onClose={() => setUserToDelete(null)}
+        onConfirm={confirmDelete}
+        title={t('suppliers.actions.delete')}
+        message={t('settings.deleteConfirm', { name: userToDelete?.name })}
+        confirmText={t('suppliers.actions.confirmDeleteBtn')}
+      />
 
-      <Modal isOpen={isRestoreModalOpen} onClose={() => setIsRestoreModalOpen(false)} title={t('database.restore')}>
-        <div className="p-4 text-start">
-          <div className="flex items-center gap-3 text-red-400 bg-red-950/30 p-4 rounded-lg border border-red-900 mb-6">
-             <AlertCircle size={24} />
-             <p className="font-bold">{t('database.messages.restoreConfirm')}</p>
-          </div>
-          <div className="flex items-center justify-end gap-3 mt-4">
-            <button onClick={() => setIsRestoreModalOpen(false)} className="px-4 py-2 text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
-              {t('common.cancel')}
-            </button>
-            <button onClick={confirmRestore} className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
-              {t('common.success', 'تأكيد العملية')}
-            </button>
-          </div>
-        </div>
-      </Modal>
+      {/* 🔴 استخدام النافذة السوداء المخصصة لاسترجاع النسخة الاحتياطية */}
+      <ConfirmAlert 
+        isOpen={isRestoreModalOpen}
+        onClose={() => setIsRestoreModalOpen(false)}
+        onConfirm={confirmRestore}
+        title={t('database.restore')}
+        message={t('database.messages.restoreConfirm')}
+        confirmText={t('common.confirm')}
+        confirmColor="bg-red-600 hover:bg-red-700"
+      />
 
     </div>
   );
