@@ -254,6 +254,14 @@
     "rolloverConfirm": "Since advances exceed earned salary, the payable salary will be set to 'zero' and the remaining amount will be rolled over as a 'new advance'. Do you want to proceed?",
     "standardConfirm": "Are you sure you want to disburse this salary? It will be recorded as an expense in the system."
   },
+  "pos": {
+    "title": "Point of Sale (POS)",
+    "scanPlaceholder": "Scan barcode or search for product by name...",
+    "cart": "Shopping Cart",
+    "emptyCart": "Cart is empty, start by scanning products",
+    "total": "Total Amount",
+    "pay": "Pay & Print Receipt"
+  },
   "agenda": {
     "title": "Agenda & Tasks",
     "subtitle": "Organize appointments, due payments, and store tasks",

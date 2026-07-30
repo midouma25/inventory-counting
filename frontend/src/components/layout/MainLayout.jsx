@@ -3,9 +3,13 @@ import { Outlet } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
+// 🔴 التصحيح هنا: رجعنا خطوتين فقط (../../)
+import useAuthStore from '../../store/authStore'; 
 
 export default function MainLayout() {
   const { i18n } = useTranslation();
+  const user = useAuthStore(state => state.user);
+  const isCashier = user?.role === 'cashier' || user?.role === 'scale' || user?.role === 'stock';
 
   useEffect(() => {
     document.documentElement.dir = i18n.dir();
@@ -13,17 +17,18 @@ export default function MainLayout() {
   }, [i18n.language]);
 
   return (
-    // أضفنا فئات الطباعة print:bg-white print:text-black print:h-auto
     <div className="flex h-screen bg-slate-950 overflow-hidden font-sans print:h-auto print:bg-white print:text-black" dir={i18n.dir()}>
-      <div className="print:hidden">
-        <Sidebar />
-      </div>
+      {!isCashier && (
+        <div className="print:hidden">
+          <Sidebar />
+        </div>
+      )}
+      
       <div className="flex-1 flex flex-col h-screen overflow-hidden print:h-auto print:overflow-visible">
         <div className="print:hidden">
           <Topbar />
         </div>
-        {/* أضفنا print:overflow-visible لضمان عدم اقتصاص الورقة */}
-        <main className="flex-1 overflow-y-auto print:overflow-visible">
+        <main className="flex-1 overflow-y-auto print:overflow-visible relative">
           <Outlet />
         </main>
       </div>
