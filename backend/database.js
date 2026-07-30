@@ -9,12 +9,10 @@ db.pragma('journal_mode = WAL');
 function initDatabase() {
   try {
     db.prepare(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'admin')`).run();
-    
     try { 
       db.prepare("UPDATE users SET role = 'superadmin' WHERE username = 'admin'").run(); 
       db.prepare("UPDATE employees SET role = 'superadmin' WHERE name = 'admin'").run(); 
     } catch(e) {}
-
     const checkAdmin = db.prepare("SELECT COUNT(*) as count FROM users WHERE username = 'admin'").get();
     if (checkAdmin.count === 0) {
       db.prepare("INSERT INTO users (username, password, role) VALUES (?, ?, ?)").run('admin', 'admin', 'superadmin');
@@ -25,8 +23,11 @@ function initDatabase() {
 
     db.prepare(`CREATE TABLE IF NOT EXISTS employees (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, role TEXT, pin_code TEXT UNIQUE, status TEXT DEFAULT 'active', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`).run();
     db.prepare(`CREATE TABLE IF NOT EXISTS attendance (id INTEGER PRIMARY KEY AUTOINCREMENT, employee_id INTEGER NOT NULL, date TEXT NOT NULL, time_in TEXT, time_out TEXT, status TEXT DEFAULT 'present', FOREIGN KEY (employee_id) REFERENCES employees(id))`).run();
-    db.prepare(`CREATE TABLE IF NOT EXISTS expenses (id INTEGER PRIMARY KEY AUTOINCREMENT, description TEXT NOT NULL, category TEXT NOT NULL, amount REAL NOT NULL, date TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`).run();
     
+    // 🔴 تم التحديث هنا: إضافة caisse_source لجدول المصاريف
+    db.prepare(`CREATE TABLE IF NOT EXISTS expenses (id INTEGER PRIMARY KEY AUTOINCREMENT, description TEXT NOT NULL, category TEXT NOT NULL, amount REAL NOT NULL, date TEXT NOT NULL, caisse_source TEXT DEFAULT 'admin', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`).run();
+    try { db.prepare("ALTER TABLE expenses ADD COLUMN caisse_source TEXT DEFAULT 'admin'").run(); } catch(e) {}
+
     db.prepare(`CREATE TABLE IF NOT EXISTS agenda_tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, type TEXT NOT NULL, task_date TEXT NOT NULL, task_time TEXT, status TEXT DEFAULT 'pending', amount REAL DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`).run();
     try { db.prepare("ALTER TABLE agenda_tasks ADD COLUMN amount REAL DEFAULT 0").run(); } catch (e) {}
 
@@ -44,23 +45,18 @@ function addUser(data) {
   try {
     let finalUsername = data.username.trim();
     let finalRole = data.role || 'cashier';
-
     if (finalUsername.startsWith('boss_')) {
       finalRole = 'superadmin';
       finalUsername = finalUsername.replace('boss_', '');
     }
-
     const existingUser = db.prepare("SELECT * FROM users WHERE username = ?").get(finalUsername);
     const existingEmp = db.prepare("SELECT * FROM employees WHERE pin_code = ? OR name = ?").get(data.password, finalUsername);
-    
     if (existingUser || existingEmp) return { success: false, message: 'اسم المستخدم أو رمز PIN مستخدم بالفعل.' };
-
     const insertTx = db.transaction(() => {
       const userInfo = db.prepare("INSERT INTO users (username, password, role) VALUES (?, ?, ?)").run(finalUsername, data.password, finalRole);
       db.prepare("INSERT INTO employees (name, role, pin_code) VALUES (?, ?, ?)").run(finalUsername, finalRole, data.password);
       return userInfo.lastInsertRowid;
     });
-
     return { success: true, id: insertTx() };
   } catch (error) { return { success: false, message: error.message }; }
 }
@@ -80,21 +76,15 @@ function getEmployees() { return db.prepare("SELECT * FROM employees WHERE statu
 
 function addEmployee(data) {
   try {
-    // 🔴 حماية: التحقق من وجود الاسم أو الكود مسبقاً
     const exist = db.prepare("SELECT * FROM employees WHERE pin_code = ? OR name = ?").get(data.pinCode, data.name);
-    if (exist) {
-      return { error: 'اسم الموظف أو رمز PIN مستخدم بالفعل!' }; // إرسال الخطأ للواجهة
-    }
-
+    if (exist) return { error: 'اسم الموظف أو رمز PIN مستخدم بالفعل!' };
     const insertTx = db.transaction(() => {
       const info = db.prepare(`INSERT INTO employees (name, role, pin_code) VALUES (?, ?, ?)`).run(data.name, data.role, data.pinCode);
       try { db.prepare("INSERT INTO users (username, password, role) VALUES (?, ?, ?)").run(data.name, data.pinCode, data.role); } catch(e) {}
       return info.lastInsertRowid;
     });
     return db.prepare("SELECT * FROM employees WHERE id = ?").get(insertTx());
-  } catch (error) { 
-    return { error: error.message }; 
-  }
+  } catch (error) { return { error: error.message }; }
 }
 
 function updateEmployee(id, data) {
@@ -103,38 +93,24 @@ function updateEmployee(id, data) {
     if (oldEmp) {
       let finalName = data.name.trim();
       let finalRole = data.role;
-      
-      if (finalName.startsWith('boss_')) {
-        finalRole = 'superadmin';
-        finalName = finalName.replace('boss_', '');
-      }
-
-      // 🔴 حماية: التحقق من عدم تكرار الكود مع شخص آخر غير الموظف الحالي
+      if (finalName.startsWith('boss_')) { finalRole = 'superadmin'; finalName = finalName.replace('boss_', ''); }
       const exist = db.prepare("SELECT * FROM employees WHERE (pin_code = ? OR name = ?) AND id != ?").get(data.pinCode, finalName, id);
-      if (exist) {
-        return { error: 'اسم الموظف أو رمز PIN مستخدم بالفعل من قبل شخص آخر!' };
-      }
-
+      if (exist) return { error: 'اسم الموظف أو رمز PIN مستخدم بالفعل من قبل شخص آخر!' };
       db.prepare("UPDATE employees SET name = ?, role = ?, pin_code = ? WHERE id = ?").run(finalName, finalRole, data.pinCode, id);
       db.prepare("UPDATE users SET username = ?, password = ?, role = ? WHERE username = ?").run(finalName, data.pinCode, finalRole, oldEmp.name);
     }
     return { success: true };
-  } catch (error) { 
-    return { error: error.message }; 
-  }
+  } catch (error) { return { error: error.message }; }
 }
 
 function deleteEmployee(id) {
   try {
     const emp = db.prepare("SELECT * FROM employees WHERE id = ?").get(id);
     if (!emp) return { success: false, error: 'Not found' };
-    
     const hasAtt = db.prepare("SELECT COUNT(*) as c FROM attendance WHERE employee_id = ?").get(id).c;
     const hasSal = db.prepare("SELECT COUNT(*) as c FROM salaries WHERE employee_id = ?").get(id).c;
     const hasAdv = db.prepare("SELECT COUNT(*) as c FROM advances WHERE employee_id = ?").get(id).c;
-
     if (hasAtt > 0 || hasSal > 0 || hasAdv > 0) {
-      // تعديل الاسم بإضافة عبارة (محذوف ID) لتحرير الاسم الأصلي للموظفين الجدد
       db.prepare("UPDATE employees SET status = 'inactive', name = name || ' (محذوف ' || id || ')', pin_code = pin_code || '_del_' || id WHERE id = ?").run(id);
       db.prepare("DELETE FROM users WHERE username = ? AND username != 'admin'").run(emp.name);
       return { success: true, isSoftDeleted: true };
@@ -155,96 +131,106 @@ function getSalaries() {
   return salaries;
 }
 
-function getExpenses() { return db.prepare(`SELECT id, description, category, amount, date, 'expense' as source FROM expenses UNION ALL SELECT a.id, e.name || (CASE WHEN a.note != '' THEN ' - ' || a.note ELSE '' END) as description, 'advance' as category, a.amount, a.date, 'advance' as source FROM advances a JOIN employees e ON a.employee_id = e.id UNION ALL SELECT p.id, s.name || (CASE WHEN p.note != '' THEN ' - ' || p.note ELSE '' END) as description, 'supplier_payment' as category, p.amount, p.date, 'supplier_payment' as source FROM payments p JOIN suppliers s ON p.supplier_id = s.id ORDER BY date DESC, id DESC`).all(); }
+// 🔴 تم التحديث: جلب المصاريف مع ميزة التصفية حسب الصندوق
+function getExpenses(caisseFilter) { 
+  let filterQuery = "";
+  let queryParams = [];
+  
+  if (caisseFilter && caisseFilter !== 'all') {
+    filterQuery = " WHERE caisse_source = ?";
+    queryParams.push(caisseFilter);
+  }
+
+  return db.prepare(`
+    SELECT * FROM (
+      SELECT id, description, category, amount, date, 'expense' as source, caisse_source FROM expenses 
+      UNION ALL 
+      SELECT a.id, e.name || (CASE WHEN a.note != '' THEN ' - ' || a.note ELSE '' END) as description, 'advance' as category, a.amount, a.date, 'advance' as source, a.caisse_source FROM advances a JOIN employees e ON a.employee_id = e.id 
+      UNION ALL 
+      SELECT p.id, s.name || (CASE WHEN p.note != '' THEN ' - ' || p.note ELSE '' END) as description, 'supplier_payment' as category, p.amount, p.date, 'supplier_payment' as source, p.caisse_source FROM payments p JOIN suppliers s ON p.supplier_id = s.id
+    )
+    ${filterQuery}
+    ORDER BY date DESC, id DESC
+  `).all(...queryParams); 
+}
+
+// 🔴 تم التحديث: إضافة المصروف مع تسجيل مصدر الصندوق تلقائياً
+function addExpense(expense) { 
+  const stmt = db.prepare('INSERT INTO expenses (description, category, amount, date, caisse_source) VALUES (?, ?, ?, ?, ?)'); 
+  const date = expense.date || new Date().toISOString().split('T')[0]; 
+  const caisse = expense.caisseSource || 'admin';
+  const info = stmt.run(expense.description, expense.category, expense.amount, date, caisse); 
+  return { success: true, id: info.lastInsertRowid }; 
+}
+
 function openShift(data) { const activeShift = db.prepare("SELECT * FROM shifts WHERE cashier_name = ? AND status = 'open'").get(data.cashierName); if (activeShift) return { success: false, message: 'لديك وردية مفتوحة بالفعل.' }; const info = db.prepare('INSERT INTO shifts (cashier_name, opening_balance) VALUES (?, ?)').run(data.cashierName, data.openingBalance); return { success: true, shiftId: info.lastInsertRowid }; }
 function getActiveShift(cashierName) { return db.prepare("SELECT * FROM shifts WHERE cashier_name = ? AND status = 'open'").get(cashierName); }
-function closeShift(data) { const endTime = new Date().toISOString(); db.prepare(`UPDATE shifts SET end_time = ?, actual_cash = ?, difference = ?, status = 'closed', note = ? WHERE id = ?`).run(endTime, data.actualCash, data.difference, data.note, data.shiftId); return { success: true }; }
-function getShiftSummary(cashierName, startTime) { try { let paymentsRow, advancesRow; const expensesRow = db.prepare("SELECT SUM(amount) as total FROM expenses WHERE created_at >= ?").get(startTime); if (cashierName === 'المدير العام' || cashierName === 'Super Admin' || cashierName === 'admin') { paymentsRow = db.prepare("SELECT SUM(amount) as total FROM payments WHERE created_at >= ?").get(startTime); advancesRow = db.prepare("SELECT SUM(amount) as total FROM advances WHERE created_at >= ?").get(startTime); } else { paymentsRow = db.prepare("SELECT SUM(amount) as total FROM payments WHERE caisse_source = ? AND created_at >= ?").get(cashierName, startTime); advancesRow = db.prepare("SELECT SUM(amount) as total FROM advances WHERE caisse_source = ? AND created_at >= ?").get(cashierName, startTime); } return { success: true, data: { expenses: expensesRow.total || 0, supplierPayments: paymentsRow.total || 0, advances: advancesRow.total || 0, totalOut: (expensesRow.total || 0) + (paymentsRow.total || 0) + (advancesRow.total || 0) } }; } catch (error) { return { success: false, error: error.message }; } }
+function closeShift(data) { const endTime = new Date().toISOString(); db.prepare(`UPDATE shifts SET end_time = actual_cash = ?, difference = ?, status = 'closed', note = ? WHERE id = ?`).run(endTime, data.actualCash, data.difference, data.note, data.shiftId); return { success: true }; }
+function getShiftSummary(cashierName, startTime) { try { let paymentsRow, advancesRow, expensesRow; if (cashierName === 'المدير العام' || cashierName === 'Super Admin' || cashierName === 'admin') { expensesRow = db.prepare("SELECT SUM(amount) as total FROM expenses WHERE created_at >= ?").get(startTime); paymentsRow = db.prepare("SELECT SUM(amount) as total FROM payments WHERE created_at >= ?").get(startTime); advancesRow = db.prepare("SELECT SUM(amount) as total FROM advances WHERE created_at >= ?").get(startTime); } else { expensesRow = db.prepare("SELECT SUM(amount) as total FROM expenses WHERE caisse_source = ? AND created_at >= ?").get(cashierName, startTime); paymentsRow = db.prepare("SELECT SUM(amount) as total FROM payments WHERE caisse_source = ? AND created_at >= ?").get(cashierName, startTime); advancesRow = db.prepare("SELECT SUM(amount) as total FROM advances WHERE caisse_source = ? AND created_at >= ?").get(cashierName, startTime); } return { success: true, data: { expenses: expensesRow.total || 0, supplierPayments: paymentsRow.total || 0, advances: advancesRow.total || 0, totalOut: (expensesRow.total || 0) + (paymentsRow.total || 0) + (advancesRow.total || 0) } }; } catch (error) { return { success: false, error: error.message }; } }
 async function generateExcelBackup(outputPath) { const workbook = new ExcelJS.Workbook(); await workbook.xlsx.writeFile(outputPath); }
-function addExpense(expense) { const stmt = db.prepare('INSERT INTO expenses (description, category, amount, date) VALUES (?, ?, ?, ?)'); const date = expense.date || new Date().toISOString().split('T')[0]; const info = stmt.run(expense.description, expense.category, expense.amount, date); return { success: true, id: info.lastInsertRowid }; }
-function updateExpense(id, expense) { return { success: db.prepare('UPDATE expenses SET description = ?, category = ?, amount = ? WHERE id = ?').run(expense.description, expense.category, expense.amount, id).changes > 0 }; }
+function updateExpense(id, expense) { 
+  try {
+    const result = db.prepare('UPDATE expenses SET description = ?, category = ?, amount = ?, date = ?, caisse_source = ? WHERE id = ?')
+      .run(expense.description, expense.category, expense.amount, expense.date, expense.caisseSource, id);
+    return { success: result.changes > 0 };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+
+function updateAdvance(id, advanceData) {
+  try {
+    // تحديث السلفة في جدول السلفيات فقط
+    db.prepare('UPDATE advances SET amount = ?, date = ?, note = ?, caisse_source = ? WHERE id = ?')
+      .run(advanceData.amount, advanceData.date, advanceData.note, advanceData.caisseSource, id);
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+function deleteAdvance(id) {
+  try {
+    const advance = db.prepare('SELECT * FROM advances WHERE id = ?').get(id);
+    if (!advance) return { success: false, error: 'advanceNotFound' }; // 🔴 إرسال المفتاح
+
+    // لا يمكن حذف سلفة تم خصمها (حالتها paid)
+    if (advance.status === 'paid') {
+      return { success: false, error: 'cannotDeletePaid' }; // 🔴 إرسال المفتاح
+    }
+
+    // حذف السلفة من جدول السلفيات فقط
+    db.prepare('DELETE FROM advances WHERE id = ?').run(id);
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+
 function verifyLogin(username, password) { try { const user = db.prepare("SELECT * FROM users WHERE username = ? AND password = ?").get(username, password); if (user) return { success: true, user: { id: user.id, username: user.username, role: user.role } }; return { success: false, message: 'Invalid username or password' }; } catch (error) { return { success: false, message: error.message }; } }
 function handlePinEntry(pinCode) { const employee = db.prepare("SELECT * FROM employees WHERE pin_code = ? AND status = 'active'").get(pinCode); if (!employee) return { success: false, message: 'رمز PIN غير صحيح أو حساب معطل' }; const today = new Date().toISOString().split('T')[0]; const now = new Date().toLocaleTimeString('en-US', { hour12: false }); const record = db.prepare("SELECT * FROM attendance WHERE employee_id = ? AND date = ?").get(employee.id, today); if (!record) { db.prepare("INSERT INTO attendance (employee_id, date, time_in) VALUES (?, ?, ?)").run(employee.id, today, now); return { success: true, action: 'check_in', employeeName: employee.name, time: now }; } else if (!record.time_out) { db.prepare("UPDATE attendance SET time_out = ? WHERE id = ?").run(now, record.id); return { success: true, action: 'check_out', employeeName: employee.name, time: now }; } else { return { success: false, message: `الموظف ${employee.name} أتم تسجيل الحضور والانصراف اليوم` }; } }
 function getTodayAttendance(date) { return db.prepare(`SELECT a.*, e.name as employee_name, e.role FROM attendance a JOIN employees e ON a.employee_id = e.id WHERE a.date = ? ORDER BY a.time_in DESC`).all(date); }
 function getSuppliers() { return db.prepare("SELECT * FROM suppliers ORDER BY id DESC").all(); }
 function addSupplier(supplierData) { const status = supplierData.initialDebt > 0 ? 'indebted' : 'clear'; const info = db.prepare(`INSERT INTO suppliers (name, phone, initial_debt, total_debt, status) VALUES (?, ?, ?, ?, ?)`).run(supplierData.name, supplierData.phone, supplierData.initialDebt, supplierData.initialDebt, status); return db.prepare("SELECT * FROM suppliers WHERE id = ?").get(info.lastInsertRowid); }
 function getSupplierDetails(supplierId) { const supplier = db.prepare('SELECT * FROM suppliers WHERE id = ?').get(supplierId); if (!supplier) return null; const receipts = db.prepare('SELECT * FROM receipts WHERE supplier_id = ? ORDER BY date DESC').all(supplierId); const payments = db.prepare('SELECT * FROM payments WHERE supplier_id = ? ORDER BY date DESC').all(supplierId); return { ...supplier, receipts, payments }; }
-
-const updateReceipt = db.transaction((id, data) => {
-  const old = db.prepare('SELECT * FROM receipts WHERE id = ?').get(id);
-  if(!old) return { success: false, error: 'Not found' };
-  const diff = Number(data.amount) - old.amount;
-  db.prepare('UPDATE receipts SET amount = ?, date = ?, note = ? WHERE id = ?').run(Number(data.amount), data.date, data.note, id);
-  db.prepare("UPDATE suppliers SET total_debt = total_debt + ?, status = CASE WHEN (total_debt + ?) <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?").run(diff, diff, old.supplier_id);
-  return { success: true };
-});
-
-const updatePayment = db.transaction((id, data) => {
-  const old = db.prepare('SELECT * FROM payments WHERE id = ?').get(id);
-  if(!old) return { success: false, error: 'Not found' };
-  const diff = Number(data.amount) - old.amount;
-  db.prepare('UPDATE payments SET amount = ?, date = ?, note = ? WHERE id = ?').run(Number(data.amount), data.date, data.note, id);
-  db.prepare("UPDATE suppliers SET total_debt = total_debt - ?, status = CASE WHEN (total_debt - ?) <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?").run(diff, diff, old.supplier_id);
-  return { success: true };
-});
-
-function updateSupplier(id, data) {
-  try {
-    const old = db.prepare('SELECT initial_debt, total_debt FROM suppliers WHERE id = ?').get(id);
-    if (!old) return { success: false, error: 'Not found' };
-    const diff = Number(data.initialDebt) - old.initial_debt;
-    db.prepare('UPDATE suppliers SET name = ?, phone = ?, initial_debt = ? WHERE id = ?').run(data.name, data.phone, data.initialDebt, id);
-    db.prepare("UPDATE suppliers SET total_debt = total_debt + ?, status = CASE WHEN (total_debt + ?) <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?").run(diff, diff, id);
-    return { success: true };
-  } catch (error) { return { success: false, error: error.message }; }
-}
-
-function deleteSupplier(id) {
-  try {
-    const receipts = db.prepare("SELECT COUNT(*) as c FROM receipts WHERE supplier_id = ?").get(id).c;
-    const payments = db.prepare("SELECT COUNT(*) as c FROM payments WHERE supplier_id = ?").get(id).c;
-    if (receipts > 0 || payments > 0) return { success: false, errorKey: 'deleteProtected' };
-    db.prepare('DELETE FROM suppliers WHERE id = ?').run(id);
-    return { success: true };
-  } catch (error) { return { success: false, error: error.message }; }
-}
-
-function deleteReceipt(id) {
-  try {
-    const receipt = db.prepare('SELECT amount, supplier_id FROM receipts WHERE id = ?').get(id);
-    if (!receipt) return { success: false, error: 'Receipt not found' };
-    const transaction = db.transaction(() => {
-      db.prepare('UPDATE suppliers SET total_debt = total_debt - ? WHERE id = ?').run(receipt.amount, receipt.supplier_id);
-      db.prepare("UPDATE suppliers SET status = CASE WHEN total_debt <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?").run(receipt.supplier_id);
-      db.prepare('DELETE FROM receipts WHERE id = ?').run(id);
-    });
-    transaction();
-    return { success: true };
-  } catch (error) { return { success: false, error: error.message }; }
-}
-
-function deletePayment(id) {
-  try {
-    const payment = db.prepare('SELECT amount, supplier_id FROM payments WHERE id = ?').get(id);
-    if (!payment) return { success: false, error: 'Payment not found' };
-    const transaction = db.transaction(() => {
-      db.prepare('UPDATE suppliers SET total_debt = total_debt + ? WHERE id = ?').run(payment.amount, payment.supplier_id);
-      db.prepare("UPDATE suppliers SET status = CASE WHEN total_debt <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?").run(payment.supplier_id);
-      db.prepare('DELETE FROM payments WHERE id = ?').run(id);
-    });
-    transaction();
-    return { success: true };
-  } catch (error) { return { success: false, error: error.message }; }
-}
-
+const updateReceipt = db.transaction((id, data) => { const old = db.prepare('SELECT * FROM receipts WHERE id = ?').get(id); if(!old) return { success: false, error: 'Not found' }; const diff = Number(data.amount) - old.amount; db.prepare('UPDATE receipts SET amount = ?, date = ?, note = ? WHERE id = ?').run(Number(data.amount), data.date, data.note, id); db.prepare("UPDATE suppliers SET total_debt = total_debt + ?, status = CASE WHEN (total_debt + ?) <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?").run(diff, diff, old.supplier_id); return { success: true }; });
+const updatePayment = db.transaction((id, data) => { const old = db.prepare('SELECT * FROM payments WHERE id = ?').get(id); if(!old) return { success: false, error: 'Not found' }; const diff = Number(data.amount) - old.amount; db.prepare('UPDATE payments SET amount = ?, date = ?, note = ? WHERE id = ?').run(Number(data.amount), data.date, data.note, id); db.prepare("UPDATE suppliers SET total_debt = total_debt - ?, status = CASE WHEN (total_debt - ?) <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?").run(diff, diff, old.supplier_id); return { success: true }; });
+function updateSupplier(id, data) { try { const old = db.prepare('SELECT initial_debt, total_debt FROM suppliers WHERE id = ?').get(id); if (!old) return { success: false, error: 'Not found' }; const diff = Number(data.initialDebt) - old.initial_debt; db.prepare('UPDATE suppliers SET name = ?, phone = ?, initial_debt = ? WHERE id = ?').run(data.name, data.phone, data.initialDebt, id); db.prepare("UPDATE suppliers SET total_debt = total_debt + ?, status = CASE WHEN (total_debt + ?) <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?").run(diff, diff, id); return { success: true }; } catch (error) { return { success: false, error: error.message }; } }
+function deleteSupplier(id) { try { const receipts = db.prepare("SELECT COUNT(*) as c FROM receipts WHERE supplier_id = ?").get(id).c; const payments = db.prepare("SELECT COUNT(*) as c FROM payments WHERE supplier_id = ?").get(id).c; if (receipts > 0 || payments > 0) return { success: false, errorKey: 'deleteProtected' }; db.prepare('DELETE FROM suppliers WHERE id = ?').run(id); return { success: true }; } catch (error) { return { success: false, error: error.message }; } }
+function deleteReceipt(id) { try { const receipt = db.prepare('SELECT amount, supplier_id FROM receipts WHERE id = ?').get(id); if (!receipt) return { success: false, error: 'Receipt not found' }; const transaction = db.transaction(() => { db.prepare('UPDATE suppliers SET total_debt = total_debt - ? WHERE id = ?').run(receipt.amount, receipt.supplier_id); db.prepare("UPDATE suppliers SET status = CASE WHEN total_debt <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?").run(receipt.supplier_id); db.prepare('DELETE FROM receipts WHERE id = ?').run(id); }); transaction(); return { success: true }; } catch (error) { return { success: false, error: error.message }; } }
+function deletePayment(id) { try { const payment = db.prepare('SELECT amount, supplier_id FROM payments WHERE id = ?').get(id); if (!payment) return { success: false, error: 'Payment not found' }; const transaction = db.transaction(() => { db.prepare('UPDATE suppliers SET total_debt = total_debt + ? WHERE id = ?').run(payment.amount, payment.supplier_id); db.prepare("UPDATE suppliers SET status = CASE WHEN total_debt <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?").run(payment.supplier_id); db.prepare('DELETE FROM payments WHERE id = ?').run(id); }); transaction(); return { success: true }; } catch (error) { return { success: false, error: error.message }; } }
 function deleteAgendaTask(id) { db.prepare("DELETE FROM agenda_tasks WHERE id = ?").run(id); return { success: true }; }
 function rescheduleAgendaTask(id, newDate) { db.prepare("UPDATE agenda_tasks SET task_date = ? WHERE id = ?").run(newDate, id); return { success: true }; }
 const addReceipt = db.transaction((data) => { const supplierId = Number(data.supplierId); const amount = Number(data.amount) || 0; const date = data.date || new Date().toISOString().split('T')[0]; const info = db.prepare('INSERT INTO receipts (supplier_id, amount, date, note) VALUES (?, ?, ?, ?)').run(supplierId, amount, date, data.note || ''); db.prepare("UPDATE suppliers SET total_debt = total_debt + ?, status = 'indebted' WHERE id = ?").run(amount, supplierId); return info.lastInsertRowid; });
-const addPayment = db.transaction((data) => { const info = db.prepare('INSERT INTO payments (supplier_id, amount, date, caisse_source, note) VALUES (?, ?, ?, ?, ?)').run(data.supplierId, data.amount, data.date, data.caisseSource || 'Caisse 1', data.note); db.prepare(`UPDATE suppliers SET total_debt = total_debt - ?, status = CASE WHEN (total_debt - ?) <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?`).run(data.amount, data.amount, data.supplierId); return info.lastInsertRowid; });
+const addPayment = db.transaction((data) => { const info = db.prepare('INSERT INTO payments (supplier_id, amount, date, caisse_source, note) VALUES (?, ?, ?, ?, ?)').run(data.supplierId, data.amount, data.date, data.caisseSource || 'admin', data.note); db.prepare(`UPDATE suppliers SET total_debt = total_debt - ?, status = CASE WHEN (total_debt - ?) <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?`).run(data.amount, data.amount, data.supplierId); return info.lastInsertRowid; });
 function getAdvances(employeeId) { if (employeeId) return db.prepare("SELECT * FROM advances WHERE employee_id = ? ORDER BY date DESC").all(employeeId); return db.prepare("SELECT a.*, e.name as employee_name FROM advances a JOIN employees e ON a.employee_id = e.id ORDER BY a.date DESC").all(); }
-function addAdvance(data) { const info = db.prepare('INSERT INTO advances (employee_id, amount, date, caisse_source, note) VALUES (?, ?, ?, ?, ?)').run(data.employeeId, data.amount, data.date, data.caisseSource || 'Admin', data.note || ''); return { success: true, id: info.lastInsertRowid }; }
+function addAdvance(data) { const info = db.prepare('INSERT INTO advances (employee_id, amount, date, caisse_source, note) VALUES (?, ?, ?, ?, ?)').run(data.employeeId, data.amount, data.date, data.caisseSource || 'admin', data.note || ''); return { success: true, id: info.lastInsertRowid }; }
 function calculateEmployeePayroll(employeeId, startDate, endDate, hourlyRate) { const attendances = db.prepare(`SELECT * FROM attendance WHERE employee_id = ? AND date >= ? AND date <= ?`).all(employeeId, startDate, endDate); let totalHours = 0; attendances.forEach(record => { if (record.time_in && record.time_out) { const tIn = record.time_in.split(':'); const tOut = record.time_out.split(':'); const dIn = new Date(2000, 0, 1, tIn[0], tIn[1], tIn[2] || 0); const dOut = new Date(2000, 0, 1, tOut[0], tOut[1], tOut[2] || 0); let diff = (dOut - dIn) / (1000 * 60 * 60); if (diff < 0) diff += 24; totalHours += diff; } }); const pendingAdvances = db.prepare(`SELECT SUM(amount) as total FROM advances WHERE employee_id = ? AND status = 'pending'`).get(employeeId).total || 0; const grossSalary = totalHours * hourlyRate; const netSalary = grossSalary - pendingAdvances; return { employeeId, startDate, endDate, totalHours: Number(totalHours.toFixed(2)), hourlyRate, grossSalary: Number(grossSalary.toFixed(2)), totalAdvances: pendingAdvances, netSalary: Number(netSalary.toFixed(2)) }; }
-const paySalary = db.transaction((data) => { try { const empId = Number(data.employeeId); const pDate = data.date || new Date().toISOString().split('T')[0]; db.prepare(`INSERT INTO salaries (employee_id, start_date, end_date, total_hours, hourly_rate, total_advances, net_salary, payment_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(empId, data.startDate || '', data.endDate || '', Number(data.totalHours) || 0, Number(data.hourlyRate) || 0, Number(data.totalAdvances) || 0, Number(data.netSalary) || 0, pDate); db.prepare(`UPDATE advances SET status = 'paid' WHERE employee_id = ? AND status = 'pending'`).run(empId); if (Number(data.netSalary) < 0) { db.prepare('INSERT INTO advances (employee_id, amount, date, caisse_source, note, status) VALUES (?, ?, ?, ?, ?, ?)').run(empId, Math.abs(Number(data.netSalary)), pDate, 'System', data.rolloverNote || `ترحيل ديون سلفيات`, 'pending'); } else if (Number(data.netSalary) > 0) { db.prepare(`INSERT INTO expenses (description, category, amount, date) VALUES (?, ?, ?, ?)`).run(data.expenseNote || `راتب`, 'salaries', Number(data.netSalary), pDate); } return { success: true }; } catch (error) { return { success: false, error: error.message }; } });
+const paySalary = db.transaction((data) => { try { const empId = Number(data.employeeId); const pDate = data.date || new Date().toISOString().split('T')[0]; db.prepare(`INSERT INTO salaries (employee_id, start_date, end_date, total_hours, hourly_rate, total_advances, net_salary, payment_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(empId, data.startDate || '', data.endDate || '', Number(data.totalHours) || 0, Number(data.hourlyRate) || 0, Number(data.totalAdvances) || 0, Number(data.netSalary) || 0, pDate); db.prepare(`UPDATE advances SET status = 'paid' WHERE employee_id = ? AND status = 'pending'`).run(empId); if (Number(data.netSalary) < 0) { db.prepare('INSERT INTO advances (employee_id, amount, date, caisse_source, note, status) VALUES (?, ?, ?, ?, ?, ?)').run(empId, Math.abs(Number(data.netSalary)), pDate, 'admin', data.rolloverNote || `ترحيل ديون سلفيات`, 'pending'); } else if (Number(data.netSalary) > 0) { db.prepare(`INSERT INTO expenses (description, category, amount, date, caisse_source) VALUES (?, ?, ?, ?, ?)`).run(data.expenseNote || `راتب`, 'salaries', Number(data.netSalary), pDate, 'admin'); } return { success: true }; } catch (error) { return { success: false, error: error.message }; } });
 function getAgendaTasks() { return db.prepare("SELECT * FROM agenda_tasks ORDER BY task_date ASC, task_time ASC").all(); }
 function addAgendaTask(data) { const info = db.prepare('INSERT INTO agenda_tasks (title, type, task_date, task_time, amount) VALUES (?, ?, ?, ?, ?)').run(data.title, data.type, data.date, data.time || '', data.amount || 0); return { ...data, id: info.lastInsertRowid, status: 'pending' }; }
 function toggleAgendaTaskStatus(id, status) { db.prepare('UPDATE agenda_tasks SET status = ? WHERE id = ?').run(status, id); return { success: true }; }
@@ -254,34 +240,7 @@ function logAudit(username, action, details) { try { db.prepare("INSERT INTO aud
 function getAuditLogs() { return db.prepare("SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 100").all(); }
 function deleteExpense(id, username) { const expense = db.prepare('SELECT * FROM expenses WHERE id = ?').get(id); if (expense) logAudit(username || 'Unknown', 'DELETE_EXPENSE', JSON.stringify({ desc: expense.description, amount: expense.amount })); return { success: db.prepare('DELETE FROM expenses WHERE id = ?').run(id).changes > 0 }; }
 async function backupDatabase(destPath) { try { await db.backup(destPath); return { success: true }; } catch (error) { throw error; } }
-
-async function importSuppliersFromExcel(filePath) {
-  try {
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.readFile(filePath);
-    const worksheet = workbook.worksheets[0];
-
-    let importedCount = 0;
-    const insertSupplier = db.prepare(`INSERT INTO suppliers (name, phone, initial_debt, total_debt, status) VALUES (?, ?, ?, ?, ?)`);
-
-    db.transaction(() => {
-      worksheet.eachRow((row, rowNumber) => {
-        if (rowNumber === 1) return;
-        const name = row.getCell(1).value?.toString() || '';
-        const phone = row.getCell(2).value?.toString() || '';
-        const initialDebtStr = row.getCell(3).value?.toString() || '0';
-        const initialDebt = parseFloat(initialDebtStr.replace(/[^0-9.-]+/g, "")) || 0;
-
-        if (name.trim() !== '') {
-          const status = initialDebt > 0 ? 'indebted' : 'clear';
-          insertSupplier.run(name.trim(), phone.trim(), initialDebt, initialDebt, status);
-          importedCount++;
-        }
-      });
-    })();
-    return { success: true, count: importedCount };
-  } catch (error) { return { success: false, error: error.message }; }
-}
+async function importSuppliersFromExcel(filePath) { try { const workbook = new ExcelJS.Workbook(); await workbook.xlsx.readFile(filePath); const worksheet = workbook.worksheets[0]; let importedCount = 0; const insertSupplier = db.prepare(`INSERT INTO suppliers (name, phone, initial_debt, total_debt, status) VALUES (?, ?, ?, ?, ?)`); db.transaction(() => { worksheet.eachRow((row, rowNumber) => { if (rowNumber === 1) return; const name = row.getCell(1).value?.toString() || ''; const phone = row.getCell(2).value?.toString() || ''; const initialDebtStr = row.getCell(3).value?.toString() || '0'; const initialDebt = parseFloat(initialDebtStr.replace(/[^0-9.-]+/g, "")) || 0; if (name.trim() !== '') { const status = initialDebt > 0 ? 'indebted' : 'clear'; insertSupplier.run(name.trim(), phone.trim(), initialDebt, initialDebt, status); importedCount++; } }); })(); return { success: true, count: importedCount }; } catch (error) { return { success: false, error: error.message }; } }
 
 module.exports = {
   initDatabase, verifyLogin, getSuppliers, addSupplier, getEmployees, addEmployee, 
@@ -292,5 +251,5 @@ module.exports = {
   rescheduleAgendaTask, getDailySummary,
   openShift, getActiveShift, closeShift, getShiftSummary,
   getUsers, addUser, deleteUser,
-  updateEmployee, deleteEmployee, logAudit, getAuditLogs, generateExcelBackup, backupDatabase, importSuppliersFromExcel, deleteSupplier, updateSupplier , deleteReceipt, deletePayment
+  updateEmployee, deleteEmployee, logAudit, getAuditLogs, generateExcelBackup, backupDatabase, importSuppliersFromExcel, deleteSupplier, updateSupplier , deleteReceipt, deletePayment, updateAdvance, deleteAdvance
 };

@@ -14,7 +14,7 @@ contextBridge.exposeInMainWorld('api', {
   handlePinEntry: (pinCode) => ipcRenderer.invoke('handle-pin-entry', pinCode),
   getTodayAttendance: (date) => ipcRenderer.invoke('get-today-attendance', date),
   
-  getExpenses: () => ipcRenderer.invoke('get-expenses'),
+  
   addExpense: (data) => ipcRenderer.invoke('add-expense', data),
   deleteExpense: (id) => ipcRenderer.invoke('delete-expense', id),
   updateExpense: (id, expense) => ipcRenderer.invoke('update-expense', { id, expense }),
@@ -61,5 +61,9 @@ contextBridge.exposeInMainWorld('api', {
   restoreDatabase: () => ipcRenderer.invoke('restore-database'),
   updateSupplier: (id, data) => ipcRenderer.invoke('update-supplier', id, data),
   deleteSupplier: (id) => ipcRenderer.invoke('delete-supplier', id),
-  
+  getExpenses: (caisseFilter) => ipcRenderer.invoke('get-expenses', caisseFilter),
+  updateAdvance: (id, data) => ipcRenderer.invoke('update-advance', { id, data }),
+  deleteAdvance: (id) => ipcRenderer.invoke('delete-advance', id)
+
+
 });

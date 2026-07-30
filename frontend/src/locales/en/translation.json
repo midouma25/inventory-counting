@@ -190,6 +190,13 @@
     "editExpense": "Edit Expense",
     "saveChanges": "Save Changes",
     "deleteConfirm": "Are you sure you want to delete this financial transaction?",
+    "cashierNotice": "You are viewing only the expenses and payments made from your own register ({{name}}) across all days.",
+    "caisseSourceLabel": "Fund Source (Register)",
+    "allCaisses": "All Registers",
+    "adminCaisse": "Main Admin Register",
+    "cashierCaisse": "Cashier Register: {{name}}",
+    "myAdvance": "My Personal Advance",
+    "dateLabel": "Date",
     "kpi": {
       "today": "Today's Expenses",
       "month": "Total Monthly Expenses"
@@ -217,6 +224,10 @@
   "payroll": {
     "title": "Payroll & Advances",
     "subtitle": "Manage employee wages, advances, and payroll calculations",
+    "errors": {
+      "advanceNotFound": "Advance record not found in the database.",
+      "cannotDeletePaid": "Cannot delete an advance that has already been paid/deducted."
+    },
     "tabs": {
       "calculator": "Payroll Calculator",
       "advances": "Advances",

@@ -12,7 +12,7 @@ const {
   getSalaries, calculateEmployeePayroll, paySalary , getAgendaTasks, addAgendaTask, toggleAgendaTaskStatus, getDueThisWeek , deleteAgendaTask,
   rescheduleAgendaTask , getDailySummary,
   openShift, getActiveShift, closeShift, getShiftSummary,
-  getUsers, addUser, deleteUser, updateEmployee, deleteEmployee ,logAudit , getAuditLogs, backupDatabase, generateExcelBackup, updateSupplier, deleteSupplier  // أضفنا هذه الدوال هنا
+  getUsers, addUser, deleteUser, updateEmployee, deleteEmployee ,logAudit , getAuditLogs, backupDatabase, generateExcelBackup, updateSupplier, deleteSupplier, updateAdvance, deleteAdvance  // أضفنا هذه الدوال هنا
 } = require('./database');
 const express = require('express');
 const cors = require('cors');
@@ -76,7 +76,7 @@ function setupIpcHandlers() {
     catch (e) { return { success: false, error: e.message }; }
   });
 
-  ipcMain.handle('get-expenses', () => getExpenses());
+  ipcMain.handle('get-expenses', (event, caisseFilter) => getExpenses(caisseFilter));
   ipcMain.handle('add-expense', (event, data) => addExpense(data));
   ipcMain.handle('update-expense', (event, data) => updateExpense(data.id, data.expense));
 
@@ -270,7 +270,9 @@ ipcMain.handle('update-receipt', (event, id, data) => { try { return db.updateRe
     return deleteSupplier(id);
   });
 
-
+ 
+ipcMain.handle('update-advance', (event, payload) => updateAdvance(payload.id, payload.data));
+  ipcMain.handle('delete-advance', (event, id) => deleteAdvance(id));
   
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();

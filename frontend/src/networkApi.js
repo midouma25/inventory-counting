@@ -57,7 +57,7 @@ export const setupNetworkApi = () => {
     handlePinEntry: (pin) => fetchFromServer('handlePinEntry', [pin]),
     getTodayAttendance: (date) => fetchFromServer('getTodayAttendance', [date]),
     
-    getExpenses: () => fetchFromServer('getExpenses'),
+    getExpenses: (caisseFilter) => fetchFromServer('getExpenses', [caisseFilter]),
     addExpense: (data) => fetchFromServer('addExpense', [data]),
     updateExpense: ({id, expense}) => fetchFromServer('updateExpense', [id, expense]),
     deleteExpense: (id, username) => fetchFromServer('deleteExpense', [id, username]),

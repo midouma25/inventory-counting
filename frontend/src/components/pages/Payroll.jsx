@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Calculator, Banknote, Clock, Users, Calendar, MinusCircle, CheckCircle, Plus, AlertCircle, FileText, Printer, Eye, CheckCircle2 } from 'lucide-react';
+import { Calculator, Banknote, Clock, Users, Calendar, MinusCircle, CheckCircle, Plus, AlertCircle, FileText, Printer, Eye, CheckCircle2, Edit, Trash2, ShieldAlert } from 'lucide-react';
 
 import useEmployeeStore from '../../store/employeeStore';
 import usePayrollStore from '../../store/payrollStore';
-import ConfirmAlert from '../ui/ConfirmAlert'; // 🔴 إضافة النافذة المخصصة
-import Modal from '../ui/Modal'; // لا يزال مستخدماً لإضافة السلفة لأنه Form
+import useAuthStore from '../../store/authStore'; // 🔴 إضافة التحقق من الصلاحيات
+import ConfirmAlert from '../ui/ConfirmAlert'; 
+import Modal from '../ui/Modal'; 
 
 export default function Payroll() {
   const { t, i18n } = useTranslation();
@@ -17,6 +18,10 @@ export default function Payroll() {
 
   const { employees, fetchEmployees } = useEmployeeStore();
   const { advances, salaries, fetchAdvances, fetchSalaries, addAdvance, calculatePayroll, payrollResult, paySalary, clearPayrollResult } = usePayrollStore();
+  
+  // 🔴 جلب المستخدم الحالي للتحقق من صلاحياته (السوبر أدمن فقط من يعدل/يحذف السلفيات)
+  const user = useAuthStore(state => state.user);
+  const isSuperAdmin = user?.role === 'superadmin' || user?.role === 'admin';
 
   const today = new Date();
   const lastWeek = new Date(today);
@@ -30,9 +35,13 @@ export default function Payroll() {
   const [isAdvanceModalOpen, setIsAdvanceModalOpen] = useState(false);
   const [advanceData, setAdvanceData] = useState({ employeeId: '', amount: '', date: today.toISOString().split('T')[0], caisseSource: '', note: '' });
 
+  // 🔴 حالات جديدة للتعديل والحذف
+  const [editingAdvance, setEditingAdvance] = useState(null);
+  const [advanceToDelete, setAdvanceToDelete] = useState(null);
+
   const [confirmModalData, setConfirmModalData] = useState(null);
 
-  // 🔴 نظام الإشعارات الذكي (Toast)
+  // نظام الإشعارات الذكي (Toast)
   const [toast, setToast] = useState(null);
   const showToast = (type, message) => {
     setToast({ type, message });
@@ -57,21 +66,70 @@ export default function Payroll() {
     await calculatePayroll({ employeeId: selectedEmployee, startDate, endDate, hourlyRate: Number(hourlyRate) });
   };
 
+  // 🔴 دالة لفتح نافذة التعديل مع تعبئة البيانات
+  const openEditAdvanceModal = (adv) => {
+    setEditingAdvance(adv);
+    setAdvanceData({
+      employeeId: adv.employee_id,
+      amount: adv.amount,
+      date: adv.date,
+      caisseSource: adv.caisse_source || '',
+      note: adv.note || ''
+    });
+    setIsAdvanceModalOpen(true);
+  };
+
+  // 🔴 تعديل دالة الحفظ لتدعم الإضافة والتحديث
   const handleSaveAdvance = async (e) => {
     e.preventDefault();
     if (!advanceData.employeeId || !advanceData.caisseSource) return;
-    const success = await addAdvance({ employeeId: advanceData.employeeId, amount: Number(advanceData.amount), date: advanceData.date, caisseSource: advanceData.caisseSource, note: advanceData.note });
+    
+    let success = false;
+
+    if (editingAdvance) {
+      // تحديث سلفة موجودة
+      if (window.api && window.api.updateAdvance) {
+        const res = await window.api.updateAdvance(editingAdvance.id, {
+          amount: Number(advanceData.amount),
+          date: advanceData.date,
+          caisseSource: advanceData.caisseSource,
+          note: advanceData.note
+        });
+        success = res?.success;
+      }
+    } else {
+      // إضافة سلفة جديدة
+      success = await addAdvance({ employeeId: advanceData.employeeId, amount: Number(advanceData.amount), date: advanceData.date, caisseSource: advanceData.caisseSource, note: advanceData.note });
+    }
+
     if (success) {
       setIsAdvanceModalOpen(false);
+      setEditingAdvance(null);
       setAdvanceData({ employeeId: '', amount: '', date: today.toISOString().split('T')[0], caisseSource: '', note: '' });
       if (payrollResult) handleCalculate(); 
       fetchAdvances();
-      showToast('success', t('common.success', 'تمت إضافة السلفة بنجاح'));
+      showToast('success', editingAdvance ? t('common.success', 'تم التعديل بنجاح') : t('common.success', 'تمت إضافة السلفة بنجاح'));
     } else {
       showToast('error', t('common.error', 'حدث خطأ غير متوقع'));
     }
   };
 
+  // 🔴 دالة لتنفيذ حذف السلفة
+  const executeDeleteAdvance = async () => {
+    if (!advanceToDelete) return;
+    if (window.api && window.api.deleteAdvance) {
+      const res = await window.api.deleteAdvance(advanceToDelete);
+      if (res?.success) {
+        fetchAdvances();
+        showToast('success', t('common.success', 'تم حذف السلفة واسترجاع الأموال للصندوق بنجاح'));
+      } else {
+        // 🔴 ترجمة الخطأ القادم من السيرفر، وإذا لم يكن مسجلاً يعرض الخطأ كما هو
+        const translatedError = res.error ? t(`payroll.errors.${res.error}`, res.error) : t('common.error', 'حدث خطأ أثناء الحذف');
+        showToast('error', translatedError);
+      }
+    }
+    setAdvanceToDelete(null);
+  };
   const handlePaySalaryClick = () => {
     if (!payrollResult) return;
     const employeeName = employees.find(e => e.id === Number(selectedEmployee))?.name || '';
@@ -99,7 +157,7 @@ export default function Payroll() {
       clearPayrollResult();
       showToast('success', t('common.success'));
     } else {
-      showToast('error', t('common.error') + ' \n' + res.error); // 🔴 استبدال Alert
+      showToast('error', t('common.error') + ' \n' + res.error);
     }
     setConfirmModalData(null);
   };
@@ -115,7 +173,7 @@ export default function Payroll() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans flex flex-col gap-6 text-start relative">
       
-      {/* 🔴 مكون الـ Toast */}
+      {/* مكون الـ Toast */}
       {toast && (
         <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[9999] px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 ${
           toast.type === 'success' ? 'bg-emerald-600 text-white' :
@@ -213,7 +271,7 @@ export default function Payroll() {
         <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
           <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/30">
             <h3 className="font-bold text-white flex items-center gap-2"><MinusCircle size={18} className="text-red-400" /> {t('payroll.advancesTitle')}</h3>
-            <button onClick={() => setIsAdvanceModalOpen(true)} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-md transition-colors">
+            <button onClick={() => { setEditingAdvance(null); setIsAdvanceModalOpen(true); }} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-md transition-colors">
               <Plus size={18} /> {t('payroll.addAdvance')}
             </button>
           </div>
@@ -227,11 +285,13 @@ export default function Payroll() {
                   <th className="px-6 py-4 text-sm font-medium text-slate-400 text-start">{t('payroll.amount')}</th>
                   <th className="px-6 py-4 text-sm font-medium text-slate-400 text-start">{t('payroll.note')}</th>
                   <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('hr.table.status')}</th>
+                  {/* 🔴 عمود الإجراءات يظهر دائما، ولكن الكاشير سيرى داخله فراغاً */}
+                  <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('common.actions', 'الإجراءات')}</th>
                 </tr>
               </thead>
               <tbody>
                 {advances.length === 0 ? (
-                  <tr><td colSpan="6" className="text-center py-12 text-slate-500">{t('common.noResults')}</td></tr>
+                  <tr><td colSpan="7" className="text-center py-12 text-slate-500">{t('common.noResults')}</td></tr>
                 ) : (
                   advances.map(adv => (
                     <tr key={adv.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
@@ -244,6 +304,29 @@ export default function Payroll() {
                         <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${adv.status === 'pending' ? 'bg-orange-950 text-orange-400 border-orange-900' : 'bg-emerald-950 text-emerald-400 border-emerald-900'}`}>
                           {adv.status === 'pending' ? t('payroll.statusPending') : t('payroll.statusPaid')}
                         </span>
+                      </td>
+                      {/* 🔴 خلية الإجراءات الديناميكية */}
+                      <td className="px-6 py-4 text-center">
+                        {adv.status === 'pending' ? (
+                          <div className="flex items-center justify-center gap-2">
+                            {isSuperAdmin ? (
+                              <>
+                                <button onClick={() => openEditAdvanceModal(adv)} className="p-2 text-blue-400 hover:bg-blue-900/50 rounded-lg transition-colors" title={t('common.edit', 'تعديل')}>
+                                  <Edit size={18} />
+                                </button>
+                                <button onClick={() => setAdvanceToDelete(adv.id)} className="p-2 text-red-400 hover:bg-red-900/50 rounded-lg transition-colors" title={t('common.delete', 'حذف')}>
+                                  <Trash2 size={18} />
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-slate-500">-</span>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center text-xs text-slate-500 gap-1" title={t('payroll.lockedAdvance', 'لا يمكن التعديل: تم خصمها من راتب مدفوع')}>
+                            <ShieldAlert size={14} /> {t('common.locked', 'مقفلة')}
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -261,7 +344,7 @@ export default function Payroll() {
               <FileText size={18} className="text-blue-400" /> {t('payroll.tabs.salaries')}
             </h3>
             <button onClick={() => {
-                if(salaries.length === 0) return showToast('warning', t('payroll.noSalariesToPrint')); // 🔴 استبدال Alert
+                if(salaries.length === 0) return showToast('warning', t('payroll.noSalariesToPrint')); 
                 navigate('/preview', { state: { type: 'all-salaries', salaries: salaries }});
               }}
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-md"
@@ -302,14 +385,16 @@ export default function Payroll() {
         </div>
       )}
 
-      <Modal isOpen={isAdvanceModalOpen} onClose={() => setIsAdvanceModalOpen(false)} title={t('payroll.addAdvance')}>
+      {/* 🔴 النافذة المنبثقة لإضافة/تعديل السلفة */}
+      <Modal isOpen={isAdvanceModalOpen} onClose={() => { setIsAdvanceModalOpen(false); setEditingAdvance(null); }} title={editingAdvance ? t('payroll.editAdvance', 'تعديل السلفة') : t('payroll.addAdvance')}>
         <form onSubmit={handleSaveAdvance} className="space-y-4 text-start">
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-1">{t('payroll.selectEmployee')}</label>
-            <select required value={advanceData.employeeId} onChange={e => setAdvanceData({...advanceData, employeeId: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white" dir={isRTL ? "rtl" : "ltr"}>
+            <select required disabled={!!editingAdvance} value={advanceData.employeeId} onChange={e => setAdvanceData({...advanceData, employeeId: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white disabled:opacity-60" dir={isRTL ? "rtl" : "ltr"}>
               <option value="" disabled>{t('payroll.selectEmployee')}</option>
               {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
             </select>
+            {editingAdvance && <p className="text-xs text-slate-500 mt-1">{t('payroll.employeeEditNotice', 'لا يمكن تغيير اسم الموظف عند التعديل، لسلامة الحسابات.')}</p>}
           </div>
           
           <div>
@@ -333,13 +418,13 @@ export default function Payroll() {
             <input type="text" value={advanceData.note} onChange={e => setAdvanceData({...advanceData, note: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white" />
           </div>
           <div className="pt-4 flex justify-end gap-3 mt-6">
-            <button type="button" onClick={() => setIsAdvanceModalOpen(false)} className="px-4 py-2 text-slate-300 hover:bg-slate-800 rounded-lg">{t('common.cancel')}</button>
-            <button type="submit" className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium">{t('payroll.addAdvance')}</button>
+            <button type="button" onClick={() => { setIsAdvanceModalOpen(false); setEditingAdvance(null); }} className="px-4 py-2 text-slate-300 hover:bg-slate-800 rounded-lg">{t('common.cancel')}</button>
+            <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">{editingAdvance ? t('common.saveChanges', 'حفظ التعديلات') : t('payroll.addAdvance')}</button>
           </div>
         </form>
       </Modal>
 
-      {/* 🔴 استخدام النافذة السوداء المخصصة بدلاً من Modal العادية */}
+      {/* 🔴 النافذة المخصصة لتأكيد دفع الراتب */}
       <ConfirmAlert 
         isOpen={!!confirmModalData}
         onClose={() => setConfirmModalData(null)}
@@ -348,6 +433,17 @@ export default function Payroll() {
         message={confirmModalData?.type === 'rollover' ? t('payroll.rolloverConfirm') : t('payroll.standardConfirm')}
         confirmText={t('common.success')}
         confirmColor={confirmModalData?.type === 'rollover' ? 'bg-orange-600 hover:bg-orange-700' : 'bg-emerald-600 hover:bg-emerald-700'}
+      />
+
+      {/* 🔴 النافذة المخصصة لتأكيد حذف السلفة */}
+      <ConfirmAlert 
+        isOpen={!!advanceToDelete}
+        onClose={() => setAdvanceToDelete(null)}
+        onConfirm={executeDeleteAdvance}
+        title={t('payroll.deleteAdvanceTitle', 'حذف السلفة')}
+        message={t('payroll.deleteAdvanceMsg', 'هل أنت متأكد من إلغاء هذه السلفة؟ سيتم استرجاع قيمتها مباشرة إلى صندوق المصاريف.')}
+        confirmText={t('common.delete', 'حذف')}
+        confirmColor="bg-red-600 hover:bg-red-700"
       />
     </div>
   );
