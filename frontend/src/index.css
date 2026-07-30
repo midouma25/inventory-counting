@@ -3,3 +3,45 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@media print {
+  /* إخفاء كل شيء في الشاشة */
+  body * {
+    visibility: hidden;
+  }
+  
+  /* إظهار المنطقة المخصصة للطباعة فقط */
+  .printable-area, .printable-area * {
+    visibility: visible;
+  }
+  
+  /* إعدادات مشتركة */
+  .printable-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    margin: 0;
+    padding: 0;
+    background-color: white;
+    color: black;
+  }
+
+  /* 🔴 إعدادات الورقة الصغيرة (A7/80mm) لوصل الكاشير */
+  .print-a7 {
+    width: 80mm !important;
+    font-size: 12px;
+  }
+
+  /* 🔵 إعدادات الورقة الكبيرة (A4) ليومية المدير */
+  .print-a4 {
+    width: 210mm !important;
+    min-height: 297mm;
+    padding: 20mm;
+    font-size: 14px;
+  }
+
+  /* إخفاء الأزرار في الطباعة */
+  .no-print {
+    display: none !important;
+  }
+}

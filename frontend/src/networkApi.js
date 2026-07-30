@@ -85,12 +85,13 @@ export const setupNetworkApi = () => {
     addUser: (data) => fetchFromServer('addUser', [data]),
     deleteUser: (id) => fetchFromServer('deleteUser', [id]),
     getAuditLogs: () => fetchFromServer('getAuditLogs'),
-    
+    getDailyClosures: () => fetchFromServer('getDailyClosures'),
     // 🔴 استخدام الترجمة بدلاً من النصوص العربية الثابتة
     backupDatabase: () => Promise.resolve({ success: false, error: i18n.t('common.serverOnlyFeature', 'This feature only works on the main server.') }),
     restoreDatabase: () => Promise.resolve({ success: false, error: i18n.t('common.serverOnlyFeature', 'This feature only works on the main server.') }),
     importSuppliersExcel: () => Promise.resolve({ success: false, error: i18n.t('common.serverOnlyFeature', 'This feature only works on the main server.') }),
-    
+    getAllShiftsSummary: () => fetchFromServer('getAllShiftsSummary'),
+    closeBusinessDay: (adminName) => fetchFromServer('closeBusinessDay', adminName),
     showNotification: (data) => {
       if (Notification.permission === 'granted') new Notification(data.title, { body: data.body });
       else if (Notification.permission !== 'denied') {

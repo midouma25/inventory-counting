@@ -63,7 +63,9 @@ contextBridge.exposeInMainWorld('api', {
   deleteSupplier: (id) => ipcRenderer.invoke('delete-supplier', id),
   getExpenses: (caisseFilter) => ipcRenderer.invoke('get-expenses', caisseFilter),
   updateAdvance: (id, data) => ipcRenderer.invoke('update-advance', { id, data }),
-  deleteAdvance: (id) => ipcRenderer.invoke('delete-advance', id)
-
-
+  deleteAdvance: (id) => ipcRenderer.invoke('delete-advance', id),
+  getAllShiftsSummary: () => ipcRenderer.invoke('get-all-shifts-summary'),
+  getDailyClosures: () => ipcRenderer.invoke('get-daily-closures'),
+  closeBusinessDay: (adminName) => ipcRenderer.invoke('close-business-day', adminName)
+  
 });

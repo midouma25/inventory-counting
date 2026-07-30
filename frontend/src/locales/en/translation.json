@@ -2,6 +2,7 @@
   "currency": "DA",
   "common": {
     "search": "Search...",
+    "refresh": "Refresh",
     "superAdmin": "Super Admin",
     "systemOwner": "System Owner",
     "edit": "Edit",
@@ -17,6 +18,7 @@
     "optional": "Optional",
     "networkError": "Network connection error",
     "back": "Back",
+    "close": "Close",
     "saveChanges": "Save Changes"
   },
   "login": {
@@ -375,7 +377,26 @@
     "notesPlaceholder": "Any discrepancies or notes for the manager...",
     "today_sales": "Calculated Shift Sales",
     "save_btn": "Close Shift & Lock",
-    "confirmClose": "Are you sure you want to close this shift? This action cannot be undone."
+    "confirmClose": "Are you sure you want to close this shift? This action cannot be undone.",
+    "masterDashboardTitle": "Master Shifts Dashboard",
+    "masterDashboardDesc": "Live monitoring of all cash registers and total sales",
+    "grandTotalOpening": "Total Opening Balance",
+    "grandTotalActual": "Total Actual Cash Received",
+    "grandTotalSales": "Net Profit from Closed Shifts",
+    "allShifts": "Shifts Log",
+    "cashierName": "Cashier Name",
+    "timing": "Timing (Start/End)",
+    "statusOpen": "Open 🟢",
+    "statusClosed": "Closed 🔴",
+    "x_report": "Shift Closure (X-Report)",
+    "store_name": "MY STORE",
+    "time_out": "Time Out",
+    "receipt_footer": "Shift closed and cash handed over.",
+    "print_receipt": "Print Receipt",
+    "close_day_btn": "Close Business Day (Z-Report)",
+    "close_day_confirm": "Are you sure you want to close the business day? All shifts will be archived.",
+    
+    "no_shifts_to_close": "No closed shifts to archive."
   },
   "print": {
     "printBtn": "Print",
@@ -387,6 +408,7 @@
     "invalidCredentials": "Invalid username or password.",
     "invalidPinOrInactive": "Invalid PIN or account is disabled.",
     "shiftAlreadyOpen": "You already have an open shift.",
+    "has_open_shifts": "Cannot close day! There are still open shifts.",
     "alreadyCompletedShift": "{{name}} has already completed today's shift."
   },
   "audit": {
@@ -396,5 +418,25 @@
     "details": {
       "DELETE_EXPENSE": "Deleted an expense ({{desc}}) with amount {{amount}}"
     }
+  },
+  "zreport": {
+    "title": "Comprehensive Daily Financial Report (Z-Report)",
+    "date": "Report Date:",
+    "closed_by": "Closed By:",
+    "summary": "Overall Financial Summary",
+    "opening": "Opening Balance",
+    "net_sales": "Net Sales",
+    "actual_cash": "Actual Cash in Safe",
+    "shifts_details": "Cashier Shifts Details",
+    "cashier": "Cashier",
+    "time_in": "Time In",
+    "time_out": "Time Out",
+    "deductions": "Deductions",
+    "sales": "Sales",
+    "actual_drawer": "Actual in Drawer",
+    "manager_sig": "Manager Signature",
+    "company_seal": "Company Seal",
+    "not_closed": "Not Closed",
+    "archive_title": "Daily Closures Archive"
   }
 }

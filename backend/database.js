@@ -2,7 +2,7 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const { app } = require('electron');
 const ExcelJS = require('exceljs');
-const dbPath = path.join(app.getPath('userData'), 'pos_manager3.db');
+const dbPath = path.join(app.getPath('userData'), 'pos_manager4.db');
 const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 
@@ -13,10 +13,12 @@ function initDatabase() {
       db.prepare("UPDATE users SET role = 'superadmin' WHERE username = 'admin'").run(); 
       db.prepare("UPDATE employees SET role = 'superadmin' WHERE name = 'admin'").run(); 
     } catch(e) {}
+    
     const checkAdmin = db.prepare("SELECT COUNT(*) as count FROM users WHERE username = 'admin'").get();
     if (checkAdmin.count === 0) {
       db.prepare("INSERT INTO users (username, password, role) VALUES (?, ?, ?)").run('admin', 'admin', 'superadmin');
     }
+
     db.prepare(`CREATE TABLE IF NOT EXISTS suppliers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, phone TEXT, initial_debt REAL DEFAULT 0, total_debt REAL DEFAULT 0, status TEXT DEFAULT 'clear', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`).run();
     db.prepare(`CREATE TABLE IF NOT EXISTS receipts (id INTEGER PRIMARY KEY AUTOINCREMENT, supplier_id INTEGER NOT NULL, amount REAL NOT NULL, date TEXT NOT NULL, note TEXT, pdf_path TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (supplier_id) REFERENCES suppliers(id))`).run();
     db.prepare(`CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, supplier_id INTEGER NOT NULL, amount REAL NOT NULL, date TEXT NOT NULL, caisse_source TEXT, note TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (supplier_id) REFERENCES suppliers(id))`).run();
@@ -32,12 +34,28 @@ function initDatabase() {
 
     db.prepare(`CREATE TABLE IF NOT EXISTS advances (id INTEGER PRIMARY KEY AUTOINCREMENT, employee_id INTEGER NOT NULL, amount REAL NOT NULL, date TEXT NOT NULL, caisse_source TEXT, note TEXT, status TEXT DEFAULT 'pending', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (employee_id) REFERENCES employees(id))`).run();
     db.prepare(`CREATE TABLE IF NOT EXISTS salaries (id INTEGER PRIMARY KEY AUTOINCREMENT, employee_id INTEGER NOT NULL, start_date TEXT NOT NULL, end_date TEXT NOT NULL, total_hours REAL NOT NULL, hourly_rate REAL NOT NULL, total_advances REAL NOT NULL, net_salary REAL NOT NULL, payment_date TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (employee_id) REFERENCES employees(id))`).run();
-    db.prepare(`CREATE TABLE IF NOT EXISTS shifts (id INTEGER PRIMARY KEY AUTOINCREMENT, cashier_name TEXT NOT NULL, opening_balance REAL NOT NULL, start_time DATETIME DEFAULT CURRENT_TIMESTAMP, end_time DATETIME, actual_cash REAL, difference REAL, status TEXT DEFAULT 'open', note TEXT)`).run();
+    
+    // 🔴 تحديث جدول الورديات ليتضمن الأرشفة
+    db.prepare(`CREATE TABLE IF NOT EXISTS shifts (id INTEGER PRIMARY KEY AUTOINCREMENT, cashier_name TEXT NOT NULL, opening_balance REAL NOT NULL, start_time DATETIME DEFAULT CURRENT_TIMESTAMP, end_time DATETIME, actual_cash REAL, difference REAL, status TEXT DEFAULT 'open', note TEXT, archived INTEGER DEFAULT 0)`).run();
+    try { db.prepare("ALTER TABLE shifts ADD COLUMN archived INTEGER DEFAULT 0").run(); } catch(e) {}
+
     db.prepare(`CREATE TABLE IF NOT EXISTS audit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL, action TEXT NOT NULL, details TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`).run();
+
+    // 🔴 تم إدخال جدول اليوميات هنا بشكل صحيح
+    db.prepare(`
+      CREATE TABLE IF NOT EXISTS daily_closures (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        closure_date TEXT,
+        total_opening REAL,
+        total_actual REAL,
+        total_sales REAL,
+        closed_by TEXT
+      )
+    `).run();
 
   } catch (error) { console.error('خطأ أثناء تهيئة قاعدة البيانات:', error); }
 }
-
+  
 function getUsers() { return db.prepare("SELECT id, username, role FROM users").all(); }
 
 function addUser(data) {
@@ -50,8 +68,8 @@ function addUser(data) {
     }
     const existingUser = db.prepare("SELECT * FROM users WHERE username = ?").get(finalUsername);
     const existingEmp = db.prepare("SELECT * FROM employees WHERE pin_code = ? OR name = ?").get(data.password, finalUsername);
-    // 🔴 استخدام مفتاح الترجمة بدلاً من النص
     if (existingUser || existingEmp) return { success: false, message: 'userExists' };
+    
     const insertTx = db.transaction(() => {
       const userInfo = db.prepare("INSERT INTO users (username, password, role) VALUES (?, ?, ?)").run(finalUsername, data.password, finalRole);
       db.prepare("INSERT INTO employees (name, role, pin_code) VALUES (?, ?, ?)").run(finalUsername, finalRole, data.password);
@@ -77,7 +95,6 @@ function getEmployees() { return db.prepare("SELECT * FROM employees WHERE statu
 function addEmployee(data) {
   try {
     const exist = db.prepare("SELECT * FROM employees WHERE pin_code = ? OR name = ?").get(data.pinCode, data.name);
-    // 🔴 استخدام مفتاح الترجمة
     if (exist) return { error: 'employeeExists' };
     const insertTx = db.transaction(() => {
       const info = db.prepare(`INSERT INTO employees (name, role, pin_code) VALUES (?, ?, ?)`).run(data.name, data.role, data.pinCode);
@@ -96,7 +113,6 @@ function updateEmployee(id, data) {
       let finalRole = data.role;
       if (finalName.startsWith('boss_')) { finalRole = 'superadmin'; finalName = finalName.replace('boss_', ''); }
       const exist = db.prepare("SELECT * FROM employees WHERE (pin_code = ? OR name = ?) AND id != ?").get(data.pinCode, finalName, id);
-      // 🔴 استخدام مفتاح الترجمة
       if (exist) return { error: 'employeeExists' };
       db.prepare("UPDATE employees SET name = ?, role = ?, pin_code = ? WHERE id = ?").run(finalName, finalRole, data.pinCode, id);
       db.prepare("UPDATE users SET username = ?, password = ?, role = ? WHERE username = ?").run(finalName, data.pinCode, finalRole, oldEmp.name);
@@ -136,12 +152,10 @@ function getSalaries() {
 function getExpenses(caisseFilter) { 
   let filterQuery = "";
   let queryParams = [];
-  
   if (caisseFilter && caisseFilter !== 'all') {
     filterQuery = " WHERE caisse_source = ?";
     queryParams.push(caisseFilter);
   }
-
   return db.prepare(`
     SELECT * FROM (
       SELECT id, description, category, amount, date, 'expense' as source, caisse_source FROM expenses 
@@ -165,35 +179,57 @@ function addExpense(expense) {
 
 function openShift(data) { 
   const activeShift = db.prepare("SELECT * FROM shifts WHERE cashier_name = ? AND status = 'open'").get(data.cashierName); 
-  // 🔴 استخدام مفتاح الترجمة
   if (activeShift) return { success: false, message: 'shiftAlreadyOpen' }; 
-  const info = db.prepare('INSERT INTO shifts (cashier_name, opening_balance) VALUES (?, ?)').run(data.cashierName, data.openingBalance); 
+  const info = db.prepare('INSERT INTO shifts (cashier_name, opening_balance, archived) VALUES (?, ?, 0)').run(data.cashierName, data.openingBalance); 
   return { success: true, shiftId: info.lastInsertRowid }; 
 }
 
-function getActiveShift(cashierName) { return db.prepare("SELECT * FROM shifts WHERE cashier_name = ? AND status = 'open'").get(cashierName); }
-function closeShift(data) { const endTime = new Date().toISOString(); db.prepare(`UPDATE shifts SET end_time = actual_cash = ?, difference = ?, status = 'closed', note = ? WHERE id = ?`).run(endTime, data.actualCash, data.difference, data.note, data.shiftId); return { success: true }; }
-function getShiftSummary(cashierName, startTime) { try { let paymentsRow, advancesRow, expensesRow; if (cashierName === 'المدير العام' || cashierName === 'Super Admin' || cashierName === 'admin') { expensesRow = db.prepare("SELECT SUM(amount) as total FROM expenses WHERE created_at >= ?").get(startTime); paymentsRow = db.prepare("SELECT SUM(amount) as total FROM payments WHERE created_at >= ?").get(startTime); advancesRow = db.prepare("SELECT SUM(amount) as total FROM advances WHERE created_at >= ?").get(startTime); } else { expensesRow = db.prepare("SELECT SUM(amount) as total FROM expenses WHERE caisse_source = ? AND created_at >= ?").get(cashierName, startTime); paymentsRow = db.prepare("SELECT SUM(amount) as total FROM payments WHERE caisse_source = ? AND created_at >= ?").get(cashierName, startTime); advancesRow = db.prepare("SELECT SUM(amount) as total FROM advances WHERE caisse_source = ? AND created_at >= ?").get(cashierName, startTime); } return { success: true, data: { expenses: expensesRow.total || 0, supplierPayments: paymentsRow.total || 0, advances: advancesRow.total || 0, totalOut: (expensesRow.total || 0) + (paymentsRow.total || 0) + (advancesRow.total || 0) } }; } catch (error) { return { success: false, error: error.message }; } }
+function getActiveShift(cashierName) { 
+  return db.prepare("SELECT * FROM shifts WHERE cashier_name = ? AND status = 'open'").get(cashierName); 
+}
+
+function closeShift(data) { 
+  try {
+    const endTime = new Date().toISOString(); 
+    // تم فصل end_time و actual_cash ليأخذ كل منهما علامة استفهام (?) خاصة به
+    db.prepare(`UPDATE shifts SET end_time = ?, actual_cash = ?, difference = ?, status = 'closed', note = ? WHERE id = ?`)
+      .run(endTime, data.actualCash, data.difference, data.note, data.shiftId); 
+    return { success: true }; 
+  } catch (error) { 
+    return { success: false, error: error.message }; 
+  }
+}
+
+function getShiftSummary(cashierName, startTime) { 
+  try { 
+    let paymentsRow, advancesRow, expensesRow; 
+    if (cashierName === 'المدير العام' || cashierName === 'Super Admin' || cashierName === 'admin') { 
+      expensesRow = db.prepare("SELECT SUM(amount) as total FROM expenses WHERE created_at >= ?").get(startTime); 
+      paymentsRow = db.prepare("SELECT SUM(amount) as total FROM payments WHERE created_at >= ?").get(startTime); 
+      advancesRow = db.prepare("SELECT SUM(amount) as total FROM advances WHERE created_at >= ?").get(startTime); 
+    } else { 
+      expensesRow = db.prepare("SELECT SUM(amount) as total FROM expenses WHERE caisse_source = ? AND created_at >= ?").get(cashierName, startTime); 
+      paymentsRow = db.prepare("SELECT SUM(amount) as total FROM payments WHERE caisse_source = ? AND created_at >= ?").get(cashierName, startTime); 
+      advancesRow = db.prepare("SELECT SUM(amount) as total FROM advances WHERE caisse_source = ? AND created_at >= ?").get(cashierName, startTime); 
+    } 
+    return { success: true, data: { expenses: expensesRow.total || 0, supplierPayments: paymentsRow.total || 0, advances: advancesRow.total || 0, totalOut: (expensesRow.total || 0) + (paymentsRow.total || 0) + (advancesRow.total || 0) } }; 
+  } catch (error) { return { success: false, error: error.message }; } 
+}
+
 async function generateExcelBackup(outputPath) { const workbook = new ExcelJS.Workbook(); await workbook.xlsx.writeFile(outputPath); }
 
 function updateExpense(id, expense) { 
   try {
-    const result = db.prepare('UPDATE expenses SET description = ?, category = ?, amount = ?, date = ?, caisse_source = ? WHERE id = ?')
-      .run(expense.description, expense.category, expense.amount, expense.date, expense.caisseSource, id);
+    const result = db.prepare('UPDATE expenses SET description = ?, category = ?, amount = ?, date = ?, caisse_source = ? WHERE id = ?').run(expense.description, expense.category, expense.amount, expense.date, expense.caisseSource, id);
     return { success: result.changes > 0 };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
+  } catch (error) { return { success: false, error: error.message }; }
 }
 
 function updateAdvance(id, advanceData) {
   try {
-    db.prepare('UPDATE advances SET amount = ?, date = ?, note = ?, caisse_source = ? WHERE id = ?')
-      .run(advanceData.amount, advanceData.date, advanceData.note, advanceData.caisseSource, id);
+    db.prepare('UPDATE advances SET amount = ?, date = ?, note = ?, caisse_source = ? WHERE id = ?').run(advanceData.amount, advanceData.date, advanceData.note, advanceData.caisseSource, id);
     return { success: true };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
+  } catch (error) { return { success: false, error: error.message }; }
 }
 
 function deleteAdvance(id) {
@@ -203,23 +239,19 @@ function deleteAdvance(id) {
     if (advance.status === 'paid') return { success: false, error: 'cannotDeletePaid' }; 
     db.prepare('DELETE FROM advances WHERE id = ?').run(id);
     return { success: true };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
+  } catch (error) { return { success: false, error: error.message }; }
 }
 
 function verifyLogin(username, password) { 
   try { 
     const user = db.prepare("SELECT * FROM users WHERE username = ? AND password = ?").get(username, password); 
     if (user) return { success: true, user: { id: user.id, username: user.username, role: user.role } }; 
-    // 🔴 استخدام مفتاح الترجمة
     return { success: false, message: 'invalidCredentials' }; 
   } catch (error) { return { success: false, message: error.message }; } 
 }
 
 function handlePinEntry(pinCode) { 
   const employee = db.prepare("SELECT * FROM employees WHERE pin_code = ? AND status = 'active'").get(pinCode); 
-  // 🔴 استخدام مفتاح الترجمة
   if (!employee) return { success: false, message: 'invalidPinOrInactive' }; 
   const today = new Date().toISOString().split('T')[0]; 
   const now = new Date().toLocaleTimeString('en-US', { hour12: false }); 
@@ -231,7 +263,6 @@ function handlePinEntry(pinCode) {
     db.prepare("UPDATE attendance SET time_out = ? WHERE id = ?").run(now, record.id); 
     return { success: true, action: 'check_out', employeeName: employee.name, time: now }; 
   } else { 
-    // 🔴 استخدام مفتاح الترجمة
     return { success: false, message: 'alreadyCompletedShift', employeeName: employee.name }; 
   } 
 }
@@ -240,28 +271,122 @@ function getTodayAttendance(date) { return db.prepare(`SELECT a.*, e.name as emp
 function getSuppliers() { return db.prepare("SELECT * FROM suppliers ORDER BY id DESC").all(); }
 function addSupplier(supplierData) { const status = supplierData.initialDebt > 0 ? 'indebted' : 'clear'; const info = db.prepare(`INSERT INTO suppliers (name, phone, initial_debt, total_debt, status) VALUES (?, ?, ?, ?, ?)`).run(supplierData.name, supplierData.phone, supplierData.initialDebt, supplierData.initialDebt, status); return db.prepare("SELECT * FROM suppliers WHERE id = ?").get(info.lastInsertRowid); }
 function getSupplierDetails(supplierId) { const supplier = db.prepare('SELECT * FROM suppliers WHERE id = ?').get(supplierId); if (!supplier) return null; const receipts = db.prepare('SELECT * FROM receipts WHERE supplier_id = ? ORDER BY date DESC').all(supplierId); const payments = db.prepare('SELECT * FROM payments WHERE supplier_id = ? ORDER BY date DESC').all(supplierId); return { ...supplier, receipts, payments }; }
+
 const updateReceipt = db.transaction((id, data) => { const old = db.prepare('SELECT * FROM receipts WHERE id = ?').get(id); if(!old) return { success: false, error: 'Not found' }; const diff = Number(data.amount) - old.amount; db.prepare('UPDATE receipts SET amount = ?, date = ?, note = ? WHERE id = ?').run(Number(data.amount), data.date, data.note, id); db.prepare("UPDATE suppliers SET total_debt = total_debt + ?, status = CASE WHEN (total_debt + ?) <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?").run(diff, diff, old.supplier_id); return { success: true }; });
 const updatePayment = db.transaction((id, data) => { const old = db.prepare('SELECT * FROM payments WHERE id = ?').get(id); if(!old) return { success: false, error: 'Not found' }; const diff = Number(data.amount) - old.amount; db.prepare('UPDATE payments SET amount = ?, date = ?, note = ? WHERE id = ?').run(Number(data.amount), data.date, data.note, id); db.prepare("UPDATE suppliers SET total_debt = total_debt - ?, status = CASE WHEN (total_debt - ?) <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?").run(diff, diff, old.supplier_id); return { success: true }; });
+
 function updateSupplier(id, data) { try { const old = db.prepare('SELECT initial_debt, total_debt FROM suppliers WHERE id = ?').get(id); if (!old) return { success: false, error: 'Not found' }; const diff = Number(data.initialDebt) - old.initial_debt; db.prepare('UPDATE suppliers SET name = ?, phone = ?, initial_debt = ? WHERE id = ?').run(data.name, data.phone, data.initialDebt, id); db.prepare("UPDATE suppliers SET total_debt = total_debt + ?, status = CASE WHEN (total_debt + ?) <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?").run(diff, diff, id); return { success: true }; } catch (error) { return { success: false, error: error.message }; } }
 function deleteSupplier(id) { try { const receipts = db.prepare("SELECT COUNT(*) as c FROM receipts WHERE supplier_id = ?").get(id).c; const payments = db.prepare("SELECT COUNT(*) as c FROM payments WHERE supplier_id = ?").get(id).c; if (receipts > 0 || payments > 0) return { success: false, errorKey: 'deleteProtected' }; db.prepare('DELETE FROM suppliers WHERE id = ?').run(id); return { success: true }; } catch (error) { return { success: false, error: error.message }; } }
 function deleteReceipt(id) { try { const receipt = db.prepare('SELECT amount, supplier_id FROM receipts WHERE id = ?').get(id); if (!receipt) return { success: false, error: 'Receipt not found' }; const transaction = db.transaction(() => { db.prepare('UPDATE suppliers SET total_debt = total_debt - ? WHERE id = ?').run(receipt.amount, receipt.supplier_id); db.prepare("UPDATE suppliers SET status = CASE WHEN total_debt <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?").run(receipt.supplier_id); db.prepare('DELETE FROM receipts WHERE id = ?').run(id); }); transaction(); return { success: true }; } catch (error) { return { success: false, error: error.message }; } }
 function deletePayment(id) { try { const payment = db.prepare('SELECT amount, supplier_id FROM payments WHERE id = ?').get(id); if (!payment) return { success: false, error: 'Payment not found' }; const transaction = db.transaction(() => { db.prepare('UPDATE suppliers SET total_debt = total_debt + ? WHERE id = ?').run(payment.amount, payment.supplier_id); db.prepare("UPDATE suppliers SET status = CASE WHEN total_debt <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?").run(payment.supplier_id); db.prepare('DELETE FROM payments WHERE id = ?').run(id); }); transaction(); return { success: true }; } catch (error) { return { success: false, error: error.message }; } }
 function deleteAgendaTask(id) { db.prepare("DELETE FROM agenda_tasks WHERE id = ?").run(id); return { success: true }; }
 function rescheduleAgendaTask(id, newDate) { db.prepare("UPDATE agenda_tasks SET task_date = ? WHERE id = ?").run(newDate, id); return { success: true }; }
+
 const addReceipt = db.transaction((data) => { const supplierId = Number(data.supplierId); const amount = Number(data.amount) || 0; const date = data.date || new Date().toISOString().split('T')[0]; const info = db.prepare('INSERT INTO receipts (supplier_id, amount, date, note) VALUES (?, ?, ?, ?)').run(supplierId, amount, date, data.note || ''); db.prepare("UPDATE suppliers SET total_debt = total_debt + ?, status = 'indebted' WHERE id = ?").run(amount, supplierId); return info.lastInsertRowid; });
 const addPayment = db.transaction((data) => { const info = db.prepare('INSERT INTO payments (supplier_id, amount, date, caisse_source, note) VALUES (?, ?, ?, ?, ?)').run(data.supplierId, data.amount, data.date, data.caisseSource || 'admin', data.note); db.prepare(`UPDATE suppliers SET total_debt = total_debt - ?, status = CASE WHEN (total_debt - ?) <= 0 THEN 'clear' ELSE 'indebted' END WHERE id = ?`).run(data.amount, data.amount, data.supplierId); return info.lastInsertRowid; });
+
 function getAdvances(employeeId) { if (employeeId) return db.prepare("SELECT * FROM advances WHERE employee_id = ? ORDER BY date DESC").all(employeeId); return db.prepare("SELECT a.*, e.name as employee_name FROM advances a JOIN employees e ON a.employee_id = e.id ORDER BY a.date DESC").all(); }
 function addAdvance(data) { const info = db.prepare('INSERT INTO advances (employee_id, amount, date, caisse_source, note) VALUES (?, ?, ?, ?, ?)').run(data.employeeId, data.amount, data.date, data.caisseSource || 'admin', data.note || ''); return { success: true, id: info.lastInsertRowid }; }
+
 function calculateEmployeePayroll(employeeId, startDate, endDate, hourlyRate) { const attendances = db.prepare(`SELECT * FROM attendance WHERE employee_id = ? AND date >= ? AND date <= ?`).all(employeeId, startDate, endDate); let totalHours = 0; attendances.forEach(record => { if (record.time_in && record.time_out) { const tIn = record.time_in.split(':'); const tOut = record.time_out.split(':'); const dIn = new Date(2000, 0, 1, tIn[0], tIn[1], tIn[2] || 0); const dOut = new Date(2000, 0, 1, tOut[0], tOut[1], tOut[2] || 0); let diff = (dOut - dIn) / (1000 * 60 * 60); if (diff < 0) diff += 24; totalHours += diff; } }); const pendingAdvances = db.prepare(`SELECT SUM(amount) as total FROM advances WHERE employee_id = ? AND status = 'pending'`).get(employeeId).total || 0; const grossSalary = totalHours * hourlyRate; const netSalary = grossSalary - pendingAdvances; return { employeeId, startDate, endDate, totalHours: Number(totalHours.toFixed(2)), hourlyRate, grossSalary: Number(grossSalary.toFixed(2)), totalAdvances: pendingAdvances, netSalary: Number(netSalary.toFixed(2)) }; }
+
 const paySalary = db.transaction((data) => { try { const empId = Number(data.employeeId); const pDate = data.date || new Date().toISOString().split('T')[0]; db.prepare(`INSERT INTO salaries (employee_id, start_date, end_date, total_hours, hourly_rate, total_advances, net_salary, payment_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(empId, data.startDate || '', data.endDate || '', Number(data.totalHours) || 0, Number(data.hourlyRate) || 0, Number(data.totalAdvances) || 0, Number(data.netSalary) || 0, pDate); db.prepare(`UPDATE advances SET status = 'paid' WHERE employee_id = ? AND status = 'pending'`).run(empId); if (Number(data.netSalary) < 0) { db.prepare('INSERT INTO advances (employee_id, amount, date, caisse_source, note, status) VALUES (?, ?, ?, ?, ?, ?)').run(empId, Math.abs(Number(data.netSalary)), pDate, 'admin', data.rolloverNote || `ترحيل ديون سلفيات`, 'pending'); } else if (Number(data.netSalary) > 0) { db.prepare(`INSERT INTO expenses (description, category, amount, date, caisse_source) VALUES (?, ?, ?, ?, ?)`).run(data.expenseNote || `راتب`, 'salaries', Number(data.netSalary), pDate, 'admin'); } return { success: true }; } catch (error) { return { success: false, error: error.message }; } });
+
 function getAgendaTasks() { return db.prepare("SELECT * FROM agenda_tasks ORDER BY task_date ASC, task_time ASC").all(); }
 function addAgendaTask(data) { const info = db.prepare('INSERT INTO agenda_tasks (title, type, task_date, task_time, amount) VALUES (?, ?, ?, ?, ?)').run(data.title, data.type, data.date, data.time || '', data.amount || 0); return { ...data, id: info.lastInsertRowid, status: 'pending' }; }
 function toggleAgendaTaskStatus(id, status) { db.prepare('UPDATE agenda_tasks SET status = ? WHERE id = ?').run(status, id); return { success: true }; }
 function getDueThisWeek() { const today = new Date(); const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7); return db.prepare(`SELECT SUM(amount) as total FROM agenda_tasks WHERE type = 'payment' AND status = 'pending' AND task_date >= ? AND task_date <= ?`).get(today.toISOString().split('T')[0], nextWeek.toISOString().split('T')[0]).total || 0; }
 function getDailySummary(date) { try { const expenses = db.prepare(`SELECT SUM(amount) as total FROM expenses WHERE date = ?`).get(date).total || 0; const payments = db.prepare(`SELECT SUM(amount) as total FROM payments WHERE date = ?`).get(date).total || 0; const advances = db.prepare(`SELECT SUM(amount) as total FROM advances WHERE date = ?`).get(date).total || 0; return { success: true, data: { expenses, supplierPayments: payments, advances, totalOut: expenses + payments + advances } }; } catch (error) { return { success: false, error: error.message }; } }
+
 function logAudit(username, action, details) { try { db.prepare("INSERT INTO audit_logs (username, action, details) VALUES (?, ?, ?)").run(username, action, details || ''); } catch (error) {} }
 function getAuditLogs() { return db.prepare("SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 100").all(); }
 function deleteExpense(id, username) { const expense = db.prepare('SELECT * FROM expenses WHERE id = ?').get(id); if (expense) logAudit(username || 'Unknown', 'DELETE_EXPENSE', JSON.stringify({ desc: expense.description, amount: expense.amount })); return { success: db.prepare('DELETE FROM expenses WHERE id = ?').run(id).changes > 0 }; }
+
+
+function getDailyClosures() {
+  try {
+    const closures = db.prepare("SELECT * FROM daily_closures ORDER BY id DESC").all();
+    return { success: true, data: closures };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+
+
+// 🔴 دالة لجلب ملخص شامل لكل الورديات غير المؤرشفة (محدثة)
+function getAllShiftsSummary() {
+  try {
+    // جلب فقط الورديات المفتوحة أو المغلقة التي لم يتم ترحيلها ليومية سابقة
+    const shifts = db.prepare("SELECT * FROM shifts WHERE archived = 0 OR archived IS NULL ORDER BY id DESC").all();
+    
+    let grandTotalSales = 0;
+    let grandTotalOpening = 0;
+    let grandTotalActual = 0;
+
+    const detailedShifts = shifts.map(shift => {
+      let expensesRow, paymentsRow, advancesRow;
+      if (shift.cashier_name === 'المدير العام' || shift.cashier_name === 'Super Admin' || shift.cashier_name === 'admin') {
+        expensesRow = db.prepare("SELECT SUM(amount) as total FROM expenses WHERE created_at >= ?").get(shift.start_time);
+        paymentsRow = db.prepare("SELECT SUM(amount) as total FROM payments WHERE created_at >= ?").get(shift.start_time);
+        advancesRow = db.prepare("SELECT SUM(amount) as total FROM advances WHERE created_at >= ?").get(shift.start_time);
+      } else {
+        expensesRow = db.prepare("SELECT SUM(amount) as total FROM expenses WHERE caisse_source = ? AND created_at >= ?").get(shift.cashier_name, shift.start_time);
+        paymentsRow = db.prepare("SELECT SUM(amount) as total FROM payments WHERE caisse_source = ? AND created_at >= ?").get(shift.cashier_name, shift.start_time);
+        advancesRow = db.prepare("SELECT SUM(amount) as total FROM advances WHERE caisse_source = ? AND created_at >= ?").get(shift.cashier_name, shift.start_time);
+      }
+
+      const totalOut = (expensesRow?.total || 0) + (paymentsRow?.total || 0) + (advancesRow?.total || 0);
+      const shiftSales = shift.actual_cash ? (Number(shift.actual_cash) + totalOut) - Number(shift.opening_balance) : 0;
+
+      if (shift.status === 'closed') {
+        grandTotalSales += shiftSales;
+        grandTotalActual += Number(shift.actual_cash || 0);
+      }
+      grandTotalOpening += Number(shift.opening_balance || 0);
+
+      return {
+        ...shift,
+        totalOut,
+        calculatedSales: shiftSales
+      };
+    });
+
+    return {
+      success: true,
+      data: {
+        shifts: detailedShifts,
+        grandTotals: {
+          opening: grandTotalOpening,
+          actual: grandTotalActual,
+          sales: grandTotalSales
+        }
+      }
+    };
+  } catch (error) { return { success: false, error: error.message }; }
+}
+
+// 🔴 دالة ترحيل الأموال وإغلاق اليومية (جديدة)
+function closeBusinessDay(adminName) {
+  try {
+    const openShifts = db.prepare("SELECT count(*) as count FROM shifts WHERE status = 'open' AND (archived = 0 OR archived IS NULL)").get();
+    if (openShifts.count > 0) return { success: false, message: 'has_open_shifts' };
+
+    const summaryRes = getAllShiftsSummary();
+    if (!summaryRes.success || summaryRes.data.shifts.length === 0) {
+      return { success: false, message: 'no_shifts_to_close' };
+    }
+    const totals = summaryRes.data.grandTotals;
+
+    const stmt = db.prepare("INSERT INTO daily_closures (closure_date, total_opening, total_actual, total_sales, closed_by) VALUES (?, ?, ?, ?, ?)");
+    stmt.run(new Date().toISOString(), totals.opening, totals.actual, totals.sales, adminName);
+
+    db.prepare("UPDATE shifts SET archived = 1 WHERE archived = 0 OR archived IS NULL").run();
+
+    return { success: true };
+  } catch (error) { return { success: false, error: error.message }; }
+}
+
 async function backupDatabase(destPath) { try { await db.backup(destPath); return { success: true }; } catch (error) { throw error; } }
 async function importSuppliersFromExcel(filePath) { try { const workbook = new ExcelJS.Workbook(); await workbook.xlsx.readFile(filePath); const worksheet = workbook.worksheets[0]; let importedCount = 0; const insertSupplier = db.prepare(`INSERT INTO suppliers (name, phone, initial_debt, total_debt, status) VALUES (?, ?, ?, ?, ?)`); db.transaction(() => { worksheet.eachRow((row, rowNumber) => { if (rowNumber === 1) return; const name = row.getCell(1).value?.toString() || ''; const phone = row.getCell(2).value?.toString() || ''; const initialDebtStr = row.getCell(3).value?.toString() || '0'; const initialDebt = parseFloat(initialDebtStr.replace(/[^0-9.-]+/g, "")) || 0; if (name.trim() !== '') { const status = initialDebt > 0 ? 'indebted' : 'clear'; insertSupplier.run(name.trim(), phone.trim(), initialDebt, initialDebt, status); importedCount++; } }); })(); return { success: true, count: importedCount }; } catch (error) { return { success: false, error: error.message }; } }
 
@@ -274,5 +399,6 @@ module.exports = {
   rescheduleAgendaTask, getDailySummary,
   openShift, getActiveShift, closeShift, getShiftSummary,
   getUsers, addUser, deleteUser,
-  updateEmployee, deleteEmployee, logAudit, getAuditLogs, generateExcelBackup, backupDatabase, importSuppliersFromExcel, deleteSupplier, updateSupplier , deleteReceipt, deletePayment, updateAdvance, deleteAdvance
+  updateEmployee, deleteEmployee, logAudit, getAuditLogs, generateExcelBackup, backupDatabase, importSuppliersFromExcel, deleteSupplier, updateSupplier , deleteReceipt, deletePayment, updateAdvance, deleteAdvance, 
+  getAllShiftsSummary, closeBusinessDay, getDailyClosures // 🔴 تم تصدير الدالة الجديدة
 };
