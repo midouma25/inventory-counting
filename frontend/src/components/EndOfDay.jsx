@@ -411,9 +411,12 @@ export default function EndOfDay() {
               </button>
             </div>
 
-            <div className="printable-area print-a7 bg-white text-black p-6 w-[80mm] shadow-2xl relative font-mono text-sm order-1 md:order-2" dir={isRTL ? "rtl" : "ltr"}>
+{/* 🔴 شاشة طباعة الوصل (X-Report) بحجم A7 */}
+            <div className="printable-area print-a7 bg-white text-black p-3 w-[80mm] relative font-mono text-sm order-1 md:order-2" dir={isRTL ? "rtl" : "ltr"}>
+              
               <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold mb-1">{t('eod.store_name')}</h2>
+                {/* تم حل مشكلة الأقواس بإضافة bdi */}
+                <h2 className="text-2xl font-bold mb-1"><bdi>{t('eod.store_name')}</bdi></h2>
                 <div className="border-b-2 border-dashed border-black pb-2 mt-2">
                   <p className="font-bold text-lg">{t('eod.x_report')}</p>
                   <p className="text-xs mt-1">{new Date().toLocaleDateString(i18n.language)}</p>
@@ -421,43 +424,44 @@ export default function EndOfDay() {
               </div>
 
               <div className="space-y-3 mb-6 border-b-2 border-dashed border-black pb-6 text-start">
-                <div className="flex justify-between items-center">
-                  <span className="font-bold">{t('eod.cashierName')}:</span>
-                  <span>{receiptData.cashier}</span>
+                <div className="flex justify-between items-center gap-2">
+                  <span className="font-bold whitespace-nowrap">{t('eod.cashierName')}:</span>
+                  <span className="text-end">{receiptData.cashier}</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="font-bold">{t('hr.table.timeIn')}:</span>
-                  <span dir="ltr">{new Date(receiptData.startTime).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span>
+                <div className="flex justify-between items-center gap-2">
+                  <span className="font-bold whitespace-nowrap">{t('hr.table.timeIn')}:</span>
+                  <span dir="ltr" className="text-end">{new Date(receiptData.startTime).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="font-bold">{t('eod.time_out')}:</span>
-                  <span dir="ltr">{new Date(receiptData.endTime).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span>
+                <div className="flex justify-between items-center gap-2">
+                  <span className="font-bold whitespace-nowrap">{t('eod.time_out')}:</span>
+                  <span dir="ltr" className="text-end">{new Date(receiptData.endTime).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
               </div>
 
               <div className="space-y-3 mb-6 border-b-2 border-dashed border-black pb-6 text-start">
-                <div className="flex justify-between items-center">
-                  <span>{t('eod.opening_balance')}:</span>
-                  <span className="font-bold">{receiptData.opening.toLocaleString()} {t('currency')}</span>
+                <div className="flex justify-between items-center gap-2">
+                  <span className="whitespace-nowrap">{t('eod.opening_balance')}:</span>
+                  {/* أضفنا bdi لحماية الأرقام والعملة */}
+                  <span className="font-bold text-end"><bdi>{receiptData.opening.toLocaleString()} {t('currency')}</bdi></span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span>{t('eod.total_deducted')}:</span>
-                  <span className="font-bold">{receiptData.out.toLocaleString()} {t('currency')}</span>
+                <div className="flex justify-between items-center gap-2">
+                  <span className="whitespace-nowrap">{t('eod.total_deducted')}:</span>
+                  {/* إجبار إظهار الرقم حتى لو كان 0 */}
+                  <span className="font-bold text-end"><bdi>{(receiptData.out || 0).toLocaleString()} {t('currency')}</bdi></span>
                 </div>
-                <div className="flex justify-between items-center bg-gray-100 p-1 -mx-1 px-1">
-                  <span className="font-bold">{t('eod.actual_cash')}:</span>
-                  <span className="font-bold text-lg">{receiptData.actual.toLocaleString()} {t('currency')}</span>
+                <div className="flex justify-between items-center gap-2 bg-gray-100 p-1 -mx-1 px-1">
+                  <span className="font-bold whitespace-nowrap">{t('eod.actual_cash')}:</span>
+                  <span className="font-bold text-lg text-end"><bdi>{(receiptData.actual || 0).toLocaleString()} {t('currency')}</bdi></span>
                 </div>
               </div>
 
               <div className="flex justify-between items-center text-lg font-bold mb-8 bg-black text-white p-2 rounded-sm text-start">
-                 <span>{t('eod.today_sales')}:</span>
-                 <span>{receiptData.sales.toLocaleString()} {t('currency')}</span>
+                 <span className="whitespace-nowrap">{t('eod.today_sales')}:</span>
+                 <span className="text-end"><bdi>{(receiptData.sales || 0).toLocaleString()} {t('currency')}</bdi></span>
               </div>
 
               <div className="text-center text-xs space-y-2 mt-8">
                  <p className="border-t-2 border-dashed border-black pt-4">{t('eod.receipt_footer')}</p>
-                 {/* 🔴 حقوقك تظهر في ذيل وصل الكاشير */}
                  <p className="font-bold text-gray-500">POWERED BY GHERBI.AI</p>
               </div>
             </div>

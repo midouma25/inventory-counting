@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Lock, User, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Lock, User, AlertCircle, ShieldCheck, Globe } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 
 export default function Login() {
@@ -55,25 +55,37 @@ const handleLogin = async (e) => {
   };
 
   
-  const toggleLanguage = () => {
-    const newLang = i18n.language.startsWith('en') ? 'ar' : 'en';
-    i18n.changeLanguage(newLang);
-    document.documentElement.dir = newLang === 'ar' ? 'rtl' : 'ltr';
+const toggleLanguage = () => {
+    const langs = ['ar', 'en', 'fr'];
+    const currentLang = i18n.language.split('-')[0];
+    const currentIndex = langs.indexOf(currentLang) !== -1 ? langs.indexOf(currentLang) : 0;
+    const nextLang = langs[(currentIndex + 1) % langs.length];
+    i18n.changeLanguage(nextLang);
+    document.documentElement.dir = nextLang === 'ar' ? 'rtl' : 'ltr';
   };
 
+  const getLangLabel = () => {
+    if(i18n.language.startsWith('en')) return 'English';
+    if(i18n.language.startsWith('fr')) return 'Français';
+    return 'العربية';
+  };
+
+  
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans relative" dir={i18n.language.startsWith('ar') ? 'rtl' : 'ltr'}>
       
-      <button 
-        onClick={toggleLanguage}
-        className="absolute top-6 right-6 text-slate-400 hover:text-white transition-colors text-sm font-medium"
-      >
-        {i18n.language.startsWith('en') ? 'العربية' : 'English'}
-      </button>
+
 
       <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-8">
-        
+
         <div className="text-center mb-8">
+
+        <button onClick={toggleLanguage} className="flex items-center gap-2 hover:text-white transition-colors bg-slate-900 px-3 py-2 rounded-lg border border-slate-800">
+          <Globe size={18} />
+          <span className="text-xs font-bold text-white">{getLangLabel()}</span>
+        </button>
+        
+
           <div className="mx-auto w-16 h-16 bg-blue-600/10 rounded-full flex items-center justify-center mb-4">
             <ShieldCheck size={32} className="text-blue-500" />
           </div>

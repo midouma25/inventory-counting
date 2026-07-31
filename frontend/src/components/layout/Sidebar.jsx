@@ -1,8 +1,9 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { LayoutDashboard, Users, Briefcase, Receipt, Calendar, Banknote, Settings } from 'lucide-react';
+// تم تجميع استيراد جميع الأيقونات في سطر واحد لترتيب الكود
 import useAuthStore from "../../store/authStore"; // استيراد حالة المستخدم
+import { LayoutDashboard, Users, Briefcase, Receipt, Calendar, Banknote, Settings, Archive, Activity } from 'lucide-react';
 
 export default function Sidebar() {
   const { t } = useTranslation();
@@ -19,7 +20,10 @@ export default function Sidebar() {
     { path: '/expenses', name: t('sidebar.expenses'), icon: <Receipt size={20} />, adminOnly: true },
     { path: '/payroll', name: t('sidebar.payroll'), icon: <Banknote size={20} />, adminOnly: true },
     { path: '/agenda', name: t('sidebar.agenda'), icon: <Calendar size={20} />, adminOnly: true },
+    { path: '/audit-logs', name: t('sidebar.auditLogs', 'سجل النشاطات'), icon: <Activity size={20} />, adminOnly: true },
     { path: '/end-of-day', name: t('sidebar.end_of_day'), icon: <Calendar size={20} />, adminOnly: false }, // الكاشير يمكنه رؤية هذا
+    // 🔴 تم إضافة صفحة الأرشيف هنا (للمدراء فقط)
+    { path: '/archive', name: t('zreport.archive_title', 'أرشيف اليوميات'), icon: <Archive size={20} />, adminOnly: true }, 
     { path: '/settings', name: t('sidebar.settings'), icon: <Settings size={20} />, adminOnly: true }, // صفحة الإعدادات للمدير فقط
   ];
 
@@ -34,7 +38,8 @@ export default function Sidebar() {
         </h2>
       </div>
 
-      <nav className="flex-1 px-4 py-6 space-y-2">
+      {/* تمت إضافة overflow-y-auto تحسباً لزيادة عدد الأزرار مستقبلاً لتجنب اختفائها */}
+      <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
         {visibleItems.map((item) => (
           <NavLink
             key={item.path}
@@ -52,6 +57,7 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </nav>
+      
     </aside>
   );
 }

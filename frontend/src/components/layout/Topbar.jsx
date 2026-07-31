@@ -10,9 +10,18 @@ export default function Topbar() {
   const { user, logout } = useAuthStore();
   const isCashier = user?.role === 'cashier' || user?.role === 'scale' || user?.role === 'stock';
 
-  const toggleLanguage = () => {
-    const newLang = i18n.language.startsWith('en') ? 'ar' : 'en';
-    i18n.changeLanguage(newLang);
+const toggleLanguage = () => {
+    const langs = ['ar', 'en', 'fr'];
+    const currentLang = i18n.language.split('-')[0];
+    const currentIndex = langs.indexOf(currentLang) !== -1 ? langs.indexOf(currentLang) : 0;
+    const nextLang = langs[(currentIndex + 1) % langs.length];
+    i18n.changeLanguage(nextLang);
+  };
+
+  const getLangLabel = () => {
+    if(i18n.language.startsWith('en')) return 'English';
+    if(i18n.language.startsWith('fr')) return 'Français';
+    return 'العربية';
   };
 
   const handleLogout = () => {
@@ -49,8 +58,9 @@ export default function Topbar() {
 
       {/* القسم الأيمن: البيانات الشخصية واللغة */}
       <div className="flex items-center gap-4 text-slate-400">
-        <button onClick={toggleLanguage} className="relative hover:text-white transition-colors bg-slate-900 p-2 rounded-lg border border-slate-800">
+        <button onClick={toggleLanguage} className="flex items-center gap-2 hover:text-white transition-colors bg-slate-900 px-3 py-2 rounded-lg border border-slate-800">
           <Globe size={18} />
+          <span className="text-xs font-bold">{getLangLabel()}</span>
         </button>
 
         {!isCashier && (

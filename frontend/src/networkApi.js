@@ -86,6 +86,8 @@ export const setupNetworkApi = () => {
     deleteUser: (id) => fetchFromServer('deleteUser', [id]),
     getAuditLogs: () => fetchFromServer('getAuditLogs'),
     getDailyClosures: () => fetchFromServer('getDailyClosures'),
+    getArchivedZReport: (id) => fetchFromServer('getArchivedZReport', id),
+    updateAttendanceRecord: (id, timeIn, timeOut) => fetchFromServer('updateAttendanceRecord', [id, timeIn, timeOut]),
     // 🔴 استخدام الترجمة بدلاً من النصوص العربية الثابتة
     backupDatabase: () => Promise.resolve({ success: false, error: i18n.t('common.serverOnlyFeature', 'This feature only works on the main server.') }),
     restoreDatabase: () => Promise.resolve({ success: false, error: i18n.t('common.serverOnlyFeature', 'This feature only works on the main server.') }),

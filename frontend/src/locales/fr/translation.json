@@ -1,0 +1,432 @@
+{
+  "currency": "DA",
+  "common": {
+    "search": "Rechercher...",
+    "superAdmin": "Gérant",
+    "systemOwner": "Propriétaire",
+    "success": "Opération réussie !",
+    "error": "Une erreur inattendue s'est produite.",
+    "networkError": "Erreur de connexion réseau.",
+    "serverOnlyFeature": "Cette fonctionnalité n'est disponible que sur le serveur principal.",
+    "close": "Fermer",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "refresh": "Actualiser",
+    "loading": "Chargement...",
+    "noResults": "Aucun résultat trouvé.",
+    "all": "Tous",
+    "optional": "Optionnel"
+  },
+  "sidebar": {
+    "dashboard": "Tableau de bord",
+    "suppliers": "Fournisseurs & Dettes",
+    "hr": "Ressources Humaines",
+    "expenses": "Dépenses",
+    "payroll": "Paie",
+    "agenda": "Agenda",
+    "auditLogs": "Journal d'audit",
+    "end_of_day": "Caisse",
+    "settings": "Paramètres"
+  },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "subtitle": "Aperçu du système & mesures financières",
+    "quickAction": "Action rapide",
+    "quickActionExpense": "Ajouter Dépense",
+    "kpi": {
+      "totalDebts": "Dettes Fournisseurs",
+      "dueThisWeek": "Dû cette semaine",
+      "activeEmployees": "Employés Actifs",
+      "expenses": "Total Dépenses"
+    },
+    "charts": {
+      "topCreditors": "Top Créanciers",
+      "expensesDist": "Répartition des Dépenses"
+    },
+    "lists": {
+      "urgentAlerts": "Tâches Urgentes",
+      "recentAudit": "Activités Récentes",
+      "noAuditLogs": "Aucune activité récente enregistrée."
+    },
+    "alerts": {
+      "systemTitle": "Alertes Système",
+      "urgentBody": "Vous avez {{count}} tâches urgentes en attente.",
+      "noTasks": "Aucune tâche urgente."
+    },
+    "actions": {
+      "payNow": "Payer"
+    }
+  },
+  "suppliers": {
+    "title": "Fournisseurs",
+    "subtitle": "Gérer les comptes et factures",
+    "addSupplier": "Nouveau Fournisseur",
+    "searchPlaceholder": "Rechercher par nom ou téléphone...",
+    "table": {
+      "name": "Nom du fournisseur",
+      "phone": "Téléphone",
+      "totalDebt": "Dette Totale",
+      "status": "Statut",
+      "actions": "Actions"
+    },
+    "status": {
+      "clear": "Réglé",
+      "indebted": "Endetté"
+    },
+    "actions": {
+      "view": "Détails",
+      "pay": "Payer",
+      "delete": "Supprimer",
+      "confirmDeleteBtn": "Confirmer la suppression"
+    },
+    "modal": {
+      "nameLabel": "Nom du fournisseur",
+      "selectSupplier": "-- Sélectionner --"
+    }
+  },
+  "hr": {
+    "title": "Ressources Humaines",
+    "subtitle": "Gérer les présences et le personnel",
+    "tabs": {
+      "attendance": "Terminal",
+      "employees": "Employés"
+    },
+    "scanner": {
+      "title": "Pointage",
+      "placeholder": "Scanner le code ou entrer le code PIN...",
+      "submit": "Valider"
+    },
+    "scannerHint": "Le scanner agit comme un clavier. Pointez ici.",
+    "attendanceLog": "Journal des présences d'aujourd'hui",
+    "kpi": {
+      "present": "Présent",
+      "absent": "Absent",
+      "late": "En retard"
+    },
+    "table": {
+      "name": "Employé",
+      "nameWithRole": "Employé / Rôle",
+      "timeIn": "Heure d'arrivée",
+      "timeOut": "Heure de départ",
+      "status": "Statut",
+      "loading": "Chargement des données...",
+      "emptyRecord": "Aucun pointage aujourd'hui."
+    },
+    "status": {
+      "present": "Présent",
+      "absent": "Absent",
+      "late": "En retard",
+      "departed": "Parti",
+      "active": "Actif",
+      "inactive": "Inactif"
+    },
+    "roles": {
+      "cashier": "Caissier",
+      "scale": "Peseur",
+      "stock": "Magasinier",
+      "admin": "Gérant"
+    },
+    "messages": {
+      "checkIn": "Entrée enregistrée",
+      "checkOut": "Sortie enregistrée",
+      "error": "Erreur de traitement."
+    },
+    "employees": {
+      "addBtn": "Ajouter Employé",
+      "search": "Rechercher...",
+      "empty": "Aucun employé trouvé.",
+      "softDeleted": "Compte désactivé pour préserver l'historique.",
+      "deleteConfirmMsg": "Voulez-vous vraiment supprimer le compte de : {{name}} ?",
+      "table": {
+        "name": "Nom complet",
+        "role": "Rôle",
+        "status": "Statut",
+        "actions": "Actions"
+      },
+      "actions": {
+        "edit": "Modifier",
+        "delete": "Supprimer"
+      }
+    },
+    "dialog": {
+      "title": "Nouvel Employé",
+      "editTitle": "Modifier Employé",
+      "desc": "Saisir les détails et le code PIN secret.",
+      "name": "Nom complet",
+      "namePlaceholder": "Jean Dupont...",
+      "role": "Rôle",
+      "rolePlaceholder": "Sélectionner un rôle",
+      "pin": "Code PIN",
+      "cancel": "Annuler",
+      "save": "Enregistrer",
+      "saveChanges": "Sauvegarder"
+    }
+  },
+  "expenses": {
+    "title": "Dépenses",
+    "subtitle": "Suivi des sorties de caisse et avances",
+    "allCaisses": "Toutes les caisses",
+    "adminCaisse": "Caisse Principale",
+    "cashierCaisse": "Caisse: {{name}}",
+    "addExpense": "Ajouter Dépense",
+    "editExpense": "Modifier Dépense",
+    "saveChanges": "Sauvegarder",
+    "cashierNotice": "Affichage des données de votre caisse ({{name}}) uniquement.",
+    "kpi": {
+      "today": "Sorties du jour",
+      "month": "Sorties du mois"
+    },
+    "table": {
+      "date": "Date",
+      "description": "Description",
+      "category": "Catégorie",
+      "amount": "Montant",
+      "locked": "Verrouillé"
+    },
+    "caisseSourceLabel": "Source",
+    "dateLabel": "Date",
+    "deleteConfirm": "Voulez-vous vraiment supprimer cette dépense ?",
+    "myAdvance": "Mon Avance",
+    "categories": {
+      "utilities": "Factures & Services",
+      "maintenance": "Maintenance",
+      "supplies": "Fournitures",
+      "advance": "Avance Employé",
+      "supplier_payment": "Paiement Fournisseur",
+      "salaries": "Salaires",
+      "رواتب": "Salaires"
+    }
+  },
+  "payroll": {
+    "title": "Paie",
+    "subtitle": "Gérer les salaires et avances",
+    "tabs": {
+      "calculator": "Calculatrice",
+      "advances": "Avances",
+      "salaries": "Historique"
+    },
+    "exportReportWord": "Exporter le rapport (Word)",
+    "selectEmployee": "Sélectionner un employé",
+    "hourlyRate": "Taux horaire",
+    "period": "Période",
+    "totalHours": "Heures totales",
+    "grossSalary": "Salaire Brut",
+    "deductions": "Déductions / Avances",
+    "netSalary": "Salaire Net",
+    "payslip": "Fiche de paie",
+    "comprehensiveReport": "Rapport détaillé de paie",
+    "totalEmployees": "Total Employés",
+    "rolloverNote": "Report de dette ({{start}} à {{end}})",
+    "expenseNote": "Salaire: {{name}} ({{start}} - {{end}})",
+    "accountantSig": "Signature de l'employé",
+    "calculateBtn": "Calculer le salaire",
+    "from": "De",
+    "to": "À",
+    "emptyState": "Saisissez les détails de l'employé et cliquez sur 'Calculer' pour voir les résultats",
+    "payAndSave": "Payer & Sauvegarder",
+    "addAdvance": "Ajouter une avance",
+    "exportWord": "Exporter la paie (Word)",
+    "exportPayslipWord": "Exporter Word",
+    "advanceStatus": {
+      "pending": "Non payé",
+      "paid": "Déduit"
+    },
+    "modal": {
+      "addAdvance": "Enregistrer une avance",
+      "editAdvance": "Modifier l'avance",
+      "amount": "Montant",
+      "fundSource": "Source de fonds",
+      "note": "Remarque",
+      "notePlaceholder": "Raison de l'avance...",
+      "saveAdvance": "Enregistrer l'avance"
+    },
+    "confirmPay": {
+      "title": "Confirmer le paiement",
+      "rollover": "Le salaire net est négatif. La dette restante sera reportée au mois prochain. Continuer ?",
+      "standard": "Un montant de {{amount}} sera payé depuis la caisse principale. Confirmer le paiement ?",
+      "confirmBtn": "Oui, Confirmer"
+    },
+    "deleteAdvance": {
+      "title": "Annuler l'avance",
+      "message": "Voulez-vous vraiment annuler et supprimer cette avance ? Le montant sera retourné à sa caisse d'origine.",
+      "confirmBtn": "Oui, Supprimer l'avance"
+    },
+    "table": {
+      "date": "Date",
+      "employee": "Employé",
+      "amount": "Montant",
+      "source": "Source (Caisse)",
+      "status": "Statut",
+      "actions": "Actions"
+    },
+    "errors": {
+      "advanceNotFound": "Avance introuvable."
+    }
+  },
+  "agenda": {
+    "title": "Agenda",
+    "subtitle": "Gérer le calendrier et les paiements",
+    "addTask": "Nouvelle Tâche",
+    "allDay": "Toute la journée",
+    "rescheduleTask": "Reporter",
+    "deleteConfirm": "Voulez-vous vraiment supprimer cette tâche ?",
+    "sections": {
+      "overdue": "En retard",
+      "today": "Aujourd'hui",
+      "upcoming": "À venir"
+    },
+    "filters": {
+      "all": "Tous",
+      "pending": "En attente",
+      "completed": "Terminé"
+    },
+    "types": {
+      "delivery": "Livraison",
+      "payment": "Paiement",
+      "maintenance": "Maintenance"
+    },
+    "modal": {
+      "taskTitleLabel": "Titre",
+      "taskTypeLabel": "Type",
+      "dateLabel": "Date",
+      "timeLabel": "Heure",
+      "cancelBtn": "Annuler",
+      "saveBtn": "Enregistrer"
+    }
+  },
+  "eod": {
+    "title": "Caisse / POS",
+    "store_name": "MON MAGASIN",
+    "active_shift": "Session Active",
+    "open_shift_title": "Ouvrir la caisse",
+    "open_shift_desc": "Commencer une session en tant que:",
+    "opening_balance": "Fonds de caisse",
+    "open_shift_btn": "Ouvrir la session",
+    "total_deducted": "Total Déductions",
+    "advances": "Avances",
+    "supplier_payments": "Paiements",
+    "actual_cash": "Espèces en caisse",
+    "notes": "Remarques",
+    "notesPlaceholder": "Écarts ou remarques...",
+    "today_sales": "Ventes Nettes",
+    "save_btn": "Fermer la session",
+    "confirmClose": "Voulez-vous vraiment fermer cette session ?",
+    "close_day_btn": "Clôture Journalière (Z-Report)",
+    "close_day_confirm": "Ceci archivera toutes les sessions. Continuer ?",
+    "grandTotalOpening": "Fonds d'ouverture global",
+    "grandTotalActual": "Espèces globales",
+    "grandTotalSales": "Ventes nettes globales",
+    "allShifts": "Sessions d'aujourd'hui",
+    "cashierName": "Caissier",
+    "statusOpen": "Ouverte",
+    "statusClosed": "Fermée",
+    "timing": "Horaires",
+    "masterDashboardTitle": "Fin de journée (EOD)",
+    "masterDashboardDesc": "Gérer la clôture des caisses",
+    "print_receipt": "Imprimer le reçu",
+    "x_report": "RAPPORT X",
+    "time_out": "Départ",
+    "receipt_footer": "Conservez ce reçu."
+  },
+  "zreport": {
+    "title": "RAPPORT Z (Fin de journée)",
+    "archive_title": "Archives des rapports",
+    "archive_desc": "Historique des journées clôturées et transferts financiers",
+    "date": "Date :",
+    "closed_by": "Clôturé par :",
+    "summary": "Résumé Financier",
+    "opening": "Ouverture",
+    "net_sales": "Ventes Nettes",
+    "actual_cash": "Espèces en caisse",
+    "shifts_details": "Détails des sessions",
+    "cashier": "Caissier",
+    "time_in": "Entrée",
+    "time_out": "Sortie",
+    "deductions": "Déductions",
+    "sales": "Ventes",
+    "actual_drawer": "Caisse Réelle",
+    "not_closed": "Non Fermé",
+    "manager_sig": "Signature Gérant",
+    "company_seal": "Cachet"
+  },
+  "pos": {
+    "title": "Point de Vente",
+    "scanPlaceholder": "Scanner le code-barres...",
+    "cart": "Panier",
+    "emptyCart": "Le panier est vide",
+    "perUnit": "l'unité",
+    "total": "Total",
+    "pay": "Encaisser"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "subtitle": "Gérer les utilisateurs et la base de données",
+    "newUser": "Nouvel Utilisateur",
+    "username": "Nom d'utilisateur",
+    "password": "Mot de passe",
+    "role": "Rôle",
+    "addAccountBtn": "Créer un compte",
+    "loading": "Chargement...",
+    "table": {
+      "username": "Utilisateur",
+      "role": "Rôle",
+      "actions": "Actions"
+    },
+    "noUsers": "Aucun utilisateur trouvé.",
+    "deleteTooltip": "Supprimer",
+    "deleteConfirm": "Voulez-vous vraiment supprimer l'utilisateur : {{name}} ?",
+    "deleteAlert": "Vous ne pouvez pas supprimer cet utilisateur.",
+    "deleteError": "Échec de la suppression.",
+    "addError": "Échec de l'ajout.",
+    "errorFillFields": "Veuillez remplir tous les champs.",
+    "accessDenied": "Accès Refusé.",
+    "modal": {
+      "title": "Paramètres du Magasin",
+      "storeNameLabel": "Nom du Magasin",
+      "storeNamePlaceholder": "Saisir le nom...",
+      "saveBtn": "Sauvegarder",
+      "saveSuccess": "Enregistré avec succès."
+    }
+  },
+  "database": {
+    "title": "Base de Données",
+    "backup": "Sauvegarder",
+    "backupDesc": "Créer une copie de sécurité des données.",
+    "restore": "Restaurer",
+    "restoreDesc": "Restaurer à partir d'une ancienne sauvegarde.",
+    "messages": {
+      "backupSuccess": "Sauvegarde réussie.",
+      "restoreSuccess": "Restauration réussie ! L'application va redémarrer.",
+      "restoreConfirm": "Êtes-vous sûr ? Les données actuelles seront remplacées.",
+      "error": "L'opération a échoué."
+    }
+  },
+  "audit": {
+    "subtitle": "Suivre toutes les activités du système",
+    "actions": {
+      "all": "Toutes les actions",
+      "DELETE_EXPENSE": "Dépense Supprimée"
+    },
+    "details": {
+      "DELETE_EXPENSE": "Dépense supprimée: {{desc}} ({{amount}})"
+    }
+  },
+  "login": {
+    "title": "Bienvenue",
+    "subtitle": "Veuillez vous connecter",
+    "username": "Nom d'utilisateur",
+    "password": "Mot de passe",
+    "loading": "Authentification...",
+    "submit": "Se connecter",
+    "error": "Identifiants invalides.",
+    "serverError": "Erreur de connexion au serveur."
+  },
+  "backendErrors": {
+    "shiftAlreadyOpen": "Vous avez déjà une session ouverte.",
+    "invalidCredentials": "Nom d'utilisateur ou mot de passe incorrect.",
+    "invalidPinOrInactive": "Code PIN invalide ou compte inactif.",
+    "alreadyCompletedShift": "Pointage déjà terminé pour aujourd'hui.",
+    "has_open_shifts": "Impossible de clôturer: Il reste des sessions ouvertes.",
+    "no_shifts_to_close": "Aucune session à clôturer."
+  }
+}

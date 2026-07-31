@@ -12,7 +12,9 @@ const {
   getSalaries, calculateEmployeePayroll, paySalary , getAgendaTasks, addAgendaTask, toggleAgendaTaskStatus, getDueThisWeek , deleteAgendaTask,
   rescheduleAgendaTask , getDailySummary,
   openShift, getActiveShift, closeShift, getShiftSummary,
-  getUsers, addUser, deleteUser, updateEmployee, deleteEmployee ,logAudit , getAuditLogs, backupDatabase, generateExcelBackup, updateSupplier, deleteSupplier, updateAdvance, deleteAdvance, getAllShiftsSummary , getDailyClosures // أضفنا هذه الدوال هنا
+  getUsers, addUser, deleteUser, updateEmployee, deleteEmployee ,logAudit , getAuditLogs, backupDatabase,
+   generateExcelBackup, updateSupplier, deleteSupplier, updateAdvance, deleteAdvance, getAllShiftsSummary , getDailyClosures, getArchivedZReport,updateAttendanceRecord
+   // أضفنا هذه الدوال هنا
 } = require('./database');
 const express = require('express');
 const cors = require('cors');
@@ -142,6 +144,8 @@ ipcMain.handle('get-users', () => getUsers());
   ipcMain.handle('delete-expense', (event, id, username) => deleteExpense(id, username));
   
   ipcMain.handle('close-business-day', async (event, adminName) => closeBusinessDay(adminName));
+
+  ipcMain.handle('get-archived-zreport', async (event, id) => getArchivedZReport(id));
 // هذه الدالة ستحول حاسوب المدير إلى سيرفر يخدم الكاشيرات
 function startLocalNetworkServer() {
   const apiApp = express();
@@ -276,7 +280,7 @@ ipcMain.handle('delete-advance', (event, id) => deleteAdvance(id));
 
 ipcMain.handle('get-all-shifts-summary', async () => getAllShiftsSummary());
 ipcMain.handle('get-daily-closures', async () => getDailyClosures());
-  
+ipcMain.handle('update-attendance-record', (event, id, timeIn, timeOut) => updateAttendanceRecord(id, timeIn, timeOut)); 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });

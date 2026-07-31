@@ -15,6 +15,8 @@ import Settings from './components/UsersManagement';
 import PrintPreview from './components/pages/PrintPreview';
 import Attendance from './components/pages/Attendance';
 import POS from './components/pages/POS'; // 🔴 شاشة البيع الجديدة
+import DailyClosuresArchive from './components/DailyClosuresArchive';
+import AuditLogs from './components/pages/AuditLogs';
 
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
@@ -63,9 +65,11 @@ function App() {
           <Route path="hr" element={<AdminRoute><HR /></AdminRoute>} />
           <Route path="payroll" element={<AdminRoute><Payroll /></AdminRoute>} />
           <Route path="agenda" element={<AdminRoute><Agenda /></AdminRoute>} />
-
+          
           {/* 👑 مسارات السوبر أدمين فقط */}
           <Route path="settings" element={<SuperAdminRoute><Settings /></SuperAdminRoute>} /> 
+          <Route path="/archive" element={<DailyClosuresArchive />} />
+          <Route path="audit-logs" element={<AdminRoute><AuditLogs /></AdminRoute>} />
         </Route>
       </Routes>
     </HashRouter>

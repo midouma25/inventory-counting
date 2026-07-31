@@ -66,6 +66,7 @@ contextBridge.exposeInMainWorld('api', {
   deleteAdvance: (id) => ipcRenderer.invoke('delete-advance', id),
   getAllShiftsSummary: () => ipcRenderer.invoke('get-all-shifts-summary'),
   getDailyClosures: () => ipcRenderer.invoke('get-daily-closures'),
-  closeBusinessDay: (adminName) => ipcRenderer.invoke('close-business-day', adminName)
-  
+  closeBusinessDay: (adminName) => ipcRenderer.invoke('close-business-day', adminName),
+  getArchivedZReport: (id) => ipcRenderer.invoke('get-archived-zreport', id),
+  updateAttendanceRecord: (id, timeIn, timeOut) => ipcRenderer.invoke('update-attendance-record', id, timeIn, timeOut),
 });

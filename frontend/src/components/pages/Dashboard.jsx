@@ -239,27 +239,30 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
-          {logs.length === 0 ? (
-            <div className="text-center p-4 text-slate-500 text-sm border border-dashed border-slate-800 rounded-lg">
-              {t('dashboard.lists.noAuditLogs')}
-            </div>
-          ) : (
-            logs.slice(0, 8).map(log => (
-              <div key={log.id} className="flex justify-between items-center p-3 border border-slate-800 rounded-lg bg-slate-950/50">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-slate-300">{renderAuditDetails(log)}</p>
-                  <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-                    <span className="text-blue-400 font-bold">{log.username}</span> 
-                    • {new Date(log.created_at).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                </div>
-                <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded">
-                  {t(`audit.actions.${log.action}`, { defaultValue: log.action })}
-                </span>
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
+          <h3 className="text-lg font-bold text-white mb-4">{t('dashboard.lists.recentAudit', 'سجل النشاطات الحديثة')}</h3>
+          <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+            {logs.length === 0 ? (
+              <div className="text-center p-4 text-slate-500 text-sm border border-dashed border-slate-800 rounded-lg">
+                {t('dashboard.lists.noAuditLogs', 'لا يوجد نشاط مسجل حديثاً.')}
               </div>
-            ))
-          )}
+            ) : (
+              logs.slice(0, 8).map(log => (
+                <div key={log.id} className="flex justify-between items-center p-3 border border-slate-800 rounded-lg bg-slate-950/50">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-slate-300">{renderAuditDetails(log)}</p>
+                    <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                      <span className="text-blue-400 font-bold">{log.username}</span> 
+                      • {new Date(log.created_at).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                  <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded">
+                    {t(`audit.actions.${log.action}`, { defaultValue: log.action })}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
 
