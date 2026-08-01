@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Printer, ArrowLeft, AlertCircle } from 'lucide-react';
@@ -7,9 +7,6 @@ export default function PrintPreview() {
   const { t, i18n } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
-  const [data, setData] = useState(null);
-  const [type, setType] = useState('receipt');
-  const [supplierName, setSupplierName] = useState('غير محدد');
 
   const isRTL = i18n.dir() === 'rtl';
   const getStoreName = () => {
@@ -35,28 +32,29 @@ export default function PrintPreview() {
   };
   const storeNameLabel = getStoreName();
 
-  useEffect(() => {
-    // 🔴 البحث التلقائي عن البيانات أياً كان اسمها (data, item, receipt...)
+  // 🔴 استخدام useMemo لمعالجة البيانات فوراً ومنع ظهور شاشة الخطأ الوهمية
+  const { data, type, supplierName } = useMemo(() => {
     const state = location.state || {};
     const extractedData = state.data || state.item || state.receipt || state.payment || state;
     
-    // إذا لم تكن هناك بيانات صالحة
-    if (!extractedData || Object.keys(extractedData).length === 0) {
-      setData(null);
-      return;
+    // التحقق من صحة البيانات
+    if (!extractedData || Object.keys(extractedData).length === 0 || extractedData.amount === undefined) {
+      return { data: null, type: 'receipt', supplierName: 'غير محدد' };
     }
 
-    setData(extractedData);
-    setType(state.type || (extractedData.amount < 0 ? 'payment' : 'receipt'));
-    setSupplierName(state.supplierName || extractedData.supplier_name || extractedData.name || 'غير محدد');
-  }, [location]);
+    const resolvedType = state.type || (extractedData.amount < 0 ? 'payment' : 'receipt');
+    const resolvedSupplier = state.supplierName || extractedData.supplier_name || extractedData.name || 'غير محدد';
+    
+    return { data: extractedData, type: resolvedType, supplierName: resolvedSupplier };
+  }, [location.state]);
 
+  // 🔴 شاشة الخطأ الحقيقية (تظهر فقط إذا كانت البيانات فارغة فعلاً)
   if (!data) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-300 gap-4" dir={isRTL ? "rtl" : "ltr"}>
+      <div className="min-h-[80vh] flex flex-col items-center justify-center text-slate-300 gap-4" dir={isRTL ? "rtl" : "ltr"}>
         <AlertCircle size={48} className="text-red-500" />
         <h2 className="text-2xl font-bold text-white">{t('common.error', 'حدث خطأ غير متوقع.')}</h2>
-        <p className="text-slate-500">لم يتم العثور على بيانات الوصل لطباعتها.</p>
+        <p className="text-slate-500">البيانات مفقودة أو تم الوصول لهذه الصفحة بطريقة خاطئة.</p>
         <button onClick={() => navigate(-1)} className="mt-4 bg-slate-800 hover:bg-slate-700 text-white px-6 py-2 rounded-lg transition-colors">
           {t('common.cancel', 'رجوع')}
         </button>
@@ -79,68 +77,72 @@ export default function PrintPreview() {
         </button>
       </div>
 
-      {/* 🔴 ورقة A7 الفعلية (74 مم × 105 مم) */}
-      <div className="printable-area print-a7 bg-white text-black mx-auto flex flex-col" dir={isRTL ? "rtl" : "ltr"}>
+      {/* 🔴 الحاوية القابلة للطباعة (تعتمد على كلاسات الطابعة الحرارية القياسية) */}
+      <div className="printable-area receipt-ticket mx-auto shadow-2xl" dir={isRTL ? "rtl" : "ltr"}>
         
         {/* الترويسة */}
-        <div className="text-center border-b-2 border-dashed border-gray-400 pb-2 mb-2">
-          <h2 className="text-xl font-black mb-1 uppercase tracking-wider">{t('receipt.storeName', 'GHERBI.AI')}</h2>
-          <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-2">Code • Multimedia • Algo • AI</p>
-          <h2 className="text-lg font-bold border-t border-dashed border-black pt-1 mt-1">
-            {storeNameLabel}
-          </h2>
-          <div className="inline-block border-2 border-black px-3 py-1 text-sm font-bold uppercase rounded-sm">
-            {isPayment ? t('suppliers.details.addPayment', 'وصل تسديد') : t('suppliers.details.addReceipt', 'وصل استلام')}
-          </div>
+        <div className="header-title">GHERBI.AI</div>
+        <div className="header-subtitle"> CODE &bull; MULTIMEDIA &bull; ALGO &bull; AI</div>
+        <div className="header-title">{storeNameLabel}</div>
+        
+        <div className="badge-action">
+          {isPayment ? t('suppliers.details.addPayment', 'إضافة تسديد (دفع)') : t('suppliers.details.addReceipt', 'إضافة فاتورة (سلعة)')}
         </div>
+        
+        <div className="receipt-divider"></div>
 
-        {/* تفاصيل المورد والوقت */}
-        <div className="space-y-1 mb-2 text-[10px] border-b-2 border-dashed border-gray-400 pb-2 text-start">
-          <div className="flex justify-between items-center">
-            <span className="font-bold">{t('receipt.date', 'التاريخ:')}</span>
-            <span dir="ltr">{data.date || new Date().toISOString().split('T')[0]}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="font-bold">{t('receipt.supplier', 'المورد:')}</span>
-            <span className="truncate max-w-[120px]">{supplierName}</span>
-          </div>
-          {data.caisse_source && (
-            <div className="flex justify-between items-center">
-              <span className="font-bold">{t('payroll.fundSource', 'الصندوق:')}</span>
-              <span>{data.caisse_source === 'admin' ? t('common.superAdmin', 'المدير') : data.caisse_source}</span>
-            </div>
-          )}
-        </div>
+        {/* التفاصيل (موضوعة في جدول لمنع الانقسام والقص) */}
+        <table className="info-table">
+          <tbody>
+            <tr>
+              <td className="label">{t('receipt.date', 'التاريخ:')}</td>
+              <td className="value" dir="ltr" style={{ textAlign: isRTL ? 'right' : 'left' }}>
+                {data.date || new Date().toISOString().split('T')[0]}
+              </td>
+            </tr>
+            <tr>
+              <td className="label">{t('receipt.supplier', 'المورد:')}</td>
+              <td className="value">{supplierName}</td>
+            </tr>
+            {data.caisse_source && (
+              <tr>
+                <td className="label">{t('payroll.fundSource', 'الصندوق:')}</td>
+                <td className="value">
+                  {data.caisse_source === 'admin' ? t('common.superAdmin', 'المدير العام') : data.caisse_source}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
 
         {/* المبلغ المالي */}
-        <div className="text-center mb-2 bg-gray-100 p-2 rounded-md">
-          <p className="text-[10px] font-bold mb-1">{t('receipt.amount', 'المبلغ')}</p>
-          <h2 className="text-xl font-black tracking-tight" dir="ltr">
-            {Math.abs(Number(data.amount)).toLocaleString()} {t('currency', 'DA')}
-          </h2>
+        <div className="amount-box">
+          <span className="box-title">{t('receipt.amount', 'المبلغ:')}</span>
+          <span className="box-value" dir="ltr">
+            {Math.abs(Number(data.amount)).toLocaleString()} {t('currency', 'د.ج')}
+          </span>
         </div>
 
         {/* الملاحظة (إن وجدت) */}
         {data.note && (
-          <div className="mb-2 text-[10px] text-start bg-gray-50 p-2 rounded-md border border-gray-200">
-            <span className="font-bold block mb-1">{t('receipt.note', 'البيان:')}</span>
-            <p className="break-words leading-tight">{data.note}</p>
+          <div className="note-box">
+            <span className="note-title">{t('receipt.note', 'البيان:')}</span>
+            <span>{data.note}</span>
           </div>
         )}
 
-        {/* التوقيع والختم - يدفع لأسفل الورقة */}
-        <div className="mt-auto pt-2 text-center text-[9px]">
-          <p className="font-bold mb-6">{t('receipt.signature', 'توقيع المستلم')}</p>
-          <div className="border-t border-black pt-1 mx-4">
-            <p className="font-bold">DEV: GHERBI.AI</p>
-          </div>
+        {/* التوقيع والختم متوازيان أسفل الإيصال */}
+        <div className="signatures-area">
+          <span>{t('receipt.signature', 'توقيع المستلم')}</span>
+          <span>{t('receipt.stamp', 'توقيع الإدارة')}</span>
         </div>
 
-        {/* تذييل الورقة */}
-        <div className="text-center mt-2">
-          <p className="text-[8px] border-t border-dashed border-gray-400 pt-1 text-gray-500">
-            {t('receipt.footer', 'شكراً لتعاملكم معنا')}
-          </p>
+        <div className="receipt-divider"></div>
+        
+        {/* تذييل الفاتورة */}
+        <div className="footer-area">
+          <div className="dev-brand">DEV: GHERBI.AI</div>
+          <div>{t('receipt.footer', 'شكراً لتعاملكم معنا')}</div>
         </div>
 
       </div>

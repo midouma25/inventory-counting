@@ -4,81 +4,83 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 🛠️ التنسيق العام للـ Ticket أثناء العرض على الشاشة */
+.receipt-ticket { 
+    width: 72mm; 
+    margin: 0 auto; 
+    padding: 3mm 4mm; 
+    box-sizing: border-box; 
+    font-family: 'Arial', sans-serif; 
+    color: #000000; 
+    background-color: #ffffff; 
+}
+.header-title { text-align: center; font-size: 16px; font-weight: bold; margin: 0 0 1mm 0; }
+.header-subtitle { text-align: center; font-size: 9px; letter-spacing: 1px; margin: 0 0 3mm 0; color: #333; text-transform: uppercase; }
+.badge-action { display: block; border: 2px solid #000000; font-size: 14px; font-weight: bold; text-align: center; padding: 1.5mm 0; margin: 2mm auto; width: 85%; border-radius: 4px; }
+.receipt-divider { border-top: 1px dashed #000000; margin: 3mm 0; width: 100%; }
+
+/* الجداول والصناديق الداخلية */
+.info-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 3mm; }
+.info-table td { padding: 1mm 0; vertical-align: top; }
+.info-table td.label { font-weight: bold; width: 35%; }
+.info-table td.value { text-align: start; width: 65%; font-weight: 600; }
+
+.amount-box { border: 1.5px solid #000000; border-radius: 4px; text-align: center; padding: 2.5mm 0; margin: 3mm 0; background: #f8f9fa; }
+.amount-box .box-title { font-size: 10px; display: block; margin-bottom: 1mm; font-weight: bold; }
+.amount-box .box-value { font-size: 18px; font-weight: 900; }
+
+.note-box { border: 1px solid #000; border-radius: 4px; padding: 2mm; font-size: 11px; margin: 3mm 0; min-height: 8mm; text-align: start; }
+.note-box .note-title { font-weight: bold; display: block; margin-bottom: 1mm; border-bottom: 1px solid #eee; padding-bottom: 1mm; }
+.signatures-area { display: flex; justify-content: space-between; font-size: 10px; font-weight: bold; margin-top: 6mm; padding: 0 1mm; }
+.footer-area { text-align: center; font-size: 10px; margin-top: 5mm; }
+.footer-area .dev-brand { font-weight: 900; font-size: 11px; margin-bottom: 1mm; letter-spacing: 1px;}
+
+/* 🖨️ قاعدة التحكم بالطباعة الحرارية الذكية الصارمة دون التأثير على الشاشة */
 @media print {
-  body * { visibility: hidden; }
-  
-  .printable-area, .printable-area * {
-    visibility: visible;
-  }
-  
-  .printable-area {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    background: white !important;
-    color: black !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
+    /* تصفير الهوامش وتحديد الحجم لـ 80 مم للرول بأكمله */
+    @page {
+        size: 80mm auto;
+        margin: 0mm !important; 
+    }
+    
+    /* إخفاء شريط الأزرار وكل عنصر يحتوي على كلاس no-print */
+    .no-print { 
+        display: none !important; 
+    }
 
-  @page a7-receipt {
-    size: 80mm auto;
-    margin: 0;
-  }
-  
-  .print-a7 {
-    page: a7-receipt;
-    width: 80mm !important;
-    max-width: 80mm !important;
-    font-size: 13px;
-    padding: 4mm !important;
-    box-sizing: border-box;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  }
+    /* تهيئة الحاوية الأساسية وجعل المتصفح يركز عليها فقط */
+    html, body {
+        width: 80mm !important;
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important; /* منعت تجميد الورقة */
+    }
 
-  /* إلغاء الخلفيات الملونة في الطباعة */
-  .print-a7 .no-print-bg,
-  .print-a7 [class*="bg-"] {
-    background: transparent !important;
-    color: black !important;
-  }
-  
-  .print-a7 .receipt-header {
-    text-align: center;
-    border-bottom: 2px dashed black;
-    padding-bottom: 8px;
-    margin-bottom: 8px;
-  }
-  
-  .print-a7 .receipt-row {
-    display: block; /* أفضل من flex للطابعات الحرارية */
-    margin-bottom: 4px;
-    clear: both;
-  }
-  
-  .print-a7 .receipt-row::after {
-    content: "";
-    display: table;
-    clear: both;
-  }
-  
-  .print-a7 .receipt-label {
-    float: left; /* أو right حسب اللغة */
-  }
-  
-  .print-a7 .receipt-value {
-    float: right;
-    font-weight: bold;
-  }
-  
-  .print-a7 .receipt-footer {
-    text-align: center;
-    border-top: 2px dashed black;
-    padding-top: 8px;
-    margin-top: 8px;
-    font-size: 11px;
-  }
+    /* إجبار إيصال الـ React على أبعاد رأس الطابعة Posbank A7 */
+    .printable-area.receipt-ticket {
+        width: 72mm !important;
+        max-width: 72mm !important;
+        margin: 0 auto !important;
+        padding: 3mm 2mm !important;
+        box-shadow: none !important;
+        background: #ffffff !important;
+        display: block !important;
+    }
+
+    .receipt-ticket, table, tr {
+        page-break-inside: avoid !important;
+    }
+
+
+    /* 🔵 تنسيق A4 للتقارير الكبيرة فقط */
+    .print-a4 {
+        width: 210mm !important;
+        min-height: 297mm !important;
+        padding: 10mm !important;
+        max-width: 210mm !important; 
+    }
+
+    .no-print { display: none !important; }
 }
