@@ -12,6 +12,8 @@
     "cancel": "إلغاء",
     "confirm": "تأكيد",
     "refresh": "تحديث",
+    "from": "من",
+    "to": "إلى",
     "loading": "جاري التحميل...",
     "noResults": "لا توجد نتائج مطابقة.",
     "all": "الكل",
@@ -82,7 +84,32 @@
     "modal": {
       "nameLabel": "اسم المورد",
       "selectSupplier": "-- اختر مورداً --"
+    },
+    "details": {
+      "schedulePayment": "جدولة دفعة",
+      "addPayment": "إضافة تسديد (دفع)",
+      "addReceipt": "إضافة فاتورة (سلعة)",
+      "payments": "سجل الدفعات المستحقة",
+      "receipts": "سجل الفواتير المستلمة",
+      "amount": "المبلغ",
+      "date": "التاريخ",
+      "note": "البيان / ملاحظة",
+      "printReceipt": "طباعة الوصل",
+      "print": "طباعة"
     }
+  },
+  "receipt": {
+    "title": "وصل استلام / دفع",
+    "storeName": "GHERBI.AI",
+    "date": "التاريخ:",
+    "time": "الوقت:",
+    "cashier": "الكاشير:",
+    "supplier": "المورد:",
+    "amount": "المبلغ:",
+    "note": "البيان:",
+    "signature": "توقيع المستلم",
+    "stamp": "ختم المحل",
+    "footer": "شكراً لتعاملكم معنا"
   },
   "hr": {
     "title": "الموارد البشرية",

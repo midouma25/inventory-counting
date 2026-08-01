@@ -5,43 +5,80 @@
 @tailwind utilities;
 
 @media print {
-  /* إخفاء كل شيء في الشاشة */
-  body * {
-    visibility: hidden;
-  }
+  body * { visibility: hidden; }
   
-  /* إظهار المنطقة المخصصة للطباعة فقط */
   .printable-area, .printable-area * {
     visibility: visible;
   }
   
-  /* إعدادات مشتركة */
   .printable-area {
     position: absolute;
     left: 0;
     top: 0;
+    width: 100%;
     margin: 0;
     padding: 0;
-    background-color: white;
-    color: black;
+    background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
-  /* 🔴 إعدادات الورقة الصغيرة (A7/80mm) لوصل الكاشير */
+  @page a7-receipt {
+    size: 80mm auto;
+    margin: 0;
+  }
+  
   .print-a7 {
+    page: a7-receipt;
     width: 80mm !important;
-    font-size: 12px;
+    max-width: 80mm !important;
+    font-size: 13px;
+    padding: 4mm !important;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   }
 
-  /* 🔵 إعدادات الورقة الكبيرة (A4) ليومية المدير */
-  .print-a4 {
-    width: 210mm !important;
-    min-height: 297mm;
-    padding: 20mm;
-    font-size: 14px;
+  /* إلغاء الخلفيات الملونة في الطباعة */
+  .print-a7 .no-print-bg,
+  .print-a7 [class*="bg-"] {
+    background: transparent !important;
+    color: black !important;
   }
-
-  /* إخفاء الأزرار في الطباعة */
-  .no-print {
-    display: none !important;
+  
+  .print-a7 .receipt-header {
+    text-align: center;
+    border-bottom: 2px dashed black;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+  }
+  
+  .print-a7 .receipt-row {
+    display: block; /* أفضل من flex للطابعات الحرارية */
+    margin-bottom: 4px;
+    clear: both;
+  }
+  
+  .print-a7 .receipt-row::after {
+    content: "";
+    display: table;
+    clear: both;
+  }
+  
+  .print-a7 .receipt-label {
+    float: left; /* أو right حسب اللغة */
+  }
+  
+  .print-a7 .receipt-value {
+    float: right;
+    font-weight: bold;
+  }
+  
+  .print-a7 .receipt-footer {
+    text-align: center;
+    border-top: 2px dashed black;
+    padding-top: 8px;
+    margin-top: 8px;
+    font-size: 11px;
   }
 }

@@ -21,7 +21,7 @@ export default function PrintableTicket({ data }) {
           GHERBI.AI
         </h1>
         <p className="text-[10px] mt-1 tracking-widest uppercase font-bold text-gray-600">
-          Code • Multimedia • Algo
+          Code • Multimedia • Algo Trading • AI
         </p>
         
         {/* اسم محل العميل */}

@@ -5,6 +5,9 @@ const PrintablePayrollReport = forwardRef(({ data, dateRange }, ref) => {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.dir() === 'rtl';
 
+  // قراءة اسم المحل (نفس المصدر المستخدم في بقية المستندات المطبوعة)
+  const currentStoreName = localStorage.getItem('storeName') || 'GHERBI.AI';
+
   const formatMoney = (amount) => {
     return Number(amount || 0).toLocaleString(i18n.language, {
       minimumFractionDigits: 2,
@@ -36,7 +39,7 @@ const PrintablePayrollReport = forwardRef(({ data, dateRange }, ref) => {
       <div className="text-center mb-8 border-b-2 border-black pb-4">
         <h2 className="text-2xl font-bold mb-2 uppercase tracking-wider">{t('payroll.reportTitle', 'تقرير الرواتب الشامل وحركة الحضور')}</h2>
         <div className="flex justify-between text-sm font-bold text-gray-600 mt-4 px-4">
-          <span>{t('eod.store_name', 'متجري (MY STORE)')}</span>
+          <span>{currentStoreName}</span>
           <span>{t('zreport.date', 'تاريخ الإصدار:')} <bdi dir="ltr">{new Date().toLocaleDateString(i18n.language)}</bdi></span>
         </div>
       </div>

@@ -81,8 +81,33 @@
     },
     "modal": {
       "nameLabel": "Nom du fournisseur",
-      "selectSupplier": "-- Sélectionner --"
+      "selectSupplier": "-- Sélectionner un fournisseur --"
+    },
+    "details": {
+      "schedulePayment": "Planifier un paiement",
+      "addPayment": "Ajouter un paiement",
+      "addReceipt": "Ajouter une facture",
+      "payments": "Historique des paiements dus",
+      "receipts": "Historique des factures reçues",
+      "amount": "Montant",
+      "date": "Date",
+      "note": "Libellé / Note",
+      "printReceipt": "Imprimer le reçu",
+      "print": "Imprimer"
     }
+  },
+  "receipt": {
+    "title": "Reçu de réception / paiement",
+    "storeName": "GHERBI.AI",
+    "date": "Date :",
+    "time": "Heure :",
+    "cashier": "Caissier :",
+    "supplier": "Fournisseur :",
+    "amount": "Montant :",
+    "note": "Libellé :",
+    "signature": "Signature du destinataire",
+    "stamp": "Cachet du magasin",
+    "footer": "Merci de votre confiance"
   },
   "hr": {
     "title": "Ressources Humaines",

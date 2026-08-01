@@ -33,7 +33,16 @@ export default function Dashboard() {
     fetchLogs();
   }, [fetchLogs]);
 
-  // نفس دالة الترجمة الذكية للشاشة الرئيسية
+  // 🔴 دالة تنسيق التاريخ المنظم
+  const formatDateTime = (isoString) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    return date.toLocaleString('en-GB', { 
+      year: 'numeric', month: '2-digit', day: '2-digit', 
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false 
+    }).replace(',', ' -');
+  };
+
   const renderAuditDetails = (log) => {
     try {
       const p = JSON.parse(log.details);
@@ -260,7 +269,8 @@ export default function Dashboard() {
                     <p className="text-sm font-medium text-slate-300">{renderAuditDetails(log)}</p>
                     <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
                       <span className="text-blue-400 font-bold">{log.username}</span> 
-                      • {new Date(log.created_at).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
+                      {/* 🔴 استخدام دالة التاريخ الجديدة هنا */}
+                      • <span dir="ltr" className="font-mono text-slate-400">{formatDateTime(log.created_at)}</span>
                     </p>
                   </div>
                   <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded">
@@ -298,7 +308,6 @@ export default function Dashboard() {
           </div>
         </form>
       </Modal>
-
     </div>
   );
 }

@@ -5,6 +5,9 @@ import { Archive, Calendar, User, Printer, RotateCcw, X, AlertCircle } from 'luc
 export default function DailyClosuresArchive() {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.dir() === 'rtl';
+
+  // قراءة اسم المحل (نفس المصدر المستخدم في بقية المستندات المطبوعة)
+  const currentStoreName = localStorage.getItem('storeName') || 'GHERBI.AI';
   
   const [closures, setClosures] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -68,7 +71,7 @@ export default function DailyClosuresArchive() {
           <div className="printable-area print-a4 bg-white text-black shadow-2xl relative font-sans w-full max-w-[210mm] min-h-[297mm] p-10 mx-auto">
             
             <div className="text-center mb-8 border-b-2 border-black pb-4">
-              <h2 className="text-3xl font-bold mb-2">{t('eod.store_name')}</h2>
+              <h2 className="text-3xl font-bold mb-2">{currentStoreName}</h2>
               <h3 className="text-xl font-bold text-gray-700 mb-2">نسخة أرشيف: {t('zreport.title')}</h3>
               <div className="flex justify-between text-sm text-gray-600 mt-4">
                 <span>{t('zreport.date')} <strong dir="ltr">{new Date(selectedReport.closure.closure_date).toLocaleString(i18n.language)}</strong></span>

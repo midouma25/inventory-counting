@@ -12,6 +12,9 @@ export default function EndOfDay() {
   const isSuperAdmin = user?.role === 'superadmin' || user?.role === 'admin';
   const cashierName = isSuperAdmin ? t('common.superAdmin') : (user?.username || 'Cashier');
 
+  // قراءة اسم المحل (نفس المصدر المستخدم في بقية المستندات المطبوعة)
+  const currentStoreName = localStorage.getItem('storeName') || 'GHERBI.AI';
+
   // حالات خاصة بالكاشير
   const [activeShift, setActiveShift] = useState(null);
   const [openingBalanceInput, setOpeningBalanceInput] = useState('');
@@ -178,7 +181,7 @@ export default function EndOfDay() {
             <div className="printable-area print-a4 bg-white text-black shadow-2xl relative font-sans w-full max-w-[210mm] min-h-[297mm] p-10 mx-auto">
               
               <div className="text-center mb-8 border-b-2 border-black pb-4">
-                <h2 className="text-3xl font-bold mb-2">{t('eod.store_name')}</h2>
+                <h2 className="text-3xl font-bold mb-2">{currentStoreName}</h2>
                 <h3 className="text-xl font-bold text-gray-700 mb-2">{t('zreport.title')}</h3>
                 <div className="flex justify-between text-sm text-gray-600 mt-4">
                   <span>{t('zreport.date')} <strong dir="ltr">{new Date(zReportData.date).toLocaleString(i18n.language)}</strong></span>
@@ -416,7 +419,7 @@ export default function EndOfDay() {
               
               <div className="text-center mb-6">
                 {/* تم حل مشكلة الأقواس بإضافة bdi */}
-                <h2 className="text-2xl font-bold mb-1"><bdi>{t('eod.store_name')}</bdi></h2>
+                <h2 className="text-2xl font-bold mb-1"><bdi>{currentStoreName}</bdi></h2>
                 <div className="border-b-2 border-dashed border-black pb-2 mt-2">
                   <p className="font-bold text-lg">{t('eod.x_report')}</p>
                   <p className="text-xs mt-1">{new Date().toLocaleDateString(i18n.language)}</p>

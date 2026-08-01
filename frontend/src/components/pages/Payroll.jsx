@@ -158,6 +158,8 @@ export default function Payroll() {
     const dir = isRTL ? 'rtl' : 'ltr';
     const alignStart = isRTL ? 'right' : 'left';
     const alignEnd = isRTL ? 'left' : 'right';
+    // قراءة اسم المحل (نفس المصدر المستخدم في بقية المستندات المطبوعة)
+    const currentStoreName = localStorage.getItem('storeName') || 'GHERBI.AI';
     const curr = t('currency', 'د.ج');
     const title = isSingle ? t('payroll.payslip', 'كشف راتب موظف') : t('payroll.comprehensiveReport', 'سجل الرواتب والحضور المفصل');
     
@@ -182,7 +184,7 @@ export default function Payroll() {
     </head>
     <body>
       <h2>${title}</h2>
-      <h3>${t('eod.store_name', 'متجري (MY STORE)')} - ${t('zreport.date', 'تاريخ الإصدار:')} <span dir="ltr">${new Date().toLocaleDateString(i18n.language)}</span></h3>
+      <h3>${currentStoreName} - ${t('zreport.date', 'تاريخ الإصدار:')} <span dir="ltr">${new Date().toLocaleDateString(i18n.language)}</span></h3>
     `;
 
     if (isSingle) {

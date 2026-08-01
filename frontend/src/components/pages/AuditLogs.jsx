@@ -14,7 +14,21 @@ export default function AuditLogs() {
     fetchLogs();
   }, [fetchLogs]);
 
-  // ترجمة احترافية لكل أنواع الحركات التي يتنفس بها النظام
+  // 🔴 دالة جديدة لتنسيق التاريخ والوقت بشكل رياضي دقيق ومنظم
+  const formatDateTime = (isoString) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    return date.toLocaleString('en-GB', { 
+      year: 'numeric', 
+      month: '2-digit', 
+      day: '2-digit', 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      second: '2-digit',
+      hour12: false 
+    }).replace(',', ' -'); // تظهر النتيجة هكذا: 31/07/2026 - 15:25:23
+  };
+
   const renderAuditDetails = (log) => {
     try {
       const p = JSON.parse(log.details);
@@ -24,7 +38,7 @@ export default function AuditLogs() {
         case 'UPDATE_EXPENSE': return `تعديل مصروف: ${p.desc} (${p.amount} د.ج)`;
         case 'DELETE_EXPENSE': return `حذف مصروف: ${p.desc} (${p.amount} د.ج)`;
         case 'CLOSE_DAY': return `إغلاق وتأكيد يومية المتجر. المبيعات: ${p.sales} د.ج`;
-        case 'CLOSE_SHIFT': return `إغلاق وردية بائع. المبيعات: ${p.sales} د.ج`;
+        case 'CLOSE_SHIFT': return `إغلاق وردية كاشير. المبيعات: ${p.sales} د.ج`;
         case 'OPEN_SHIFT': return `فتح وردية جديدة بفوندوكاس: ${p.opening} د.ج`;
         case 'ADD_EMPLOYEE': return `إضافة موظف جديد: ${p.name} (${p.role})`;
         case 'UPDATE_EMPLOYEE': return `تعديل بيانات الموظف: ${p.name}`;
@@ -112,10 +126,11 @@ export default function AuditLogs() {
                       {log.username.charAt(0)}
                     </div>
                     <div>
-                      <p className="text-white font-medium mb-1">{renderAuditDetails(log)}</p>
-                      <div className="flex items-center gap-4 text-xs text-slate-500">
+                      <p className="text-white font-medium mb-1 text-lg">{renderAuditDetails(log)}</p>
+                      <div className="flex items-center gap-4 text-xs text-slate-500 mt-1">
                         <span className="flex items-center gap-1"><User size={12}/> {log.username}</span>
-                        <span className="flex items-center gap-1"><Clock size={12}/> <bdi dir="ltr">{new Date(log.created_at).toLocaleString(i18n.language)}</bdi></span>
+                        {/* 🔴 استخدام دالة التاريخ الجديدة هنا */}
+                        <span className="flex items-center gap-1"><Clock size={12}/> <span dir="ltr" className="font-mono text-slate-400">{formatDateTime(log.created_at)}</span></span>
                       </div>
                     </div>
                   </div>
