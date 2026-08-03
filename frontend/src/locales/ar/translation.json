@@ -28,7 +28,60 @@
     "agenda": "الأجندة والمهام",
     "auditLogs": "سجل النشاطات",
     "end_of_day": "الصندوق / إغلاق الوردية",
-    "settings": "الإعدادات"
+    "settings": "الإعدادات",
+    "storeMap": "مخطط المحل ثلاثي الأبعاد",
+    "pdfImporter": "استيراد الفواتير (PDF)"
+  },
+  "storeMap": {
+    "title": "نظام الهايبر ماركت التفاعلي",
+    "subtitle": "مراقبة {{count}} نقطة تخزين حية",
+    "searchPlaceholder": "ابحث عن رف أو قسم...",
+    "searchResults": "نتائج البحث",
+    "showingShelves": "يتم عرض {{count}} رف",
+    "status": {
+      "good": "جيد",
+      "low": "منخفض",
+      "empty": "فارغ!"
+    },
+    "zones": {
+      "food": "الغذائية والمصبرات",
+      "fresh": "الثلاجات والطازج",
+      "cleaning": "مواد التنظيف",
+      "electronics": "الإلكترونيات والأجهزة",
+      "clothing": "الملابس والنسيج",
+      "beauty": "العناية الشخصية والتجميل"
+    },
+    "shelfName": "رف {{num}} - ممر {{aisle}}"
+  },
+  "pdfImporter": {
+    "title": "المستورد الذكي للمخزون (Smart PDF)",
+    "subtitle": "قم برفع وصولات الاستلام وسيتم استخراج السلع وربطها بالخريطة آلياً.",
+    "btnUpload": "رفع وتحليل PDF",
+    "tableTitle": "جدول المطابقة وتوجيه السلع للرفوف",
+    "cols": {
+      "ref": "الباركود (من PDF)",
+      "dirtyName": "الاسم الفوضوي",
+      "qty": "الكمية",
+      "cleanName": "الاسم المنظم (للخريطة)",
+      "shelf": "توجيه إلى الرف",
+      "autoRecognized": "متعرف عليه آلياً",
+      "extractSuccessWithKnown": "تم استخراج {{count}} منتج بنجاح! (تم التعرف آلياً على {{knownCount}} منتج)",
+      "extractSuccessWithUnknown": "تم استخراج {{count}} منتج بنجاح! (لم يتم التعرف آلياً على {{unknownCount}} منتج)",
+      "actions": "الإجراء"
+    },
+    "emptyState": "لم يتم رفع أي ملف PDF بعد. اضغط على الزر بالأعلى للبدء.",
+    "selectShelf": "-- اختر رف الوجهة --",
+    "capacity": "السعة",
+    "saved": "تم الربط",
+    "saveBtn": "حفظ وربط",
+    "messages": {
+      "extractSuccess": "تم استخراج {{count}} منتج بنجاح!",
+      "extractError": "فشل في قراءة ملف الـ PDF أو أن تنسيقه غير مدعوم.",
+      "systemError": "حدث خطأ أثناء الاتصال بالنظام.",
+      "shelfWarning": "يرجى اختيار الرف أولاً.",
+      "saveSuccess": "تم ربط وتخزين [{{name}}] بنجاح!",
+      "saveError": "حدث خطأ أثناء الحفظ."
+    }
   },
   "dashboard": {
     "title": "لوحة القيادة",
@@ -456,4 +509,6 @@
     "has_open_shifts": "لا يمكن الترحيل: توجد ورديات كاشير لم تُغلق بعد.",
     "no_shifts_to_close": "لا توجد أي ورديات مفتوحة أو مغلقة لترحيلها."
   }
+ 
+ 
 }

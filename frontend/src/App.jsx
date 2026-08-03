@@ -17,7 +17,8 @@ import Attendance from './components/pages/Attendance';
 import POS from './components/pages/POS'; // 🔴 شاشة البيع الجديدة
 import DailyClosuresArchive from './components/DailyClosuresArchive';
 import AuditLogs from './components/pages/AuditLogs';
-
+import StoreMap from './components/pages/StoreMap'; // 🔴 شاشة مخطط المحل ثلاثي الأبعاد
+import PdfImporter from './components/pages/PdfImporter'; // <--- استيراد
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   if (!isAuthenticated) return <Navigate to="/login" replace />;
@@ -69,7 +70,9 @@ function App() {
           {/* 👑 مسارات السوبر أدمين فقط */}
           <Route path="settings" element={<SuperAdminRoute><Settings /></SuperAdminRoute>} /> 
           <Route path="/archive" element={<DailyClosuresArchive />} />
-          <Route path="audit-logs" element={<AdminRoute><AuditLogs /></AdminRoute>} />
+          <Route path="audit-logs" element={<SuperAdminRoute><AuditLogs /></SuperAdminRoute>} />
+          <Route path="store-map" element={<SuperAdminRoute><StoreMap /></SuperAdminRoute>} />
+          <Route path="pdf-importer" element={<SuperAdminRoute><PdfImporter /></SuperAdminRoute>} />
         </Route>
       </Routes>
     </HashRouter>

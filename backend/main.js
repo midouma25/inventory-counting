@@ -13,11 +13,17 @@ const {
   rescheduleAgendaTask , getDailySummary,
   openShift, getActiveShift, closeShift, getShiftSummary,
   getUsers, addUser, deleteUser, updateEmployee, deleteEmployee ,logAudit , getAuditLogs, backupDatabase,
-   generateExcelBackup, updateSupplier, deleteSupplier, updateAdvance, deleteAdvance, getAllShiftsSummary , getDailyClosures, getArchivedZReport,updateAttendanceRecord
-   // أضفنا هذه الدوال هنا
+  generateExcelBackup, updateSupplier, deleteSupplier, updateAdvance, deleteAdvance, getAllShiftsSummary , getDailyClosures, getArchivedZReport,updateAttendanceRecord,getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, closeBusinessDay, getSuppliersList, saveInvoiceDebt
 } = require('./database');
+
+// 👇 استدعاء آمن للمكتبة ليتوافق مع جميع إصدارات Electron و Node.js
+const pdfParseRaw = require('pdf-parse');
+const parsePDF = typeof pdfParseRaw === 'function' ? pdfParseRaw : pdfParseRaw.default;
+
+
 const express = require('express');
 const cors = require('cors');
+
 
 function createWindow() {
   // 1. إنشاء شاشة الإقلاع أولاً
@@ -77,6 +83,47 @@ function setupIpcHandlers() {
     try { return { success: true, id: addPayment(data) }; } 
     catch (e) { return { success: false, error: e.message }; }
   });
+  
+
+  ipcMain.handle("print-receipt", async (event) => {
+
+    const win = BrowserWindow.fromWebContents(event.sender);
+
+    return new Promise((resolve)=>{
+
+        win.webContents.print({
+
+            silent:false,
+
+            printBackground:true,
+
+            margins:{
+                marginType:"none"
+            },
+
+            scaleFactor:100,
+
+            landscape:false,
+
+            color:false
+
+        },(success,errorType)=>{
+
+            resolve({
+                success,
+                errorType
+            });
+
+        });
+
+    });
+
+});
+  
+
+  // --- مسارات الخريطة والمخزون الذكي ---
+  ipcMain.handle('get-store-map-data', () => getStoreMapData());
+  ipcMain.handle('process-pdf-inventory', (event, data) => processPdfInventoryEntry(data.shelfId, data.barcode, data.cleanName, data.dirtyName, data.quantity));
 
   ipcMain.handle('get-expenses', (event, caisseFilter) => getExpenses(caisseFilter));
   ipcMain.handle('add-expense', (event, data) => addExpense(data));
@@ -101,7 +148,38 @@ function setupIpcHandlers() {
   ipcMain.handle('add-agenda-task', (event, data) => addAgendaTask(data));
   ipcMain.handle('toggle-agenda-task-status', (event, id, status) => toggleAgendaTaskStatus(id, status));
   ipcMain.handle('get-due-this-week', () => getDueThisWeek());
+  
+  // 🌟 مسارات استيراد الفواتير الذكية (PDF) 🌟
+  
+  // 1. جلب قائمة الموردين للنافذة المنسدلة
+  ipcMain.handle('get-suppliers-list', async () => {
+    try {
+      // نستخدم دالة getSuppliers الموجودة لديك مسبقاً في database.js
+      const suppliers = getSuppliers(); 
+      return { success: true, data: suppliers };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
 
+  // 2. ترحيل الفاتورة كدين (إضافة وصل استلام فاتورة)
+  ipcMain.handle('save-invoice-debt', async (event, data) => {
+    try {
+      // تجهيز البيانات لتتناسب مع دالة addReceipt الموجودة لديك
+      const receiptData = {
+        supplierId: data.supplierId,
+        amount: data.totalAmount,
+        date: data.date,
+        // إضافة ملاحظة توثيقية آلية لحماية حقوق المحل
+        notes: `فاتورة مستوردة آلياً (PDF) - الاسم المصدر بالملف: ${data.pdfSupplierName}` 
+      };
+      
+      const newId = addReceipt(receiptData);
+      return { success: true, id: newId };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
   ipcMain.handle('delete-agenda-task', async (event, id) => {
     return deleteAgendaTask(id);
   });
@@ -274,7 +352,107 @@ ipcMain.handle('update-receipt', (event, id, data) => { try { return db.updateRe
     return deleteSupplier(id);
   });
 
- 
+
+
+ipcMain.handle('parse-pdf-invoice', async () => {
+    try {
+      const { canceled, filePaths } = await dialog.showOpenDialog({
+        title: 'اختر ملف PDF (Bon de Livraison)',
+        filters: [{ name: 'PDF Files', extensions: ['pdf'] }]
+      });
+
+      if (canceled || filePaths.length === 0) return { success: false, canceled: true };
+
+      const PDFParser = require("pdf2json");
+      
+      return new Promise((resolve, reject) => {
+        const pdfParser = new PDFParser(this, 1);
+        
+        pdfParser.on("pdfParser_dataError", errData => {
+           resolve({ success: false, error: "تعذر قراءة هيكل الملف." });
+        });
+        
+        pdfParser.on("pdfParser_dataReady", pdfData => {
+            let text = pdfParser.getRawTextContent();
+            text = text.replace(/\r\n/g, '\n');
+            
+            const lines = text.split('\n');
+            let extractedItems = [];
+            
+            // 🌟 كائن جديد لتخزين بيانات الفاتورة الأساسية
+            let invoiceMeta = {
+              supplierName: "",
+              totalAmount: 0
+            };
+
+            for (let line of lines) {
+              const trimmedLine = line.trim();
+              if (!trimmedLine) continue;
+
+              // 1. استخراج اسم المورد
+              if (trimmedLine.toUpperCase().includes('FOURNISSEUR')) {
+                // استخراج ما بعد كلمة Fournisseur أو النقطتين
+                const parts = trimmedLine.split(/[:|]/);
+                if (parts.length > 1) {
+                  invoiceMeta.supplierName = parts[1].trim();
+                }
+              }
+
+              // 2. استخراج المبلغ الإجمالي
+              if (trimmedLine.toUpperCase().includes('NET A PAYER') || trimmedLine.toUpperCase().includes('TOTAL TTC')) {
+                // قنص الأرقام فقط من السطر (مع الفاصلة والنقطة)
+                let amountStr = trimmedLine.replace(/[^0-9,.]/g, '');
+                // توحيد الفواصل العشرية
+                amountStr = amountStr.replace(',', '.');
+                // بما أن الرقم قد يحتوي على مسافات (مثال 39 390)، استخراج الرقم كالتالي:
+                const amountMatches = trimmedLine.match(/[\d\s]+[.,]\d{2}/);
+                if (amountMatches) {
+                   const cleanAmount = parseFloat(amountMatches[0].replace(/\s/g, '').replace(',', '.'));
+                   if (!isNaN(cleanAmount)) {
+                     invoiceMeta.totalAmount = cleanAmount;
+                   }
+                }
+              }
+
+              // 3. استخراج السلع (الخوارزمية المدرعة السابقة)
+              const columns = trimmedLine.split(/\s{3,}/).map(col => col.trim());
+
+              if (columns.length >= 5 && /^\d+$/.test(columns[0])) {
+                const id = columns[0];
+                const barcode = columns[1];
+                
+                const qtyIndex = columns.length - 4;
+                const finalQtyIndex = qtyIndex > 1 ? qtyIndex : 2;
+                
+                const qtyStr = columns[finalQtyIndex];
+                const qty = parseFloat(qtyStr.replace(/\s/g, '').replace(',', '.'));
+                
+                if (!isNaN(qty)) {
+                  const dirtyName = columns.slice(2, finalQtyIndex).join(' ');
+                  extractedItems.push({
+                    id: id,
+                    barcode: barcode,
+                    dirtyName: dirtyName || "بدون اسم",
+                    quantity: qty,
+                  });
+                }
+              }
+            }
+
+            const enrichedItems = enrichExtractedItems(extractedItems);
+            
+            // 🌟 نرجع السلع + بيانات الفاتورة للواجهة الأمامية
+            resolve({ success: true, data: enrichedItems, meta: invoiceMeta });
+        });
+        
+        pdfParser.loadPDF(filePaths[0]);
+      });
+
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
 ipcMain.handle('update-advance', (event, payload) => updateAdvance(payload.id, payload.data));
 ipcMain.handle('delete-advance', (event, id) => deleteAdvance(id));
 

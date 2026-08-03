@@ -76,6 +76,10 @@ export const setupNetworkApi = () => {
     getDueThisWeek: () => fetchFromServer('getDueThisWeek'),
     getDailySummary: (date) => fetchFromServer('getDailySummary', [date]),
     
+    getStoreMapData: () => fetchFromServer('getStoreMapData'),
+    processPdfInventory: (data) => fetchFromServer('processPdfInventoryEntry', [data.shelfId, data.barcode, data.cleanName, data.dirtyName, data.quantity]),
+
+    parsePdfInvoice: () => fetchFromServer('parsePdfInvoice'),
     openShift: (data) => fetchFromServer('openShift', [data]),
     getActiveShift: (cashierName) => fetchFromServer('getActiveShift', [cashierName]),
     closeShift: (data) => fetchFromServer('closeShift', [data]),

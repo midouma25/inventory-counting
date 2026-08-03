@@ -27,6 +27,9 @@ inventory-counting/
     ├── project_structure27.md
     ├── project_structure28.md
     ├── project_structure29.md
+    ├── project_structure30.md
+    ├── project_structure31.md
+    ├── project_structure32.md
     ├── project_structure4.md
     ├── project_structure5.md
     ├── project_structure6.md
@@ -127,7 +130,7 @@ import os
 # الإعدادات
 # ==============================
 
-OUTPUT_FILE = "project_structure29.md"
+OUTPUT_FILE = "project_structure32.md"
 MAX_DEPTH = 3                 # أقصى عمق للشجرة
 MAX_FILE_SIZE = 200 * 1024    # 200KB
 
@@ -3907,7 +3910,7 @@ export default function Suppliers() {
 
 ---
 
-## `project_structure29.md`
+## `project_structure32.md`
 
 ```markdown
 
@@ -3922,7 +3925,7 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const { app } = require('electron');
 const ExcelJS = require('exceljs');
-const dbPath = path.join(app.getPath('userData'), 'pos_manager3.db');
+const dbPath = path.join(app.getPath('userData'), 'pos_manager4.db');
 const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 
@@ -4404,7 +4407,7 @@ const {
   rescheduleAgendaTask , getDailySummary,
   openShift, getActiveShift, closeShift, getShiftSummary,
   getUsers, addUser, deleteUser, updateEmployee, deleteEmployee ,logAudit , getAuditLogs, backupDatabase,
-   generateExcelBackup, updateSupplier, deleteSupplier, updateAdvance, deleteAdvance, getAllShiftsSummary , getDailyClosures, getArchivedZReport,updateAttendanceRecord
+   generateExcelBackup, updateSupplier, deleteSupplier, updateAdvance, deleteAdvance, getAllShiftsSummary , getDailyClosures, getArchivedZReport,updateAttendanceRecord,closeBusinessDay
    // أضفنا هذه الدوال هنا
 } = require('./database');
 const express = require('express');
@@ -5278,56 +5281,200 @@ export default i18n;
 @tailwind components;
 @tailwind utilities;
 
+/* 🛠️ التنسيق العام للـ Ticket أثناء العرض على الشاشة */
+.receipt-ticket-forced { 
+    width: 72mm; 
+    margin: 0 auto; 
+    padding: 3mm 4mm; 
+    box-sizing: border-box; 
+    font-family: 'Arial', sans-serif; 
+    color: #000000; 
+    background-color: #ffffff; 
+    border-radius: 4px;
+}
+.header-title { text-align: center; font-size: 16px; font-weight: bold; margin: 0 0 1mm 0; }
+.header-subtitle { text-align: center; font-size: 9px; letter-spacing: 1px; margin: 0 0 3mm 0; color: #333; text-transform: uppercase; }
+.badge-action { display: block; border: 2px solid #000000; font-size: 14px; font-weight: bold; text-align: center; padding: 1.5mm 0; margin: 2mm auto; width: 85%; border-radius: 4px; }
+.receipt-divider { border-top: 1px dashed #000000; margin: 3mm 0; width: 100%; }
+
+/* الجداول والصناديق الداخلية */
+.info-row { display: flex; justify-content: space-between; width: 100%; font-size: 11px; margin-bottom: 2mm; }
+.info-row .label-field { font-weight: bold; white-space: nowrap; }
+.info-row .value-field { font-weight: 600; text-align: right; }
+[dir="ltr"] .info-row .value-field { text-align: left; }
+
+.amount-box { border: 1.5px solid #000000; border-radius: 4px; text-align: center; padding: 2.5mm 0; margin: 3mm 0; background: #f8f9fa; }
+.amount-box .box-title { font-size: 10px; display: block; margin-bottom: 1mm; font-weight: bold; }
+.amount-box .box-value { font-size: 18px; font-weight: 900; }
+
+.note-box { border: 1px solid #000; border-radius: 4px; padding: 2mm; font-size: 11px; margin: 3mm 0; text-align: start; }
+.note-box .note-title { font-weight: bold; display: block; margin-bottom: 1mm; border-bottom: 1px solid #eee; padding-bottom: 1mm; }
+.signatures-area { display: flex; justify-content: space-between; font-size: 10px; font-weight: bold; margin-top: 6mm; padding: 0 1mm; }
+.footer-area { text-align: center; font-size: 10px; margin-top: 5mm; }
+.footer-area .dev-brand { font-weight: 900; font-size: 11px; margin-bottom: 1mm; letter-spacing: 1px;}
+
+/* =========================================
+   تحسينات الطباعة الحرارية (80mm / A7) - التصميم المضغوط
+   ========================================= */
+
+/* =========================================
+   الطباعة الحرارية المثالية (80mm) - التصميم النهائي
+   ========================================= */
+
 @media print {
-  /* إخفاء كل شيء في الشاشة */
-  body * {
-    visibility: hidden;
+  @page {
+    /* إزالة الهوامش نهائياً */
+    margin: 0; 
   }
   
-  /* إظهار المنطقة المخصصة للطباعة فقط */
-  .printable-area, .printable-area * {
-    visibility: visible;
-  }
-  
-  /* إعدادات مشتركة */
-  .printable-area {
-    position: absolute;
-    left: 0;
-    top: 0;
+  body {
     margin: 0;
     padding: 0;
     background-color: white;
-    color: black;
   }
 
-  /* 🔴 إعدادات الورقة الصغيرة (A7/80mm) لوصل الكاشير */
-  @page a7-receipt {
-    size: 80mm auto;
-    margin: 0;
-  }
-  .print-a7 {
-    page: a7-receipt;
-    width: 80mm !important;
-    font-size: 12px;
-  }
-
-  /* 🔵 إعدادات الورقة الكبيرة (A4) ليومية المدير */
-  @page a4-report {
-    size: A4;
-    margin: 0;
-  }
-  .print-a4 {
-    page: a4-report;
-    width: 210mm !important;
-    min-height: 297mm;
-    padding: 20mm;
-    font-size: 14px;
-  }
-
-  /* إخفاء الأزرار في الطباعة */
+  /* 🚨 السر هنا: إخفاء الأزرار نهائياً أثناء الطباعة 🚨 */
   .no-print {
     display: none !important;
   }
+
+  /* إلغاء حاوية الشاشة التي كانت تقوم بضغط الفاتورة وتشويهها */
+  .min-h-screen {
+    min-height: auto !important;
+    background: transparent !important;
+    padding: 0 !important;
+    display: block !important; 
+  }
+}
+
+/* =========================================
+   هيكل الوصل (80mm) - مطابق تماماً لطلبك
+   ========================================= */
+.receipt-ticket-forced {
+  width: 80mm; 
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 4mm; 
+  background: #fff;
+  color: #000;
+  font-family: 'Tajawal', system-ui, sans-serif;
+  direction: rtl;
+  /* 🎯 هذا السطر هو المفتاح: يربط هذا العنصر بحجم صفحة مخصص عند الطباعة بدل Letter/A4 الافتراضي */
+  page: receipt-page;
+}
+
+/* الترويسة */
+.header-title {
+  text-align: center;
+  font-size: 18px;
+  font-weight: 900;
+  margin-bottom: 2px;
+}
+
+.header-subtitle {
+  text-align: center;
+  font-size: 11px;
+  margin-bottom: 6px;
+  /* هذه التعليمة تمنع انقسام سطر MULTIMEDIA ALGO AI نهائياً */
+  white-space: nowrap; 
+}
+
+.badge-action {
+  text-align: center;
+  font-size: 16px;
+  font-weight: bold;
+  border: 1.5px solid #000;
+  padding: 4px;
+  margin: 8px 0;
+  border-radius: 4px;
+}
+
+/* صفوف المعلومات (التاريخ، المورد) */
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 1px dashed #000;
+  font-size: 15px;
+  font-weight: bold;
+}
+
+/* خانة المبلغ (مدمجة ومتناسقة مع البقية) */
+.amount-box {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  margin: 4px 0;
+  border-bottom: 2px solid #000;
+  border-top: 2px solid #000;
+}
+
+.amount-box .box-title {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.amount-box .box-value {
+  font-size: 20px !important;
+  font-weight: 900;
+}
+
+/* التوقيع والختم */
+.signatures-area {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 15px;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.receipt-divider {
+  border-top: 1.5px dashed #000;
+  margin: 10px 0;
+}
+
+/* التذييل */
+.footer-area {
+  text-align: center;
+  font-size: 13px;
+  font-weight: bold;
+  margin-top: 10px;
+}
+
+.dev-brand {
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+
+
+/* صفحة الوصل الحراري (80mm) */
+@page receipt-page {
+  /* 200mm قيمة افتراضية احتياطية فقط؛ الطول الحقيقي يُضبط ديناميكياً
+     عبر JS (انظر print-receipt.js) بحسب طول محتوى كل وصل */
+  size: 80mm 200mm;
+  margin: 0;
+}
+
+/* صفحة تقرير A4 (Z-Report) - منفصلة تماماً عن الوصل */
+.print-a4 {
+  page: report-page;
+}
+
+@page report-page {
+  size: A4;
+  margin: 10mm;
+}
+
+.print-a4 {
+  width: 210mm !important;
+  min-height: 297mm !important;
+  margin: 0 auto !important;
+  padding: 10mm !important;
+  background: white !important;
 }
 ```
 
@@ -5533,7 +5680,7 @@ export default function DailyClosuresArchive() {
         <div className="fixed inset-0 z-[9999] bg-slate-950/90 flex flex-col items-center p-4 backdrop-blur-sm overflow-y-auto" dir={isRTL ? "rtl" : "ltr"}>
           
           <div className="flex gap-4 mb-4 no-print mt-4">
-            <button onClick={() => printThermalReceipt()} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg flex items-center gap-2 shadow-lg">
+            <button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg flex items-center gap-2 shadow-lg">
               <Printer size={20} /> طباعة التقرير (A4)
             </button>
             <button onClick={() => setSelectedReport(null)} className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-2 px-6 rounded-lg flex items-center gap-2 border border-slate-700">
@@ -5728,22 +5875,23 @@ export default function EndOfDay() {
   const isSuperAdmin = user?.role === 'superadmin' || user?.role === 'admin';
   const cashierName = isSuperAdmin ? t('common.superAdmin') : (user?.username || 'Cashier');
 
-  // قراءة اسم المحل (نفس المصدر المستخدم في بقية المستندات المطبوعة)
+  // قراءة اسم المحل
   const currentStoreName = localStorage.getItem('storeName') || 'GHERBI.AI';
 
-  // حالات خاصة بالكاشير
   const [activeShift, setActiveShift] = useState(null);
   const [openingBalanceInput, setOpeningBalanceInput] = useState('');
   const [actualAmount, setActualAmount] = useState('');
   const [notes, setNotes] = useState('');
   const [summary, setSummary] = useState({ expenses: 0, supplierPayments: 0, advances: 0, totalOut: 0 });
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  
+  // حالات خاصة بالكاشير (وصل 80mm)
   const [showReceipt, setShowReceipt] = useState(false);
   const [receiptData, setReceiptData] = useState(null);
   
-  // حالات خاصة بالمدير
+  // حالات خاصة بالمدير (تقرير A4)
   const [isCloseDayModalOpen, setIsCloseDayModalOpen] = useState(false);
-  const [showZReport, setShowZReport] = useState(false); // 🔴 حالة التقرير الكبير A4
+  const [showZReport, setShowZReport] = useState(false); 
   const [zReportData, setZReportData] = useState(null);
   const [allShifts, setAllShifts] = useState([]);
   const [grandTotals, setGrandTotals] = useState({ opening: 0, actual: 0, sales: 0 });
@@ -5836,10 +5984,8 @@ export default function EndOfDay() {
     setNotes('');
   };
   
-  // 🔴 إغلاق اليومية وعرض تقرير الـ A4
   const executeCloseDay = async () => {
     try {
-      // حفظ بيانات التقرير قبل تصفير الشاشة
       const reportSnapshot = {
         date: new Date().toISOString(),
         adminName: cashierName,
@@ -5851,7 +5997,7 @@ export default function EndOfDay() {
       if (res.success) {
         setZReportData(reportSnapshot);
         setIsCloseDayModalOpen(false);
-        setShowZReport(true); // إظهار النافذة الكبيرة للطباعة
+        setShowZReport(true); 
         showToast('success', t('common.success'));
         fetchData(); 
       } else {
@@ -5892,10 +6038,7 @@ export default function EndOfDay() {
               </button>
             </div>
 
-            {/* ورقة التقرير A4 */}
-{/* ورقة التقرير A4 */}
             <div className="printable-area print-a4 bg-white text-black shadow-2xl relative font-sans w-full max-w-[210mm] min-h-[297mm] p-10 mx-auto">
-              
               <div className="text-center mb-8 border-b-2 border-black pb-4">
                 <h2 className="text-3xl font-bold mb-2">{currentStoreName}</h2>
                 <h3 className="text-xl font-bold text-gray-700 mb-2">{t('zreport.title')}</h3>
@@ -6116,7 +6259,7 @@ export default function EndOfDay() {
     <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans relative">
       {renderToast()}
       
-      {/* 🔴 شاشة طباعة الوصل (X-Report) بحجم A7 */}
+      {/* 🔴 شاشة طباعة الوصل (X-Report) بحجم 80mm */}
       {showReceipt && receiptData && (
         <div className="fixed inset-0 z-[9999] bg-slate-950/90 flex items-center justify-center p-4 backdrop-blur-sm" dir="ltr">
           <div className="flex flex-col md:flex-row gap-6 items-center">
@@ -6130,58 +6273,68 @@ export default function EndOfDay() {
               </button>
             </div>
 
-{/* 🔴 شاشة طباعة الوصل (X-Report) بحجم A7 */}
-            <div className="printable-area print-a7 bg-white text-black p-3 w-[80mm] relative font-mono text-sm order-1 md:order-2" dir={isRTL ? "rtl" : "ltr"}>
+            <div className="receipt-ticket-forced mx-auto shadow-2xl order-1 md:order-2" dir={isRTL ? "rtl" : "ltr"}>
               
-              <div className="text-center mb-6">
-                {/* تم حل مشكلة الأقواس بإضافة bdi */}
-                <h2 className="text-2xl font-bold mb-1"><bdi>{currentStoreName}</bdi></h2>
-                <div className="border-b-2 border-dashed border-black pb-2 mt-2">
-                  <p className="font-bold text-lg">{t('eod.x_report')}</p>
-                  <p className="text-xs mt-1">{new Date().toLocaleDateString(i18n.language)}</p>
+              <div className="header-title">GHERBI.AI</div>
+              <div className="header-subtitle">CODE &bull; MULTIMEDIA &bull; ALGO &bull; AI</div>
+              <div className="header-title" style={{ marginTop: '1mm' }}><bdi>{currentStoreName}</bdi></div>
+              
+              <div className="badge-action">
+                {t('eod.x_report')}
+                <div style={{ fontSize: '10px', marginTop: '2px', fontWeight: 'normal' }}>
+                  {new Date().toLocaleDateString(i18n.language)}
+                </div>
+              </div>
+              
+              <div className="receipt-divider"></div>
+
+              <div className="flex flex-col w-full my-2">
+                <div className="info-row">
+                  <span className="label-field">{t('eod.cashierName')}</span>
+                  <span className="value-field">{receiptData.cashier}</span>
+                </div>
+                <div className="info-row">
+                  <span className="label-field">{t('hr.table.timeIn')}</span>
+                  <span className="value-field" dir="ltr">{new Date(receiptData.startTime).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+                <div className="info-row">
+                  <span className="label-field">{t('eod.time_out')}</span>
+                  <span className="value-field" dir="ltr">{new Date(receiptData.endTime).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
               </div>
 
-              <div className="space-y-3 mb-6 border-b-2 border-dashed border-black pb-6 text-start">
-                <div className="flex justify-between items-center gap-2">
-                  <span className="font-bold whitespace-nowrap">{t('eod.cashierName')}:</span>
-                  <span className="text-end">{receiptData.cashier}</span>
+              <div className="receipt-divider"></div>
+
+              <div className="flex flex-col w-full my-2">
+                <div className="info-row">
+                  <span className="label-field">{t('eod.opening_balance')}</span>
+                  <span className="value-field" dir="ltr"><bdi>{receiptData.opening.toLocaleString()} {t('currency')}</bdi></span>
                 </div>
-                <div className="flex justify-between items-center gap-2">
-                  <span className="font-bold whitespace-nowrap">{t('hr.table.timeIn')}:</span>
-                  <span dir="ltr" className="text-end">{new Date(receiptData.startTime).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span>
+                <div className="info-row">
+                  <span className="label-field">{t('eod.total_deducted')}</span>
+                  <span className="value-field" dir="ltr"><bdi>{(receiptData.out || 0).toLocaleString()} {t('currency')}</bdi></span>
                 </div>
-                <div className="flex justify-between items-center gap-2">
-                  <span className="font-bold whitespace-nowrap">{t('eod.time_out')}:</span>
-                  <span dir="ltr" className="text-end">{new Date(receiptData.endTime).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span>
+                <div className="info-row" style={{ backgroundColor: '#f3f4f6', padding: '2mm', borderRadius: '4px', marginTop: '2mm' }}>
+                  <span className="label-field">{t('eod.actual_cash')}</span>
+                  <span className="value-field" dir="ltr" style={{ fontSize: '14px' }}><bdi>{(receiptData.actual || 0).toLocaleString()} {t('currency')}</bdi></span>
                 </div>
               </div>
 
-              <div className="space-y-3 mb-6 border-b-2 border-dashed border-black pb-6 text-start">
-                <div className="flex justify-between items-center gap-2">
-                  <span className="whitespace-nowrap">{t('eod.opening_balance')}:</span>
-                  {/* أضفنا bdi لحماية الأرقام والعملة */}
-                  <span className="font-bold text-end"><bdi>{receiptData.opening.toLocaleString()} {t('currency')}</bdi></span>
-                </div>
-                <div className="flex justify-between items-center gap-2">
-                  <span className="whitespace-nowrap">{t('eod.total_deducted')}:</span>
-                  {/* إجبار إظهار الرقم حتى لو كان 0 */}
-                  <span className="font-bold text-end"><bdi>{(receiptData.out || 0).toLocaleString()} {t('currency')}</bdi></span>
-                </div>
-                <div className="flex justify-between items-center gap-2 bg-gray-100 p-1 -mx-1 px-1">
-                  <span className="font-bold whitespace-nowrap">{t('eod.actual_cash')}:</span>
-                  <span className="font-bold text-lg text-end"><bdi>{(receiptData.actual || 0).toLocaleString()} {t('currency')}</bdi></span>
-                </div>
+              <div className="amount-box" style={{ background: '#000', color: '#fff', borderColor: '#000' }}>
+                <span className="box-title" style={{ color: '#ccc' }}>{t('eod.today_sales')}</span>
+                <span className="box-value" dir="ltr" style={{ color: '#fff' }}>
+                  <bdi>{(receiptData.sales || 0).toLocaleString()} {t('currency')}</bdi>
+                </span>
               </div>
 
-              <div className="flex justify-between items-center text-lg font-bold mb-8 bg-black text-white p-2 rounded-sm text-start">
-                 <span className="whitespace-nowrap">{t('eod.today_sales')}:</span>
-                 <span className="text-end"><bdi>{(receiptData.sales || 0).toLocaleString()} {t('currency')}</bdi></span>
+              <div className="signatures-area" style={{ justifyContent: 'center', marginTop: '8mm' }}>
+                <span>{t('eod.receipt_footer', 'شكراً لتعاملكم معنا')}</span>
               </div>
 
-              <div className="text-center text-xs space-y-2 mt-8">
-                 <p className="border-t-2 border-dashed border-black pt-4">{t('eod.receipt_footer')}</p>
-                 <p className="font-bold text-gray-500">POWERED BY GHERBI.AI</p>
+              <div className="receipt-divider"></div>
+
+              <div className="footer-area">
+                <div className="dev-brand">POWERED BY GHERBI.AI</div>
               </div>
             </div>
           </div>
@@ -9847,7 +10000,7 @@ export default function Payroll() {
 ## `frontend\src\components\pages\PrintPreview.jsx`
 
 ```javascript
-import React, { useEffect, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Printer, ArrowLeft, AlertCircle } from 'lucide-react';
@@ -9856,47 +10009,51 @@ export default function PrintPreview() {
   const { t, i18n } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
-  const [data, setData] = useState(null);
-  const [type, setType] = useState('receipt');
-  const [supplierName, setSupplierName] = useState('غير محدد');
 
   const isRTL = i18n.dir() === 'rtl';
+  
+  const getStoreName = () => {
+    const keys = ['storeName', 'store_name', 'shopName', 'shop_name'];
+    for (const key of keys) {
+      const value = localStorage.getItem(key);
+      if (value) return value;
+    }
+    return 'GHERBI.AI';
+  };
+  const storeNameLabel = getStoreName();
 
-  useEffect(() => {
-    // 🔴 البحث التلقائي عن البيانات أياً كان اسمها (data, item, receipt...)
+  const { data, type, supplierName } = useMemo(() => {
     const state = location.state || {};
     const extractedData = state.data || state.item || state.receipt || state.payment || state;
     
-    // إذا لم تكن هناك بيانات صالحة
-    if (!extractedData || Object.keys(extractedData).length === 0) {
-      setData(null);
-      return;
+    if (!extractedData || Object.keys(extractedData).length === 0 || extractedData.amount === undefined) {
+      return { data: null, type: 'receipt', supplierName: 'غير محدد' };
     }
 
-    setData(extractedData);
-    setType(state.type || (extractedData.amount < 0 ? 'payment' : 'receipt'));
-    setSupplierName(state.supplierName || extractedData.supplier_name || extractedData.name || 'غير محدد');
-  }, [location]);
+    const resolvedType = state.type || (extractedData.amount < 0 ? 'payment' : 'receipt');
+    const resolvedSupplier = state.supplierName || extractedData.supplier_name || extractedData.name || 'غير محدد';
+    
+    return { data: extractedData, type: resolvedType, supplierName: resolvedSupplier };
+  }, [location.state]);
 
   if (!data) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-300 gap-4" dir={isRTL ? "rtl" : "ltr"}>
+      <div className="min-h-[80vh] flex flex-col items-center justify-center text-slate-300 gap-4" dir={isRTL ? "rtl" : "ltr"}>
         <AlertCircle size={48} className="text-red-500" />
         <h2 className="text-2xl font-bold text-white">{t('common.error', 'حدث خطأ غير متوقع.')}</h2>
-        <p className="text-slate-500">لم يتم العثور على بيانات الوصل لطباعتها.</p>
-        <button onClick={() => navigate(-1)} className="mt-4 bg-slate-800 hover:bg-slate-700 text-white px-6 py-2 rounded-lg transition-colors">
-          {t('common.cancel', 'رجوع')}
-        </button>
+        <button onClick={() => navigate(-1)} className="mt-4 bg-slate-800 text-white px-6 py-2 rounded-lg">رجوع</button>
       </div>
     );
   }
 
   const isPayment = type === 'payment';
-
+  
   return (
     <div className="min-h-screen bg-slate-950 p-6 flex flex-col items-center justify-start font-sans" dir={i18n.dir()}>
       
-      {/* الأزرار العلوية (لن تظهر في الطباعة) */}
+      {/* تم إزالة استايلات الطباعة الداخلية المتضاربة. هذا المكون يعتمد الآن على index.css */}
+
+      {/* الأزرار العلوية (مخفية تلقائياً أثناء الطباعة) */}
       <div className="w-full max-w-sm flex justify-between items-center mb-6 no-print">
         <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors bg-slate-900 px-4 py-2 rounded-lg border border-slate-800">
           <ArrowLeft size={18} className={isRTL ? "rotate-180" : ""} /> {t('common.cancel', 'رجوع')}
@@ -9906,66 +10063,74 @@ export default function PrintPreview() {
         </button>
       </div>
 
-      {/* 🔴 ورقة A7 الفعلية (74 مم × 105 مم) */}
-      <div className="printable-area print-a7 bg-white text-black mx-auto flex flex-col" dir={isRTL ? "rtl" : "ltr"}>
+      {/* حاوية الإيصال الحراري المحمية بخصائص انكماش العرض الثابت */}
+      <div className="receipt-ticket-forced mx-auto shadow-2xl" dir={isRTL ? "rtl" : "ltr"}>
         
         {/* الترويسة */}
-        <div className="text-center border-b-2 border-dashed border-gray-400 pb-2 mb-2">
-          <h2 className="text-xl font-black mb-1 uppercase tracking-wider">{t('receipt.storeName', 'GHERBI.AI')}</h2>
-          <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-2">Code • Multimedia • Algo</p>
-          
-          <div className="inline-block border-2 border-black px-3 py-1 text-sm font-bold uppercase rounded-sm">
-            {isPayment ? t('suppliers.details.addPayment', 'وصل تسديد') : t('suppliers.details.addReceipt', 'وصل استلام')}
-          </div>
+        <div className="header-title">GHERBI.AI</div>
+        <div className="header-subtitle">CODE &bull; MULTIMEDIA &bull; ALGO &bull; AI</div>
+        <div className="header-title" style={{ marginTop: '1mm' }}><bdi>{storeNameLabel}</bdi></div>
+        
+        <div className="badge-action">
+          {isPayment ? t('suppliers.details.addPayment', 'إضافة تسديد (دفع)') : t('suppliers.details.addReceipt', 'إضافة فاتورة (سلعة)')}
         </div>
+        
+        <div className="receipt-divider"></div>
 
-        {/* تفاصيل المورد والوقت */}
-        <div className="space-y-1 mb-2 text-[10px] border-b-2 border-dashed border-gray-400 pb-2 text-start">
-          <div className="flex justify-between items-center">
-            <span className="font-bold">{t('receipt.date', 'التاريخ:')}</span>
-            <span dir="ltr">{data.date || new Date().toISOString().split('T')[0]}</span>
+        {/* الهيكل المرن الجديد: يقفل موضع النقطتين بالكامل ويمنع التمدد */}
+        <div className="flex flex-col w-full my-2">
+          
+          <div className="info-row">
+            <span className="label-field">{t('receipt.date', 'Date')}</span>
+            <span className="value-field" dir="ltr">
+              {data.date || new Date().toISOString().split('T')[0]}
+            </span>
           </div>
-          <div className="flex justify-between items-center">
-            <span className="font-bold">{t('receipt.supplier', 'المورد:')}</span>
-            <span className="truncate max-w-[120px]">{supplierName}</span>
+
+          <div className="info-row">
+            <span className="label-field">{t('receipt.supplier', 'Fournisseur')}</span>
+            <span className="value-field">{supplierName}</span>
           </div>
+
           {data.caisse_source && (
-            <div className="flex justify-between items-center">
-              <span className="font-bold">{t('payroll.fundSource', 'الصندوق:')}</span>
-              <span>{data.caisse_source === 'admin' ? t('common.superAdmin', 'المدير') : data.caisse_source}</span>
+            <div className="info-row">
+              <span className="label-field">{t('payroll.fundSource', 'الصندوق')}</span>
+              <span className="value-field">
+                {data.caisse_source === 'admin' ? t('common.superAdmin', 'المدير العام') : data.caisse_source}
+              </span>
             </div>
           )}
+
         </div>
 
         {/* المبلغ المالي */}
-        <div className="text-center mb-2 bg-gray-100 p-2 rounded-md">
-          <p className="text-[10px] font-bold mb-1">{t('receipt.amount', 'المبلغ')}</p>
-          <h2 className="text-xl font-black tracking-tight" dir="ltr">
-            {Math.abs(Number(data.amount)).toLocaleString()} {t('currency', 'DA')}
-          </h2>
+        <div className="amount-box">
+          <span className="box-title">{t('receipt.amount', 'Montant :')}</span>
+          <span className="box-value" dir="ltr">
+            <bdi>{Math.abs(Number(data.amount)).toLocaleString()} {t('currency', 'DA')}</bdi>
+          </span>
         </div>
 
-        {/* الملاحظة (إن وجدت) */}
+        {/* الملاحظة (البيان) */}
         {data.note && (
-          <div className="mb-2 text-[10px] text-start bg-gray-50 p-2 rounded-md border border-gray-200">
-            <span className="font-bold block mb-1">{t('receipt.note', 'البيان:')}</span>
-            <p className="break-words leading-tight">{data.note}</p>
+          <div className="note-box">
+            <span className="note-title">{t('receipt.note', 'Libellé :')}</span>
+            <span>{data.note}</span>
           </div>
         )}
 
-        {/* التوقيع والختم - يدفع لأسفل الورقة */}
-        <div className="mt-auto pt-2 text-center text-[9px]">
-          <p className="font-bold mb-6">{t('receipt.signature', 'توقيع المستلم')}</p>
-          <div className="border-t border-black pt-1 mx-4">
-            <p className="font-bold">DEV: GHERBI.AI</p>
-          </div>
+        {/* التوقيع والختم متوازيان كلياً في الأسفل */}
+        <div className="signatures-area">
+          <span>{t('receipt.signature', 'Signature du destinataire')}</span>
+          <span>{t('receipt.stamp', 'Cachet du magasin')}</span>
         </div>
 
-        {/* تذييل الورقة */}
-        <div className="text-center mt-2">
-          <p className="text-[8px] border-t border-dashed border-gray-400 pt-1 text-gray-500">
-            {t('receipt.footer', 'شكراً لتعاملكم معنا')}
-          </p>
+        <div className="receipt-divider"></div>
+
+        {/* تذييل الفاتورة السفلي */}
+        <div className="footer-area">
+          <div className="dev-brand">DEV: GHERBI.AI</div>
+          <div style={{ marginTop: '0.5mm' }}>{t('receipt.footer', 'Merci de votre confiance')}</div>
         </div>
 
       </div>
@@ -10790,6 +10955,7 @@ import { useTranslation } from 'react-i18next';
 
 export default function PrintableTicket({ data }) {
   const { t, i18n } = useTranslation();
+  const isRTL = i18n.dir() === 'rtl';
   
   // قراءة اسم المحل
   const currentStoreName = localStorage.getItem('storeName') || 'GHERBI.AI';
@@ -10800,69 +10966,73 @@ export default function PrintableTicket({ data }) {
   const isReceipt = type === 'receipt';
 
   return (
-    <div className="w-[80mm] mx-auto bg-white text-black p-4 font-sans text-sm shadow-2xl border border-gray-300 print:shadow-none print:border-none print:m-0" dir={i18n.dir()}>
+    <div className="w-full bg-white text-black font-sans print:p-0" dir={i18n.dir()}>
       
-      {/* الترويسة المزدوجة */}
-      <div className="text-center border-b-2 border-black pb-4 mb-4 border-dashed">
-        <h1 className="text-3xl font-extrabold tracking-widest text-black">
-          GHERBI.AI
-        </h1>
-        <p className="text-[10px] mt-1 tracking-widest uppercase font-bold text-gray-600">
-          Code • Multimedia • Algo Trading • AI
-        </p>
+      {/* تم إزالة استايلات الطباعة الداخلية المتضاربة. هذا المكون يعتمد الآن على index.css */}
+
+      {/* حاوية الإيصال الحراري المحمية بخصائص انكماش العرض الثابت */}
+      <div className="receipt-ticket-forced mx-auto shadow-2xl">
         
-        {/* اسم محل العميل */}
-        <div className="mt-3 pt-3 border-t border-gray-300 border-dashed">
-          <h2 className="text-xl font-bold text-black">{currentStoreName}</h2>
-        </div>
-      </div>
-
-      <div className="text-center mb-4">
-        <h2 className="text-lg font-bold uppercase border border-black inline-block px-3 py-1">
+        {/* الترويسة */}
+        <div className="header-title">GHERBI.AI</div>
+        <div className="header-subtitle">CODE &bull; MULTIMEDIA &bull; ALGO &bull; AI</div>
+        <div className="header-title" style={{ marginTop: '1mm' }}><bdi>{currentStoreName}</bdi></div>
+        
+        <div className="badge-action">
           {isReceipt ? t('print.receiptTicket', 'وصل استلام') : t('print.paymentTicket', 'وصل تسديد')}
-        </h2>
-      </div>
+        </div>
+        
+        <div className="receipt-divider"></div>
 
-      <div className="space-y-2 mb-4">
-        <div className="flex justify-between items-center text-xs">
-          <span className="font-bold">{t('print.date', 'التاريخ')}:</span>
-          <span>{item.date}</span>
+        {/* معلومات الفاتورة في صفوف محمية بتنسيق Flexbox من index.css */}
+        <div className="flex flex-col w-full my-2">
+          <div className="info-row">
+            <span className="label-field">{t('print.date', 'التاريخ')}</span>
+            <span className="value-field" dir="ltr">{item.date}</span>
+          </div>
+          <div className="info-row">
+            <span className="label-field">{t('suppliers.modal.nameLabel', 'الاسم')}</span>
+            <span className="value-field">{supplierName}</span>
+          </div>
+          {!isReceipt && item.caisse_source && (
+            <div className="info-row">
+              <span className="label-field">{t('payroll.caisse', 'الصندوق')}</span>
+              <span className="value-field">{item.caisse_source}</span>
+            </div>
+          )}
         </div>
-        <div className="flex justify-between items-center text-xs">
-          <span className="font-bold">{t('suppliers.modal.nameLabel', 'الاسم')}:</span>
-          <span className="font-bold">{supplierName}</span>
+
+        {/* المبلغ المالي */}
+        <div className="amount-box">
+          <span className="box-title">{t('print.amount', 'المبلغ')}</span>
+          <span className="box-value" dir="ltr">
+            <bdi>{item.amount.toLocaleString()} {t('currency', 'DA')}</bdi>
+          </span>
         </div>
-        {!isReceipt && item.caisse_source && (
-          <div className="flex justify-between items-center text-xs">
-            <span className="font-bold">{t('payroll.caisse', 'الصندوق')}:</span>
-            <span>{item.caisse_source}</span>
+
+        {/* الملاحظات */}
+        {item.note && (
+          <div className="note-box">
+            <span className="note-title">{t('print.description', 'ملاحظة')}</span>
+            <span>{item.note}</span>
           </div>
         )}
-      </div>
 
-      <div className="border-t-2 border-b-2 border-black border-dashed py-4 my-4 text-center">
-        <p className="text-sm font-bold uppercase mb-1">{t('print.amount', 'المبلغ')}</p>
-        <p className="text-3xl font-extrabold">
-          {item.amount.toLocaleString()} {t('currency', 'DA')}
-        </p>
-      </div>
-
-      {item.note && (
-        <div className="mb-6 text-center text-xs">
-          <span className="font-bold">{t('print.description', 'ملاحظة')}: </span>
-          {item.note}
+        {/* التوقيعات */}
+        <div className="signatures-area" style={{ justifyContent: 'center', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+          <span>{t('print.managerSignature', 'توقيع الإدارة')}</span>
+          <span>_______________________</span>
         </div>
-      )}
 
-      <div className="mt-8 text-center">
-        <p className="font-bold mb-6 text-xs">{t('print.managerSignature', 'توقيع الإدارة')}</p>
-        <p>_______________________</p>
-        <p className="text-xs font-bold mt-2 uppercase">Dev: Gherbi Mohamed Cherif</p>
-        <p className="text-[10px] mt-4 border-t border-black pt-2 border-dashed">
-          {t('print.thankYou', 'شكراً لتعاملكم معنا')}
-        </p>
+        <div className="receipt-divider"></div>
+
+        {/* تذييل الفاتورة السفلي */}
+        <div className="footer-area">
+          <div className="dev-brand">DEV: GHERBI.AI</div>
+          <div style={{ marginTop: '0.5mm' }}>{t('print.thankYou', 'شكراً لتعاملكم معنا')}</div>
+        </div>
+
       </div>
-      
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 // تم تجميع استيراد جميع الأيقونات في سطر واحد لترتيب الكود
 import useAuthStore from "../../store/authStore"; // استيراد حالة المستخدم
-import { LayoutDashboard, Users, Briefcase, Receipt, Calendar, Banknote, Settings, Archive, Activity } from 'lucide-react';
+import { LayoutDashboard, Users, Briefcase, Receipt, Calendar, Banknote, Settings, Archive, Activity, Map, Database} from 'lucide-react'; // <--- أضف Map
 
 export default function Sidebar() {
   const { t } = useTranslation();
@@ -22,6 +22,9 @@ export default function Sidebar() {
     { path: '/agenda', name: t('sidebar.agenda'), icon: <Calendar size={20} />, adminOnly: true },
     { path: '/audit-logs', name: t('sidebar.auditLogs', 'سجل النشاطات'), icon: <Activity size={20} />, adminOnly: true },
     { path: '/end-of-day', name: t('sidebar.end_of_day'), icon: <Calendar size={20} />, adminOnly: false }, // الكاشير يمكنه رؤية هذا
+    { path: '/store-map', name: t('sidebar.storeMap', 'مخطط المحل'), icon: <Map size={20} />, adminOnly: true },
+    { path: '/pdf-importer', name:  t('sidebar.pdfImporter', 'استيراد الفواتير (PDF)'), icon: <Database size={20} />, adminOnly: true },
+
     // 🔴 تم إضافة صفحة الأرشيف هنا (للمدراء فقط)
     { path: '/archive', name: t('zreport.archive_title', 'أرشيف اليوميات'), icon: <Archive size={20} />, adminOnly: true }, 
     { path: '/settings', name: t('sidebar.settings'), icon: <Settings size={20} />, adminOnly: true }, // صفحة الإعدادات للمدير فقط

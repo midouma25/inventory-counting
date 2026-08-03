@@ -26,7 +26,62 @@
     "agenda": "Agenda",
     "auditLogs": "Journal d'audit",
     "end_of_day": "Caisse",
-    "settings": "Paramètres"
+    "settings": "Paramètres",
+    "database": "Base de données",
+    "storeMap": "3D Store Map",
+    "pdfImporter": "Importateur PDF"
+  },
+"storeMap": {
+    "title": "Hypermarché Interactif",
+    "subtitle": "Surveillance de {{count}} points de stockage",
+    "searchPlaceholder": "Rechercher un rayon ou une zone...",
+    "searchResults": "Résultats de recherche",
+    "showingShelves": "Affichage de {{count}} rayons",
+    "status": {
+      "good": "Bon",
+      "low": "Faible",
+      "empty": "Vide!"
+    },
+    "zones": {
+      "food": "Alimentation et Conserves",
+      "fresh": "Frais et Réfrigérateurs",
+      "cleaning": "Produits d'entretien",
+      "electronics": "Électronique",
+      "clothing": "Vêtements",
+      "beauty": "Beauté et Soins"
+    },
+    "shelfName": "Rayon {{num}} - Allée {{aisle}}"
+  },
+"pdfImporter": {
+    "title": "Importateur Intelligent (PDF)",
+    "subtitle": "Téléchargez les bons de livraison pour extraire les articles et les lier au plan du magasin.",
+    "btnUpload": "Uploader & Analyser",
+    "tableTitle": "Tableau de Correspondance et Affectation",
+    "cols": {
+      "ref": "Code-barres (PDF)",
+      "dirtyName": "Nom Brut",
+      "qty": "Qté",
+      "cleanName": "Nom Propre (Plan)",
+      "shelf": "Affecter au Rayon",
+      "autoRecognized": "Reconnu Automatiquement",
+      "extractSuccessWithKnown": "Successfully extracted {{count}} products! ({{knownCount}} recognized automatically)",
+      "extractSuccessWithUnknown": "Successfully extracted {{count}} products! ({{unknownCount}} not recognized automatically)",
+      "actions": "Action",
+      "pdfImporter": "Importateur de factures (PDF)"
+    },
+    "emptyState": "Aucun fichier PDF uploadé. Cliquez sur le bouton ci-dessus pour commencer.",
+    "selectShelf": "-- Sélectionner le rayon --",
+    "capacity": "Capacité",
+    "saved": "Lié",
+    "saveBtn": "Sauvegarder",
+    "messages": {
+      "extractSuccess": "{{count}} articles extraits avec succès !",
+      "extractError": "Échec de lecture du PDF ou format non supporté.",
+      "systemError": "Erreur de connexion au système.",
+      "shelfWarning": "Veuillez d'abord sélectionner un rayon de destination.",
+      "saveSuccess": "[{{name}}] lié et enregistré avec succès !",
+      "saveError": "Une erreur s'est produite lors de la sauvegarde."
+    }
   },
   "dashboard": {
     "title": "Tableau de bord",

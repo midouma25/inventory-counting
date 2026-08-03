@@ -28,7 +28,62 @@
     "agenda": "Agenda",
     "auditLogs": "Audit Logs",
     "end_of_day": "Cash Register",
-    "settings": "Settings"
+    "settings": "Settings",
+    "storeMap": "3D Store Map",
+    "pdfImporter": "Import Invoices (PDF)"
+  },
+ "storeMap": {
+    "title": "Interactive Hypermarket",
+    "subtitle": "Monitoring {{count}} live storage points",
+    "searchPlaceholder": "Search for a shelf or zone...",
+    "searchResults": "Search Results",
+    "showingShelves": "Showing {{count}} shelves",
+    "status": {
+      "good": "Good",
+      "low": "Low",
+      "empty": "Empty!"
+    },
+    "zones": {
+      "food": "Food & Groceries",
+      "fresh": "Fresh & Fridges",
+      "cleaning": "Cleaning Supplies",
+      "electronics": "Electronics",
+      "clothing": "Clothing",
+      "beauty": "Beauty & Personal Care"
+    },
+    "shelfName": "Shelf {{num}} - Aisle {{aisle}}"
+  
+  },
+  "pdfImporter": {
+    "title": "Smart PDF Inventory Importer",
+    "subtitle": "Upload and analyze PDF invoices, and automatically extract and map products to shelves.",
+    "btnUpload": "Upload and Analyze PDF",
+    "tableTitle": "Matching Table and Product Routing",
+    "cols": {
+      "ref": "Barcode (from PDF)",
+      "dirtyName": "Dirty Name",
+      "qty": "Quantity",
+      "cleanName": "Clean Name (for Map)",
+      "shelf": "Route to Shelf",
+      "autoRecognized": "Automatically Recognized",
+      "extractSuccessWithKnown": "Successfully extracted {{count}} products! ({{knownCount}} recognized automatically)",
+      "extractSuccessWithUnknown": "Successfully extracted {{count}} products! ({{unknownCount}} not recognized automatically)",
+      "actions": "Action",
+      "pdfImporter": "PDF Importer"
+    },
+    "emptyState": "No PDF files uploaded yet. Click the button above to get started.",
+    "selectShelf": "-- Select Destination Shelf --",
+    "capacity": "Capacity",
+    "saved": "Linked",
+    "saveBtn": "Save and Link",
+    "messages": {
+      "extractSuccess": "{{count}} products extracted successfully!",
+      "extractError": "Failed to read the PDF file or its format is not supported.",
+      "systemError": "An error occurred while connecting to the system.",
+      "shelfWarning": "Please select a shelf first.",
+      "saveSuccess": "[{{name}}] linked and stored successfully!",
+      "saveError": "An error occurred while saving."
+    }
   },
   "dashboard": {
     "title": "Dashboard",

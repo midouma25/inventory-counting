@@ -2,7 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
   login: (credentials) => ipcRenderer.invoke('login', credentials),
-  
+  printReceipt: () => ipcRenderer.invoke("print-receipt"),
   getSuppliers: () => ipcRenderer.invoke('get-suppliers'),
   addSupplier: (data) => ipcRenderer.invoke('add-supplier', data),
   getSupplierDetails: (id) => ipcRenderer.invoke('get-supplier-details', id),
@@ -14,7 +14,10 @@ contextBridge.exposeInMainWorld('api', {
   handlePinEntry: (pinCode) => ipcRenderer.invoke('handle-pin-entry', pinCode),
   getTodayAttendance: (date) => ipcRenderer.invoke('get-today-attendance', date),
   
-  
+  getStoreMapData: () => ipcRenderer.invoke('get-store-map-data'),
+  processPdfInventory: (data) => ipcRenderer.invoke('process-pdf-inventory', data),
+
+  parsePdfInvoice: () => ipcRenderer.invoke('parse-pdf-invoice'),
   addExpense: (data) => ipcRenderer.invoke('add-expense', data),
   deleteExpense: (id) => ipcRenderer.invoke('delete-expense', id),
   updateExpense: (id, expense) => ipcRenderer.invoke('update-expense', { id, expense }),
@@ -34,7 +37,8 @@ contextBridge.exposeInMainWorld('api', {
   deleteAgendaTask: (id) => ipcRenderer.invoke('delete-agenda-task', id),
   rescheduleAgendaTask: (id, newDate) => ipcRenderer.invoke('reschedule-agenda-task', id, newDate),
   showNotification: (title, body) => ipcRenderer.send('show-notification', { title, body }),
-
+  getSuppliersList: () => ipcRenderer.invoke('get-suppliers-list'),
+  saveInvoiceDebt: (data) => ipcRenderer.invoke('save-invoice-debt', data),
   // --- مسارات الورديات (Shifts) الجديدة ---
   openShift: (data) => ipcRenderer.invoke('open-shift', data),
   getActiveShift: (cashierName) => ipcRenderer.invoke('get-active-shift', cashierName),
@@ -69,4 +73,5 @@ contextBridge.exposeInMainWorld('api', {
   closeBusinessDay: (adminName) => ipcRenderer.invoke('close-business-day', adminName),
   getArchivedZReport: (id) => ipcRenderer.invoke('get-archived-zreport', id),
   updateAttendanceRecord: (id, timeIn, timeOut) => ipcRenderer.invoke('update-attendance-record', id, timeIn, timeOut),
+  
 });

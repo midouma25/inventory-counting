@@ -2,7 +2,7 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const { app } = require('electron');
 const ExcelJS = require('exceljs');
-const dbPath = path.join(app.getPath('userData'), 'pos_manager3.db');
+const dbPath = path.join(app.getPath('userData'), 'pos_manager4.db');
 const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 
@@ -39,6 +39,13 @@ function initDatabase() {
     try { db.prepare("ALTER TABLE shifts ADD COLUMN archived INTEGER DEFAULT 0").run(); } catch(e) {}
 
     db.prepare(`CREATE TABLE IF NOT EXISTS audit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL, action TEXT NOT NULL, details TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`).run();
+    
+    // --- جداول خريطة المحل (Store Map & Inventory) ---
+    db.prepare(`CREATE TABLE IF NOT EXISTS store_zones (id TEXT PRIMARY KEY, t_key TEXT NOT NULL, name TEXT NOT NULL)`).run();
+    db.prepare(`CREATE TABLE IF NOT EXISTS store_shelves (id TEXT PRIMARY KEY, zone_id TEXT NOT NULL, name TEXT NOT NULL, type TEXT DEFAULT 'shelf', capacity INTEGER DEFAULT 100, FOREIGN KEY (zone_id) REFERENCES store_zones(id))`).run();
+    db.prepare(`CREATE TABLE IF NOT EXISTS mapped_products (barcode TEXT PRIMARY KEY, clean_name TEXT NOT NULL, dirty_names TEXT)`).run();
+    db.prepare(`CREATE TABLE IF NOT EXISTS shelf_products (id INTEGER PRIMARY KEY AUTOINCREMENT, shelf_id TEXT NOT NULL, barcode TEXT NOT NULL, quantity REAL DEFAULT 0, expiry_date TEXT, FOREIGN KEY (shelf_id) REFERENCES store_shelves(id), FOREIGN KEY (barcode) REFERENCES mapped_products(barcode))`).run();
+
 
     db.prepare(`
       CREATE TABLE IF NOT EXISTS daily_closures (
@@ -367,6 +374,79 @@ function getDailyClosures() {
   }
 }
 
+
+// ==========================================
+// دوال الخريطة والمخزون التفاعلي (Space Management)
+// ==========================================
+
+function getStoreMapData() {
+  try {
+    const zonesConfig = db.prepare("SELECT id, t_key as tKey, name FROM store_zones").all();
+    const shelves = db.prepare("SELECT id, zone_id as zoneId, name, type, capacity FROM store_shelves").all();
+    
+    // جلب المنتجات الموجودة في كل رف مع أسمائها النظيفة
+    const products = db.prepare(`
+      SELECT sp.shelf_id, sp.barcode, sp.quantity, mp.clean_name 
+      FROM shelf_products sp 
+      JOIN mapped_products mp ON sp.barcode = mp.barcode
+    `).all();
+
+    // دمج المنتجات مع الرفوف وحساب الحالة (Status)
+    const shelvesWithStock = shelves.map(shelf => {
+      const shelfProds = products.filter(p => p.shelf_id === shelf.id);
+      const currentStock = shelfProds.reduce((sum, p) => sum + p.quantity, 0);
+      
+      let status = 'good';
+      if (currentStock === 0) status = 'empty';
+      else if ((currentStock / shelf.capacity) < 0.3) status = 'low';
+
+      return { 
+        ...shelf, 
+        currentStock, 
+        status, 
+        products: shelfProds // لمعرفة ما بداخل الرف بالتفصيل عند الضغط عليه
+      };
+    });
+
+    return { success: true, data: { zonesConfig, shelves: shelvesWithStock } };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+// هذه الدالة هي "الجسر" الذي سيستقبل بيانات الـ PDF ويحدث الرفوف
+const processPdfInventoryEntry = db.transaction((shelfId, barcode, cleanName, dirtyNameFromPdf, quantityAdded) => {
+  try {
+    // 1. نظام القاموس: التأكد من وجود المنتج أو إضافته وتحديث الأسماء القذرة
+    const existingProduct = db.prepare("SELECT * FROM mapped_products WHERE barcode = ?").get(barcode);
+    if (!existingProduct) {
+      // منتج جديد تماماً
+      db.prepare("INSERT INTO mapped_products (barcode, clean_name, dirty_names) VALUES (?, ?, ?)").run(barcode, cleanName, JSON.stringify([dirtyNameFromPdf]));
+    } else {
+      // منتج موجود، نتأكد من أن الاسم القادم من الـ PDF محفوظ في ذاكرته
+      let dirtyNames = JSON.parse(existingProduct.dirty_names || '[]');
+      if (dirtyNameFromPdf && !dirtyNames.includes(dirtyNameFromPdf)) {
+        dirtyNames.push(dirtyNameFromPdf);
+        db.prepare("UPDATE mapped_products SET dirty_names = ? WHERE barcode = ?").run(JSON.stringify(dirtyNames), barcode);
+      }
+    }
+
+    // 2. تحديث المخزون داخل الرف المحدد
+    const existingShelfProd = db.prepare("SELECT * FROM shelf_products WHERE shelf_id = ? AND barcode = ?").get(shelfId, barcode);
+    if (existingShelfProd) {
+      db.prepare("UPDATE shelf_products SET quantity = quantity + ? WHERE id = ?").run(quantityAdded, existingShelfProd.id);
+    } else {
+      db.prepare("INSERT INTO shelf_products (shelf_id, barcode, quantity) VALUES (?, ?, ?)").run(shelfId, barcode, quantityAdded);
+    }
+
+    logAudit('System', 'UPDATE_INVENTORY', JSON.stringify({ barcode, qty: quantityAdded, shelfId }));
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+
 function getAllShiftsSummary() {
   try {
     const shifts = db.prepare("SELECT * FROM shifts WHERE archived = 0 OR archived IS NULL ORDER BY id DESC").all();
@@ -449,6 +529,40 @@ function getArchivedZReport(closureId) {
 
 async function backupDatabase(destPath) { try { await db.backup(destPath); return { success: true }; } catch (error) { throw error; } }
 async function importSuppliersFromExcel(filePath) { try { const workbook = new ExcelJS.Workbook(); await workbook.xlsx.readFile(filePath); const worksheet = workbook.worksheets[0]; let importedCount = 0; const insertSupplier = db.prepare(`INSERT INTO suppliers (name, phone, initial_debt, total_debt, status) VALUES (?, ?, ?, ?, ?)`); db.transaction(() => { worksheet.eachRow((row, rowNumber) => { if (rowNumber === 1) return; const name = row.getCell(1).value?.toString() || ''; const phone = row.getCell(2).value?.toString() || ''; const initialDebtStr = row.getCell(3).value?.toString() || '0'; const initialDebt = parseFloat(initialDebtStr.replace(/[^0-9.-]+/g, "")) || 0; if (name.trim() !== '') { const status = initialDebt > 0 ? 'indebted' : 'clear'; insertSupplier.run(name.trim(), phone.trim(), initialDebt, initialDebt, status); importedCount++; } }); })(); return { success: true, count: importedCount }; } catch (error) { return { success: false, error: error.message }; } }
+// دالة الذاكرة الذكية: فحص المنتجات المستخرجة من الـ PDF
+function enrichExtractedItems(items) {
+  try {
+    // نبحث عن الباركود في جدول القاموس، ونجلب الرف الخاص به من جدول رفوف الخريطة
+    const stmt = db.prepare(`
+      SELECT mp.clean_name, sp.shelf_id 
+      FROM mapped_products mp 
+      LEFT JOIN shelf_products sp ON mp.barcode = sp.barcode 
+      WHERE mp.barcode = ?
+    `);
+    
+    return items.map(item => {
+      const mapping = stmt.get(item.barcode);
+      if (mapping) {
+        return {
+          ...item,
+          cleanName: mapping.clean_name,
+          selectedShelf: mapping.shelf_id || '',
+          isKnown: true // 🧠 النظام تعرف على المنتج!
+        };
+      }
+      return {
+        ...item,
+        cleanName: item.dirtyName, // كقيمة افتراضية
+        selectedShelf: '',
+        isKnown: false // منتج جديد يدوياً
+      };
+    });
+  } catch (error) {
+    console.error("Enrichment Error:", error);
+    return items;
+  }
+}
+
 
 module.exports = {
   initDatabase, verifyLogin, getSuppliers, addSupplier, getEmployees, addEmployee, 
@@ -460,5 +574,5 @@ module.exports = {
   openShift, getActiveShift, closeShift, getShiftSummary,
   getUsers, addUser, deleteUser,
   updateEmployee, deleteEmployee, logAudit, getAuditLogs, generateExcelBackup, backupDatabase, importSuppliersFromExcel, deleteSupplier, updateSupplier , deleteReceipt, deletePayment, updateAdvance, deleteAdvance, 
-  getAllShiftsSummary, closeBusinessDay, getDailyClosures, getArchivedZReport, updateAttendanceRecord
+  getAllShiftsSummary, closeBusinessDay, getDailyClosures, getArchivedZReport, updateAttendanceRecord, getStoreMapData, processPdfInventoryEntry, enrichExtractedItems
 };
