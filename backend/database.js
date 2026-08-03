@@ -39,7 +39,7 @@ function initDatabase() {
     try { db.prepare("ALTER TABLE shifts ADD COLUMN archived INTEGER DEFAULT 0").run(); } catch(e) {}
 
     db.prepare(`CREATE TABLE IF NOT EXISTS audit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL, action TEXT NOT NULL, details TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`).run();
-    
+    db.prepare(`CREATE TABLE IF NOT EXISTS map_layout (id TEXT PRIMARY KEY, type TEXT, row INTEGER, col INTEGER, rotation INTEGER, name TEXT, capacity INTEGER)`).run();
     // --- جداول خريطة المحل (Store Map & Inventory) ---
     db.prepare(`CREATE TABLE IF NOT EXISTS store_zones (id TEXT PRIMARY KEY, t_key TEXT NOT NULL, name TEXT NOT NULL)`).run();
     db.prepare(`CREATE TABLE IF NOT EXISTS store_shelves (id TEXT PRIMARY KEY, zone_id TEXT NOT NULL, name TEXT NOT NULL, type TEXT DEFAULT 'shelf', capacity INTEGER DEFAULT 100, FOREIGN KEY (zone_id) REFERENCES store_zones(id))`).run();
@@ -446,6 +446,33 @@ const processPdfInventoryEntry = db.transaction((shelfId, barcode, cleanName, di
   }
 });
 
+function saveMapLayout(items) {
+  try {
+    const deleteStmt = db.prepare('DELETE FROM map_layout');
+    const insertStmt = db.prepare('INSERT INTO map_layout (id, type, row, col, rotation, name, capacity) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    
+    db.transaction(() => {
+      deleteStmt.run(); // مسح المخطط القديم
+      for(let item of items) {
+        insertStmt.run(item.id, item.type, item.row, item.col, item.rotation, item.name, item.capacity);
+      }
+    })();
+    logAudit('Admin', 'SAVE_STORE_MAP', 'تم تحديث المخطط ثلاثي الأبعاد للمحل');
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+function getMapLayout() {
+  try {
+    const layout = db.prepare('SELECT * FROM map_layout').all();
+    return { success: true, data: layout };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
 
 function getAllShiftsSummary() {
   try {
@@ -574,5 +601,5 @@ module.exports = {
   openShift, getActiveShift, closeShift, getShiftSummary,
   getUsers, addUser, deleteUser,
   updateEmployee, deleteEmployee, logAudit, getAuditLogs, generateExcelBackup, backupDatabase, importSuppliersFromExcel, deleteSupplier, updateSupplier , deleteReceipt, deletePayment, updateAdvance, deleteAdvance, 
-  getAllShiftsSummary, closeBusinessDay, getDailyClosures, getArchivedZReport, updateAttendanceRecord, getStoreMapData, processPdfInventoryEntry, enrichExtractedItems
+  getAllShiftsSummary, closeBusinessDay, getDailyClosures, getArchivedZReport, updateAttendanceRecord, getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, saveMapLayout, getMapLayout
 };

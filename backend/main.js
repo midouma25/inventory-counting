@@ -13,7 +13,7 @@ const {
   rescheduleAgendaTask , getDailySummary,
   openShift, getActiveShift, closeShift, getShiftSummary,
   getUsers, addUser, deleteUser, updateEmployee, deleteEmployee ,logAudit , getAuditLogs, backupDatabase,
-  generateExcelBackup, updateSupplier, deleteSupplier, updateAdvance, deleteAdvance, getAllShiftsSummary , getDailyClosures, getArchivedZReport,updateAttendanceRecord,getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, closeBusinessDay, getSuppliersList, saveInvoiceDebt
+  generateExcelBackup, updateSupplier, deleteSupplier, updateAdvance, deleteAdvance, getAllShiftsSummary , getDailyClosures, getArchivedZReport,updateAttendanceRecord,getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, closeBusinessDay, getSuppliersList, saveInvoiceDebt, saveMapLayout, getMapLayout
 } = require('./database');
 
 // 👇 استدعاء آمن للمكتبة ليتوافق مع جميع إصدارات Electron و Node.js
@@ -83,7 +83,8 @@ function setupIpcHandlers() {
     try { return { success: true, id: addPayment(data) }; } 
     catch (e) { return { success: false, error: e.message }; }
   });
-  
+  ipcMain.handle('save-map-layout', (event, items) => db.saveMapLayout(items));
+  ipcMain.handle('get-map-layout', () => db.getMapLayout());
 
   ipcMain.handle("print-receipt", async (event) => {
 

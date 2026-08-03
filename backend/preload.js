@@ -73,5 +73,7 @@ contextBridge.exposeInMainWorld('api', {
   closeBusinessDay: (adminName) => ipcRenderer.invoke('close-business-day', adminName),
   getArchivedZReport: (id) => ipcRenderer.invoke('get-archived-zreport', id),
   updateAttendanceRecord: (id, timeIn, timeOut) => ipcRenderer.invoke('update-attendance-record', id, timeIn, timeOut),
+  saveMapLayout: (items) => ipcRenderer.invoke('save-map-layout', items),
+  getMapLayout: () => ipcRenderer.invoke('get-map-layout'),
   
 });

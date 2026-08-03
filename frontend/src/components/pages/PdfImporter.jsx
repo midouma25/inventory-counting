@@ -184,7 +184,7 @@ export default function PdfImporter() {
             <div className="flex items-center gap-3">
               <div className="bg-slate-800 p-3 rounded-xl"><Truck className="text-blue-400" size={24} /></div>
               <div>
-                <p className="text-xs text-slate-400">المورد في الفاتورة (PDF)</p>
+                <p className="text-xs text-slate-400">{t('pdfImporter.invoiceSupplier')}</p>
                 <p className="font-bold text-white text-lg">{invoiceMeta.supplierName || 'غير متوفر'}</p>
               </div>
             </div>
@@ -194,7 +194,7 @@ export default function PdfImporter() {
             <div className="flex items-center gap-3">
               <div className="bg-slate-800 p-3 rounded-xl"><DollarSign className="text-emerald-400" size={24} /></div>
               <div>
-                <p className="text-xs text-slate-400">إجمالي الفاتورة</p>
+                <p className="text-xs text-slate-400">{t('pdfImporter.invoiceTotal')}</p>
                 <p className="font-black text-emerald-400 text-xl" dir="ltr">
                   {invoiceMeta.totalAmount ? invoiceMeta.totalAmount.toLocaleString('fr-DZ') : '0.00'} DA
                 </p>
@@ -209,12 +209,12 @@ export default function PdfImporter() {
               disabled={isInvoiceSaved}
               className="w-full sm:w-64 bg-slate-950 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 disabled:opacity-50"
             >
-              <option value="" disabled>-- اختر المورد لربط الحساب --</option>
+              <option value="" disabled>{t('pdfImporter.selectSupplier')}</option>
               {suppliers.map(sup => (
                 <option key={sup.id} value={sup.id}>{sup.name}</option>
               ))}
               {/* خيار افتراضي للتجربة في حال لم تبرمج قائمة الموردين بعد */}
-              {suppliers.length === 0 && <option value="test_id">المورد (تجريبي)</option>}
+              {suppliers.length === 0 && <option value="test_id">{t('pdfImporter.selectSupplier')}</option>}
             </select>
 
             <button 
@@ -227,9 +227,9 @@ export default function PdfImporter() {
               }`}
             >
               {isInvoiceSaved ? (
-                <><CheckCircle2 size={20} /> تم الترحيل للمورد</>
+                <><CheckCircle2 size={20} /> {t('pdfImporter.saveSuccess')}</>
               ) : (
-                <><Send size={20} /> إضافة كدين للمورد</>
+                <><Send size={20} /> {t('pdfImporter.addDebtBtn')}  </>
               )}
             </button>
           </div>

@@ -56,9 +56,14 @@
     "saveSuccess": "Plan sauvegardé avec succès ! Prêt à recevoir les articles des factures PDF."
   },
 "pdfImporter": {
-    "title": "Importateur Intelligent (PDF)",
+   "title": "Importateur Intelligent (PDF)",
     "subtitle": "Téléchargez les bons de livraison pour extraire les articles et les lier au plan du magasin.",
     "btnUpload": "Uploader & Analyser",
+    "invoiceSupplier": "Fournisseur sur Facture (PDF)",
+    "invoiceTotal": "Total de la Facture",
+    "selectSupplier": "-- Sélectionner le fournisseur pour lier le compte --",
+    "addDebtBtn": "Ajouter comme dette au fournisseur",
+    "mappingTable": "Tableau de Correspondance et Affectation",
     "tableTitle": "Tableau de Correspondance et Affectation",
     "cols": {
       "ref": "Code-barres (PDF)",

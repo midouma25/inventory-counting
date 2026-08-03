@@ -57,9 +57,14 @@
     "saveSuccess": "Map saved successfully! Shelves are ready for PDF imports."
   },
   "pdfImporter": {
-    "title": "Smart PDF Inventory Importer",
-    "subtitle": "Upload and analyze PDF invoices, and automatically extract and map products to shelves.",
-    "btnUpload": "Upload and Analyze PDF",
+    "title": "Smart Importer (PDF)",
+    "subtitle": "Upload delivery notes to extract items and link them to the store map.",
+    "btnUpload": "Upload & Analyze",
+    "invoiceSupplier": "Supplier on Invoice (PDF)",
+    "invoiceTotal": "Total Invoice",
+    "selectSupplier": "-- Select supplier to link account --",
+    "addDebtBtn": "Add as debt to supplier",
+    "mappingTable": "Mapping and Allocation Table",
     "tableTitle": "Matching Table and Product Routing",
     "cols": {
       "ref": "Barcode (from PDF)",
