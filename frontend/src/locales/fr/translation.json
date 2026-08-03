@@ -32,25 +32,28 @@
     "pdfImporter": "Importateur PDF"
   },
 "storeMap": {
-    "title": "Hypermarché Interactif",
-    "subtitle": "Surveillance de {{count}} points de stockage",
-    "searchPlaceholder": "Rechercher un rayon ou une zone...",
-    "searchResults": "Résultats de recherche",
-    "showingShelves": "Affichage de {{count}} rayons",
-    "status": {
-      "good": "Bon",
-      "low": "Faible",
-      "empty": "Vide!"
+    "title": "Plan Interactif du Magasin",
+    "subtitle": "Glissez les outils, concevez les allées et configurez les étagères pour l'import PDF",
+    "toolbox": "Boîte à Outils",
+    "dragHint": "Glissez-moi vers le plan",
+    "canvasHint": "Devanture du Magasin (Entrée)",
+    "properties": "Propriétés de l'élément",
+    "propType": "Type",
+    "propName": "Nom de l'étagère (Liaison auto)",
+    "propCapacity": "Capacité Max (Alertes)",
+    "emptyProps": "Cliquez sur un outil sur le plan pour modifier ses propriétés.",
+    "tools": {
+      "shelf": "Étagère Gondole",
+      "fridge": "Réfrigérateur (Laitier)",
+      "freezer": "Congélateur (Viande)",
+      "cashier": "Point de Vente (Caisse)",
+      "wall": "Mur / Séparateur"
     },
-    "zones": {
-      "food": "Alimentation et Conserves",
-      "fresh": "Frais et Réfrigérateurs",
-      "cleaning": "Produits d'entretien",
-      "electronics": "Électronique",
-      "clothing": "Vêtements",
-      "beauty": "Beauté et Soins"
-    },
-    "shelfName": "Rayon {{num}} - Allée {{aisle}}"
+    "clearBtn": "Tout Effacer",
+    "saveBtn": "Sauvegarder le Plan",
+    "rotateBtn": "Pivoter",
+    "confirmClear": "Êtes-vous sûr de vouloir effacer tout le plan ?",
+    "saveSuccess": "Plan sauvegardé avec succès ! Prêt à recevoir les articles des factures PDF."
   },
 "pdfImporter": {
     "title": "Importateur Intelligent (PDF)",

@@ -32,27 +32,29 @@
     "storeMap": "3D Store Map",
     "pdfImporter": "Import Invoices (PDF)"
   },
- "storeMap": {
-    "title": "Interactive Hypermarket",
-    "subtitle": "Monitoring {{count}} live storage points",
-    "searchPlaceholder": "Search for a shelf or zone...",
-    "searchResults": "Search Results",
-    "showingShelves": "Showing {{count}} shelves",
-    "status": {
-      "good": "Good",
-      "low": "Low",
-      "empty": "Empty!"
+"storeMap": {
+    "title": "Interactive Store Map",
+    "subtitle": "Drag tools, design aisles, and set up shelves to auto-receive PDF items",
+    "toolbox": "Toolbox",
+    "dragHint": "Drag me to the map",
+    "canvasHint": "Store Front (Entrance)",
+    "properties": "Item Properties",
+    "propType": "Type",
+    "propName": "Shelf Name (For auto-linking)",
+    "propCapacity": "Max Capacity (For full alerts)",
+    "emptyProps": "Click any tool on the map to edit its properties.",
+    "tools": {
+      "shelf": "Gondola Shelf",
+      "fridge": "Dairy Fridge",
+      "freezer": "Meat Freezer",
+      "cashier": "POS Cashier",
+      "wall": "Wall / Divider"
     },
-    "zones": {
-      "food": "Food & Groceries",
-      "fresh": "Fresh & Fridges",
-      "cleaning": "Cleaning Supplies",
-      "electronics": "Electronics",
-      "clothing": "Clothing",
-      "beauty": "Beauty & Personal Care"
-    },
-    "shelfName": "Shelf {{num}} - Aisle {{aisle}}"
-  
+    "clearBtn": "Clear All",
+    "saveBtn": "Save & Apply Map",
+    "rotateBtn": "Rotate",
+    "confirmClear": "Are you sure you want to clear the entire map?",
+    "saveSuccess": "Map saved successfully! Shelves are ready for PDF imports."
   },
   "pdfImporter": {
     "title": "Smart PDF Inventory Importer",
