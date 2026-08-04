@@ -7,11 +7,14 @@ export default function PdfImporter() {
   const isRTL = i18n.dir() === 'rtl';
 
   const [items, setItems] = useState([]);
-  const [shelves, setShelves] = useState([]);
+  
+  // 🌟 استبدال shelves بـ activeShelves لجلب رفوف المخطط النشط
+  const [activeShelves, setActiveShelves] = useState([]);
+  
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState(null);
 
-  // 🌟 حالات (States) جديدة خاصة بنظام الموردين والفاتورة
+  // 🌟 حالات (States) خاصة بنظام الموردين والفاتورة
   const [invoiceMeta, setInvoiceMeta] = useState(null); 
   const [suppliers, setSuppliers] = useState([]); // قائمة الموردين من قاعدة البيانات
   const [selectedSupplier, setSelectedSupplier] = useState(''); // المورد الذي اختاره المستخدم
@@ -25,14 +28,27 @@ export default function PdfImporter() {
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        // جلب الرفوف
-        if (window.api && window.api.getStoreMapData) {
-          const res = await window.api.getStoreMapData();
-          if (res.success) {
-            setShelves(res.data.shelves);
+        // 🌟 1. جلب المخطط ثلاثي الأبعاد "المعتمد/الأساسي" فقط
+        if (window.api && window.api.getStoreLayouts) {
+          const res = await window.api.getStoreLayouts();
+          if (res.success && res.data.length > 0) {
+            // البحث عن المخطط المعتمد
+            const activeLayout = res.data.find(layout => layout.is_active === 1);
+            
+            if (activeLayout && activeLayout.items_json) {
+              const allMapItems = JSON.parse(activeLayout.items_json);
+              
+              // تصفية العناصر: نحتاج فقط الأدوات التي تخزن السلع (نستبعد الجدران ونقاط البيع)
+              const storageItems = allMapItems.filter(
+                item => item.type !== 'wall' && item.type !== 'cashier'
+              );
+              
+              setActiveShelves(storageItems);
+            }
           }
         }
-        // 🌟 جلب الموردين من قاعدة البيانات (تأكد من إضافة هذا الـ API في main.js)
+
+        // جلب الموردين من قاعدة البيانات
         if (window.api && window.api.getSuppliersList) {
           const res = await window.api.getSuppliersList();
           if (res.success) {
@@ -46,24 +62,44 @@ export default function PdfImporter() {
     fetchInitialData();
   }, []);
 
-   const handleImportPDF = async () => {
+  // 🌟 2. الخوارزمية الذكية: التوجيه التلقائي للرف حسب التصنيفات
+  const autoSuggestShelf = (itemName) => {
+    if (!itemName || activeShelves.length === 0) return '';
+    
+    const lowerItemName = itemName.toLowerCase();
+
+    for (const shelf of activeShelves) {
+      if (shelf.categories && shelf.categories.length > 0) {
+        for (const category of shelf.categories) {
+          if (lowerItemName.includes(category.toLowerCase()) || category.toLowerCase().includes(lowerItemName)) {
+            return shelf.id; // إرجاع معرّف الرف عند إيجاد تطابق
+          }
+        }
+      }
+    }
+    return ''; 
+  };
+
+  const handleImportPDF = async () => {
     setIsLoading(true);
     try {
       if (window.api && window.api.parsePdfInvoice) {
         const res = await window.api.parsePdfInvoice();
         if (res.success && res.data) {
           
+          // 🌟 تطبيق التوقع الذكي للرف أثناء تجهيز البيانات
           const processedItems = res.data.map(item => ({
             ...item,
-            isSaved: false 
+            isSaved: false,
+            selectedShelf: autoSuggestShelf(item.cleanName || item.dirtyName) 
           }));
           
           setItems(processedItems);
           
-          // 🌟 تخزين بيانات الفاتورة (المورد والمبلغ) إن وجدت
+          // تخزين بيانات الفاتورة (المورد والمبلغ) إن وجدت
           if (res.meta) {
             setInvoiceMeta(res.meta);
-            setIsInvoiceSaved(false); // إعادة تعيين الزر عند استيراد فاتورة جديدة
+            setIsInvoiceSaved(false); 
             setSelectedSupplier('');
           }
           
@@ -114,16 +150,15 @@ export default function PdfImporter() {
     }
   };
 
-  // 🌟 دالة ترحيل الفاتورة إلى قسم الديون والموردين
+  // دالة ترحيل الفاتورة إلى قسم الديون والموردين
   const handleSaveInvoiceMeta = async () => {
     if (!selectedSupplier) {
-      showToast('warning', 'الرجاء ربط الفاتورة بمورد من النظام أولاً.');
+      showToast('warning', t('pdfImporter.messages.supplierWarning', 'الرجاء ربط الفاتورة بمورد من النظام أولاً.'));
       return;
     }
     
     try {
       if (window.api && window.api.saveInvoiceDebt) {
-        // نرسل الـ ID الخاص بالمورد، اسم المورد في الـ PDF (كمرجع)، والمبلغ
         const res = await window.api.saveInvoiceDebt({
           supplierId: selectedSupplier,
           pdfSupplierName: invoiceMeta.supplierName,
@@ -133,15 +168,15 @@ export default function PdfImporter() {
 
         if (res.success) {
           setIsInvoiceSaved(true);
-          showToast('success', 'تم ترحيل الفاتورة بنجاح وإضافتها لحساب المورد!');
+          showToast('success', t('pdfImporter.messages.invoiceSaved', 'تم ترحيل الفاتورة بنجاح وإضافتها لحساب المورد!'));
         } else {
-          showToast('error', res.error || 'حدث خطأ أثناء ترحيل الفاتورة.');
+          showToast('error', res.error || t('pdfImporter.messages.invoiceError', 'حدث خطأ أثناء ترحيل الفاتورة.'));
         }
       } else {
          showToast('warning', 'ميزة ترحيل الفواتير غير مفعلة بعد في الباك-إند (main.js).');
       }
     } catch (error) {
-      showToast('error', 'خطأ في النظام أثناء حفظ الفاتورة.');
+      showToast('error', t('pdfImporter.messages.systemError', 'خطأ في النظام أثناء حفظ الفاتورة.'));
     }
   };
 
@@ -174,10 +209,8 @@ export default function PdfImporter() {
         </button>
       </div>
 
-      {/* 🌟 البطاقة الذكية: بيانات الفاتورة والمورد */}
       {invoiceMeta && items.length > 0 && (
         <div className="bg-slate-900 border border-slate-700 rounded-2xl p-5 mb-6 shadow-2xl flex flex-col xl:flex-row items-center justify-between gap-6 relative overflow-hidden">
-          {/* تأثير ضوئي للخلفية */}
           <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl"></div>
           
           <div className="flex flex-wrap items-center gap-8 z-10 w-full xl:w-auto">
@@ -185,7 +218,7 @@ export default function PdfImporter() {
               <div className="bg-slate-800 p-3 rounded-xl"><Truck className="text-blue-400" size={24} /></div>
               <div>
                 <p className="text-xs text-slate-400">{t('pdfImporter.invoiceSupplier')}</p>
-                <p className="font-bold text-white text-lg">{invoiceMeta.supplierName || 'غير متوفر'}</p>
+                <p className="font-bold text-white text-lg">{invoiceMeta.supplierName || t('common.notAvailable', 'غير متوفر')}</p>
               </div>
             </div>
 
@@ -213,7 +246,6 @@ export default function PdfImporter() {
               {suppliers.map(sup => (
                 <option key={sup.id} value={sup.id}>{sup.name}</option>
               ))}
-              {/* خيار افتراضي للتجربة في حال لم تبرمج قائمة الموردين بعد */}
               {suppliers.length === 0 && <option value="test_id">{t('pdfImporter.selectSupplier')}</option>}
             </select>
 
@@ -273,7 +305,6 @@ export default function PdfImporter() {
                     <td className="py-4 px-2 font-black text-white text-center" dir="ltr">+{item.quantity}</td>
 
                     <td className="py-4 px-2 relative">
-                      {/* دمجت هنا علامة "معروف مسبقاً" لكي لا نستخدم عموداً إضافياً يشوه الجدول */}
                       {item.isKnown && (
                         <span className="absolute -top-1 right-2 text-[10px] bg-emerald-900/80 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-700">
                           {t('pdfImporter.autoRecognized')}
@@ -288,17 +319,18 @@ export default function PdfImporter() {
                       />
                     </td>
                     
+                    {/* 🌟 3. تحديث القائمة المنسدلة لتعرض بيانات المخطط الأساسي */}
                     <td className="py-4 px-2">
                       <select 
-                        value={item.selectedShelf} 
+                        value={item.selectedShelf || ''} 
                         onChange={(e) => handleItemChange(index, 'selectedShelf', e.target.value)}
                         disabled={item.isSaved}
                         className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 disabled:opacity-50"
                       >
                         <option value="" disabled>{t('pdfImporter.selectShelf')}</option>
-                        {shelves.map(shelf => (
+                        {activeShelves.map(shelf => (
                           <option key={shelf.id} value={shelf.id}>
-                            {t('storeMap.shelfName', { num: shelf.num, aisle: shelf.aisle })} ({t('pdfImporter.capacity')}: {shelf.capacity})
+                            {shelf.name} {shelf.capacity ? `(${t('pdfImporter.capacity', 'السعة')}: ${shelf.capacity})` : ''}
                           </option>
                         ))}
                       </select>

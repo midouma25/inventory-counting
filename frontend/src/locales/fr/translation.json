@@ -15,6 +15,10 @@
     "loading": "Chargement...",
     "noResults": "Aucun résultat trouvé.",
     "all": "Tous",
+    "save": "Sauvegarder",
+    "delete": "Supprimer",
+    "deleteSuccess": "Supprimé avec succès",
+    "selectOption": "-- Sélectionnez une option --",
     "optional": "Optionnel"
   },
   "sidebar": {
@@ -64,7 +68,29 @@
     "saveBtn": "Sauvegarder le Plan",
     "rotateBtn": "Pivoter",
     "confirmClear": "Êtes-vous sûr de vouloir effacer tout le plan ?",
-    "saveSuccess": "Plan sauvegardé avec succès ! Prêt à recevoir les articles des factures PDF."
+    "saveSuccess": "Plan sauvegardé avec succès ! Prêt à recevoir les articles des factures PDF.",
+    "newLayout": "Nouveau Plan {{count}}",
+    "saveBeforeActivate": "Veuillez d'abord sauvegarder le plan avant de le définir comme principal !",
+    "activateSuccess": "Ce plan a été défini comme principal pour recevoir les factures.",
+    "confirmDeleteLayout": "Êtes-vous sûr de vouloir supprimer définitivement ce plan ?",
+    "layoutNamePlaceholder": "Nom du plan...",
+    "activeLayoutBadge": "Plan Principal Actif",
+    "setAsActive": "Définir comme Actif",
+    "linkedCategories": "Catégories liées à cette étagère :",
+    "customCategoryExample": "ex : Nourriture pour chats...",
+    "predefinedCategories": [
+      "Pâtes", "Huiles Végétales", "Sucre & Farine", "Café & Thé", "Épices",
+      "Conserves", "Boissons & Jus", "Biscuits & Sucreries", "Produits Laitiers", "Viandes Surgelées",
+      "Soins Personnels", "Produits d'Entretien"
+    ],
+    "addCustomTool": "Nouvel Outil",
+    "customToolModalTitle": "Créer un outil personnalisé",
+    "toolNameLabel": "Nom de l'outil (ex: Stand Promo, Panier de légumes)",
+    "toolNamePlaceholder": "Tapez le nom de l'outil ici...",
+    "chooseIcon": "Choisir l'icône",
+    "chooseColor": "Choisir la couleur",
+    "confirmTool": "Valider l'outil",
+    "toolNameRequired": "Veuillez entrer le nom de l'outil"
   },
 "pdfImporter": {
    "title": "Importateur Intelligent (PDF)",

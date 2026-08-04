@@ -17,6 +17,10 @@
     "all": "All",
     "from": "From",
     "to": "To",
+    "save": "Save",
+    "delete": "Delete",
+    "deleteSuccess": "Deleted successfully",
+    "selectOption": "-- Select an option --",
     "optional": "Optional"
   },
   "sidebar": {
@@ -65,7 +69,29 @@
     "saveBtn": "Save & Apply Map",
     "rotateBtn": "Rotate",
     "confirmClear": "Are you sure you want to clear the entire map?",
-    "saveSuccess": "Map saved successfully! Shelves are ready for PDF imports."
+    "saveSuccess": "Map saved successfully! Shelves are ready for PDF imports.",
+    "newLayout": "New Layout {{count}}",
+    "saveBeforeActivate": "Please save the layout first before setting it as active!",
+    "activateSuccess": "This layout is now set as the main map for receiving invoices.",
+    "confirmDeleteLayout": "Are you sure you want to permanently delete this layout?",
+    "layoutNamePlaceholder": "Layout Name...",
+    "activeLayoutBadge": "Active Main Layout",
+    "setAsActive": "Set as Active",
+    "linkedCategories": "Categories linked to this shelf:",
+    "customCategoryExample": "e.g., Imported Cat Food...",
+    "predefinedCategories": [
+      "Pasta & Noodles", "Vegetable Oils", "Sugar & Flour", "Coffee & Tea", "Spices",
+      "Canned Goods", "Beverages & Juices", "Biscuits & Sweets", "Dairy & Cheese", "Frozen Meats",
+      "Personal Care", "Cleaning Supplies"
+    ],
+    "addCustomTool": "New Tool",
+    "customToolModalTitle": "Create Custom Tool",
+    "toolNameLabel": "Tool Name (e.g., Promo Stand, Veggie Basket)",
+    "toolNamePlaceholder": "Type tool name here...",
+    "chooseIcon": "Select Icon",
+    "chooseColor": "Select Color",
+    "confirmTool": "Save Tool",
+    "toolNameRequired": "Please enter a tool name"
   },
   "pdfImporter": {
     "title": "Smart Importer (PDF)",
