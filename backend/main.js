@@ -13,7 +13,7 @@ const {
   rescheduleAgendaTask , getDailySummary,
   openShift, getActiveShift, closeShift, getShiftSummary,
   getUsers, addUser, deleteUser, updateEmployee, deleteEmployee ,logAudit , getAuditLogs, backupDatabase,
-  generateExcelBackup, updateSupplier, deleteSupplier, updateAdvance, deleteAdvance, getAllShiftsSummary , getDailyClosures, getArchivedZReport,updateAttendanceRecord,getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, closeBusinessDay, getSuppliersList, saveInvoiceDebt, saveMapLayout, getMapLayout
+  generateExcelBackup, updateSupplier, deleteSupplier, updateAdvance, deleteAdvance, getAllShiftsSummary , getDailyClosures, getArchivedZReport,updateAttendanceRecord,getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, closeBusinessDay, getSuppliersList, saveInvoiceDebt, saveMapLayout, getMapLayout, getStoreLayouts, saveStoreLayout, deleteStoreLayout, activateStoreLayout
 } = require('./database');
 
 // 👇 استدعاء آمن للمكتبة ليتوافق مع جميع إصدارات Electron و Node.js
@@ -149,7 +149,10 @@ function setupIpcHandlers() {
   ipcMain.handle('add-agenda-task', (event, data) => addAgendaTask(data));
   ipcMain.handle('toggle-agenda-task-status', (event, id, status) => toggleAgendaTaskStatus(id, status));
   ipcMain.handle('get-due-this-week', () => getDueThisWeek());
-  
+  ipcMain.handle('get-store-layouts', () => db.getStoreLayouts());
+  ipcMain.handle('save-store-layout', (event, data) => db.saveStoreLayout(data));
+  ipcMain.handle('delete-store-layout', (event, id) => db.deleteStoreLayout(id));
+  ipcMain.handle('activate-store-layout', (event, id) => db.activateStoreLayout(id));
   // 🌟 مسارات استيراد الفواتير الذكية (PDF) 🌟
   
   // 1. جلب قائمة الموردين للنافذة المنسدلة

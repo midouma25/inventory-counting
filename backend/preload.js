@@ -75,5 +75,9 @@ contextBridge.exposeInMainWorld('api', {
   updateAttendanceRecord: (id, timeIn, timeOut) => ipcRenderer.invoke('update-attendance-record', id, timeIn, timeOut),
   saveMapLayout: (items) => ipcRenderer.invoke('save-map-layout', items),
   getMapLayout: () => ipcRenderer.invoke('get-map-layout'),
+  getStoreLayouts: () => ipcRenderer.invoke('get-store-layouts'),
+  saveStoreLayout: (data) => ipcRenderer.invoke('save-store-layout', data),
+  deleteStoreLayout: (id) => ipcRenderer.invoke('delete-store-layout', id),
+  activateStoreLayout: (id) => ipcRenderer.invoke('activate-store-layout', id),
   
 });

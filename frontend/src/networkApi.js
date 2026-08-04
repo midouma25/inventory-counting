@@ -84,7 +84,10 @@ export const setupNetworkApi = () => {
     getActiveShift: (cashierName) => fetchFromServer('getActiveShift', [cashierName]),
     closeShift: (data) => fetchFromServer('closeShift', [data]),
     getShiftSummary: (cashierName, startTime) => fetchFromServer('getShiftSummary', [cashierName, startTime]),
-    
+    getStoreLayouts: () => fetchFromServer('getStoreLayouts'),
+    saveStoreLayout: (data) => fetchFromServer('saveStoreLayout', [data]),
+    deleteStoreLayout: (id) => fetchFromServer('deleteStoreLayout', [id]),
+    activateStoreLayout: (id) => fetchFromServer('activateStoreLayout', [id]),
     getUsers: () => fetchFromServer('getUsers'),
     addUser: (data) => fetchFromServer('addUser', [data]),
     deleteUser: (id) => fetchFromServer('deleteUser', [id]),

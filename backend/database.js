@@ -45,6 +45,7 @@ function initDatabase() {
     db.prepare(`CREATE TABLE IF NOT EXISTS store_shelves (id TEXT PRIMARY KEY, zone_id TEXT NOT NULL, name TEXT NOT NULL, type TEXT DEFAULT 'shelf', capacity INTEGER DEFAULT 100, FOREIGN KEY (zone_id) REFERENCES store_zones(id))`).run();
     db.prepare(`CREATE TABLE IF NOT EXISTS mapped_products (barcode TEXT PRIMARY KEY, clean_name TEXT NOT NULL, dirty_names TEXT)`).run();
     db.prepare(`CREATE TABLE IF NOT EXISTS shelf_products (id INTEGER PRIMARY KEY AUTOINCREMENT, shelf_id TEXT NOT NULL, barcode TEXT NOT NULL, quantity REAL DEFAULT 0, expiry_date TEXT, FOREIGN KEY (shelf_id) REFERENCES store_shelves(id), FOREIGN KEY (barcode) REFERENCES mapped_products(barcode))`).run();
+    db.prepare(`CREATE TABLE IF NOT EXISTS store_layouts (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, is_active INTEGER DEFAULT 0, grid_rows INTEGER DEFAULT 10, grid_cols INTEGER DEFAULT 14, items_json TEXT)`).run();
 
 
     db.prepare(`
@@ -183,6 +184,59 @@ function getExpenses(caisseFilter) {
     ${filterQuery}
     ORDER BY date DESC, id DESC
   `).all(...queryParams); 
+}
+
+// ==========================================
+// دوال إدارة المخططات المتعددة (Tabs)
+// ==========================================
+function getStoreLayouts() {
+  try {
+    const layouts = db.prepare('SELECT * FROM store_layouts ORDER BY id ASC').all();
+    return { success: true, data: layouts };
+  } catch (error) { return { success: false, error: error.message }; }
+}
+
+function saveStoreLayout(data) {
+  try {
+    const itemsJson = JSON.stringify(data.items || []);
+    if (data.id) {
+      db.prepare('UPDATE store_layouts SET name = ?, grid_rows = ?, grid_cols = ?, items_json = ? WHERE id = ?')
+        .run(data.name, data.gridRows, data.gridCols, itemsJson, data.id);
+      logAudit('Admin', 'UPDATE_LAYOUT', `تم تحديث المخطط: ${data.name}`);
+      return { success: true, id: data.id };
+    } else {
+      // إذا كان هذا أول مخطط، نجعله مفعل (is_active = 1) تلقائياً
+      const count = db.prepare('SELECT COUNT(*) as c FROM store_layouts').get().c;
+      const isActive = count === 0 ? 1 : 0;
+      
+      const info = db.prepare('INSERT INTO store_layouts (name, is_active, grid_rows, grid_cols, items_json) VALUES (?, ?, ?, ?, ?)')
+        .run(data.name, isActive, data.gridRows, data.gridCols, itemsJson);
+      logAudit('Admin', 'CREATE_LAYOUT', `تم إنشاء مخطط جديد: ${data.name}`);
+      return { success: true, id: info.lastInsertRowid };
+    }
+  } catch (error) { return { success: false, error: error.message }; }
+}
+
+
+function deleteStoreLayout(id) {
+  try {
+    db.prepare('DELETE FROM store_layouts WHERE id = ?').run(id);
+    logAudit('Admin', 'DELETE_LAYOUT', `تم حذف المخطط (ID: ${id})`);
+    return { success: true };
+  } catch (error) { return { success: false, error: error.message }; }
+}
+
+
+
+function activateStoreLayout(id) {
+  try {
+    db.transaction(() => {
+      db.prepare('UPDATE store_layouts SET is_active = 0').run();
+      db.prepare('UPDATE store_layouts SET is_active = 1 WHERE id = ?').run(id);
+    })();
+    logAudit('Admin', 'ACTIVATE_LAYOUT', `تم تفعيل المخطط (ID: ${id})`);
+    return { success: true };
+  } catch (error) { return { success: false, error: error.message }; }
 }
 
 function addExpense(expense) { 
@@ -601,5 +655,5 @@ module.exports = {
   openShift, getActiveShift, closeShift, getShiftSummary,
   getUsers, addUser, deleteUser,
   updateEmployee, deleteEmployee, logAudit, getAuditLogs, generateExcelBackup, backupDatabase, importSuppliersFromExcel, deleteSupplier, updateSupplier , deleteReceipt, deletePayment, updateAdvance, deleteAdvance, 
-  getAllShiftsSummary, closeBusinessDay, getDailyClosures, getArchivedZReport, updateAttendanceRecord, getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, saveMapLayout, getMapLayout
+  getAllShiftsSummary, closeBusinessDay, getDailyClosures, getArchivedZReport, updateAttendanceRecord, getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, saveMapLayout, getMapLayout,getStoreLayouts, saveStoreLayout, deleteStoreLayout, activateStoreLayout
 };
