@@ -79,5 +79,6 @@ contextBridge.exposeInMainWorld('api', {
   saveStoreLayout: (data) => ipcRenderer.invoke('save-store-layout', data),
   deleteStoreLayout: (id) => ipcRenderer.invoke('delete-store-layout', id),
   activateStoreLayout: (id) => ipcRenderer.invoke('activate-store-layout', id),
+  getShelfProducts: (shelfId) => ipcRenderer.invoke('get-shelf-products', shelfId),
   
 });

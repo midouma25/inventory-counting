@@ -91,8 +91,32 @@
     "chooseIcon": "Select Icon",
     "chooseColor": "Select Color",
     "confirmTool": "Save Tool",
-    "toolNameRequired": "Please enter a tool name"
-  },
+    "toolNameRequired": "Please enter a tool name",
+    "modal": {
+      "storedProducts": "Products stored in this shelf (Inventory):",
+      "loadingProducts": "Loading products...",
+      "noProducts": "No products are currently stored in this shelf.",
+      "productName": "Product",
+      "quantity": "Quantity"
+    },
+      "catGroups": {
+      "grocery": "Grocery (Dry Goods)",
+      "dairy": "Dairy & Cheese (Refrigerated)",
+      "drinks": "Drinks & Juices",
+      "cleaning": "Cleaning Supplies",
+      "personalCare": "Personal Care & Cosmetics",
+      "snacks": "Snacks & Biscuits",
+      "pets": "Pet Food & Supplies"
+    },
+    "catLabels": {
+      "selectCategory": "-- Select a main category --",
+      "catName": "Category Name",
+      "catDesc": "Shelf Description (optional)",
+      "catDescPlaceholder": "e.g., Tuna, Tomatoes, Mushrooms...",
+      "addSuccess": "Category added to shelf successfully!"
+    }
+  }
+  ,
   "pdfImporter": {
     "title": "Smart Importer (PDF)",
     "subtitle": "Upload delivery notes to extract items and link them to the store map.",

@@ -91,7 +91,30 @@
     "chooseIcon": "اختر الأيقونة",
     "chooseColor": "اختر اللون",
     "confirmTool": "اعتماد الأداة",
-    "toolNameRequired": "يرجى كتابة اسم الأداة"
+    "toolNameRequired": "يرجى كتابة اسم الأداة",
+    "modal": {
+      "storedProducts": "السلع المخزنة في هذا الرف (المخزون):",
+      "loadingProducts": "جاري جلب السلع...",
+      "noProducts": "لا توجد سلع مخزنة في هذا الرف حالياً.",
+      "productName": "السلعة",
+      "quantity": "الكمية"
+    },
+    "catGroups": {
+      "grocery": "المواد الغذائية (البقالة الجافة)",
+      "dairy": "الألبان والأجبان (ثلاجات)",
+      "drinks": "المشروبات والعصائر",
+      "cleaning": "مواد التنظيف (المنظفات)",
+      "personalCare": "العناية الشخصية ومستحضرات التجميل",
+      "snacks": "الحلويات والبسكويت (Snacks)",
+      "pets": "أغذية ومستلزمات الحيوانات"
+    },
+    "catLabels": {
+      "selectCategory": "-- اختر تصنيفاً من القائمة الكبرى --",
+      "catName": "اسم التصنيف",
+      "catDesc": "وصف الرف (اختياري)",
+      "catDescPlaceholder": "مثال: تونة، طماطم، فطر...",
+      "addSuccess": "تمت إضافة التصنيف للرف بنجاح!"
+    }
   }
   ,
   "pdfImporter": {

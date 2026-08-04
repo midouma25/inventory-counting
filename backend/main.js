@@ -12,7 +12,7 @@ const {
   getSalaries, calculateEmployeePayroll, paySalary , getAgendaTasks, addAgendaTask, toggleAgendaTaskStatus, getDueThisWeek , deleteAgendaTask,
   rescheduleAgendaTask , getDailySummary,
   openShift, getActiveShift, closeShift, getShiftSummary,
-  getUsers, addUser, deleteUser, updateEmployee, deleteEmployee ,logAudit , getAuditLogs, backupDatabase,
+  getUsers, addUser, deleteUser, updateEmployee, deleteEmployee ,logAudit , getAuditLogs, backupDatabase, getShelfProducts,
   generateExcelBackup, updateSupplier, deleteSupplier, updateAdvance, deleteAdvance, getAllShiftsSummary , getDailyClosures, getArchivedZReport,updateAttendanceRecord,getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, closeBusinessDay, getSuppliersList, saveInvoiceDebt, saveMapLayout, getMapLayout, getStoreLayouts, saveStoreLayout, deleteStoreLayout, activateStoreLayout
 } = require('./database');
 
@@ -85,9 +85,9 @@ function setupIpcHandlers() {
   });
   ipcMain.handle('save-map-layout', (event, items) => db.saveMapLayout(items));
   ipcMain.handle('get-map-layout', () => db.getMapLayout());
-
+  ipcMain.handle('get-shelf-products', (event, shelfId) => db.getShelfProducts(shelfId));
   ipcMain.handle("print-receipt", async (event) => {
-
+  
     const win = BrowserWindow.fromWebContents(event.sender);
 
     return new Promise((resolve)=>{

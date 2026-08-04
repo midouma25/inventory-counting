@@ -101,6 +101,7 @@ export const setupNetworkApi = () => {
     importSuppliersExcel: () => Promise.resolve({ success: false, error: i18n.t('common.serverOnlyFeature', 'This feature only works on the main server.') }),
     getAllShiftsSummary: () => fetchFromServer('getAllShiftsSummary'),
     closeBusinessDay: (adminName) => fetchFromServer('closeBusinessDay', adminName),
+    getShelfProducts: (shelfId) => fetchFromServer('getShelfProducts', [shelfId]),
     showNotification: (data) => {
       if (Notification.permission === 'granted') new Notification(data.title, { body: data.body });
       else if (Notification.permission !== 'denied') {

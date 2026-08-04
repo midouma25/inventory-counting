@@ -39,14 +39,32 @@ function initDatabase() {
     try { db.prepare("ALTER TABLE shifts ADD COLUMN archived INTEGER DEFAULT 0").run(); } catch(e) {}
 
     db.prepare(`CREATE TABLE IF NOT EXISTS audit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL, action TEXT NOT NULL, details TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`).run();
+    
     db.prepare(`CREATE TABLE IF NOT EXISTS map_layout (id TEXT PRIMARY KEY, type TEXT, row INTEGER, col INTEGER, rotation INTEGER, name TEXT, capacity INTEGER)`).run();
-    // --- جداول خريطة المحل (Store Map & Inventory) ---
     db.prepare(`CREATE TABLE IF NOT EXISTS store_zones (id TEXT PRIMARY KEY, t_key TEXT NOT NULL, name TEXT NOT NULL)`).run();
-    db.prepare(`CREATE TABLE IF NOT EXISTS store_shelves (id TEXT PRIMARY KEY, zone_id TEXT NOT NULL, name TEXT NOT NULL, type TEXT DEFAULT 'shelf', capacity INTEGER DEFAULT 100, FOREIGN KEY (zone_id) REFERENCES store_zones(id))`).run();
+    db.prepare(`CREATE TABLE IF NOT EXISTS store_shelves (id TEXT PRIMARY KEY, zone_id TEXT NOT NULL, name TEXT NOT NULL, type TEXT DEFAULT 'shelf', capacity INTEGER DEFAULT 100)`).run();
+    
     db.prepare(`CREATE TABLE IF NOT EXISTS mapped_products (barcode TEXT PRIMARY KEY, clean_name TEXT NOT NULL, dirty_names TEXT)`).run();
-    db.prepare(`CREATE TABLE IF NOT EXISTS shelf_products (id INTEGER PRIMARY KEY AUTOINCREMENT, shelf_id TEXT NOT NULL, barcode TEXT NOT NULL, quantity REAL DEFAULT 0, expiry_date TEXT, FOREIGN KEY (shelf_id) REFERENCES store_shelves(id), FOREIGN KEY (barcode) REFERENCES mapped_products(barcode))`).run();
+    
+    // 🔴 1. بناء الجدول الجديد بدون القيد المزعج (بدون FOREIGN KEY للرفوف)
+    db.prepare(`CREATE TABLE IF NOT EXISTS shelf_products (id INTEGER PRIMARY KEY AUTOINCREMENT, shelf_id TEXT NOT NULL, barcode TEXT NOT NULL, quantity REAL DEFAULT 0, expiry_date TEXT, FOREIGN KEY (barcode) REFERENCES mapped_products(barcode))`).run();
+    
     db.prepare(`CREATE TABLE IF NOT EXISTS store_layouts (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, is_active INTEGER DEFAULT 0, grid_rows INTEGER DEFAULT 10, grid_cols INTEGER DEFAULT 14, items_json TEXT)`).run();
 
+    // 🔴 2. الترحيل الذكي: نتحقق إذا كان الجدول القديم مربوطاً، فنقوم بفك ارتباطه ونسخ بياناته
+    try {
+      const tableInfo = db.prepare("PRAGMA foreign_key_list(shelf_products)").all();
+      const hasOldConstraint = tableInfo.some(fk => fk.table === 'store_shelves');
+      if (hasOldConstraint) {
+        db.prepare(`CREATE TABLE shelf_products_new (id INTEGER PRIMARY KEY AUTOINCREMENT, shelf_id TEXT NOT NULL, barcode TEXT NOT NULL, quantity REAL DEFAULT 0, expiry_date TEXT, FOREIGN KEY (barcode) REFERENCES mapped_products(barcode))`).run();
+        db.prepare(`INSERT INTO shelf_products_new SELECT id, shelf_id, barcode, quantity, expiry_date FROM shelf_products`).run();
+        db.prepare(`DROP TABLE shelf_products`).run();
+        db.prepare(`ALTER TABLE shelf_products_new RENAME TO shelf_products`).run();
+        console.log('✅ Migration: Unlinked old store_shelves from shelf_products successfully.');
+      }
+    } catch (e) {
+      console.log('Migration note:', e.message);
+    }
 
     db.prepare(`
       CREATE TABLE IF NOT EXISTS daily_closures (
@@ -103,7 +121,21 @@ function deleteUser(id) {
 }
 
 function getEmployees() { return db.prepare("SELECT * FROM employees WHERE status = 'active' OR status IS NULL ORDER BY id DESC").all(); }
-
+// دالة لجلب السلع المخزنة في رف معين بناءً على الـ ID الخاص به
+function getShelfProducts(shelfId) {
+  try {
+    const products = db.prepare(`
+      SELECT sp.id, sp.barcode, sp.quantity, mp.clean_name 
+      FROM shelf_products sp 
+      JOIN mapped_products mp ON sp.barcode = mp.barcode 
+      WHERE sp.shelf_id = ?
+    `).all(shelfId.toString());
+    
+    return { success: true, data: products };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
 function addEmployee(data) {
   try {
     const exist = db.prepare("SELECT * FROM employees WHERE pin_code = ? OR name = ?").get(data.pinCode, data.name);
@@ -655,5 +687,5 @@ module.exports = {
   openShift, getActiveShift, closeShift, getShiftSummary,
   getUsers, addUser, deleteUser,
   updateEmployee, deleteEmployee, logAudit, getAuditLogs, generateExcelBackup, backupDatabase, importSuppliersFromExcel, deleteSupplier, updateSupplier , deleteReceipt, deletePayment, updateAdvance, deleteAdvance, 
-  getAllShiftsSummary, closeBusinessDay, getDailyClosures, getArchivedZReport, updateAttendanceRecord, getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, saveMapLayout, getMapLayout,getStoreLayouts, saveStoreLayout, deleteStoreLayout, activateStoreLayout
+  getAllShiftsSummary, closeBusinessDay, getDailyClosures, getArchivedZReport, updateAttendanceRecord, getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, saveMapLayout, getMapLayout,getStoreLayouts, saveStoreLayout, deleteStoreLayout, activateStoreLayout, getShelfProducts
 };

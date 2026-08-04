@@ -90,7 +90,30 @@
     "chooseIcon": "Choisir l'icône",
     "chooseColor": "Choisir la couleur",
     "confirmTool": "Valider l'outil",
-    "toolNameRequired": "Veuillez entrer le nom de l'outil"
+    "toolNameRequired": "Veuillez entrer le nom de l'outil",
+    "modal": {
+      "storedProducts": "Produits stockés dans ce rayon (Inventaire) :",
+      "loadingProducts": "Chargement des produits...",
+      "noProducts": "Aucun produit n'est actuellement stocké dans ce rayon.",
+      "productName": "Produit",
+      "quantity": "Quantité"
+    },
+        "catGroups": {
+      "grocery": "Produits Alimentaires (Épicerie Sèche)",
+      "dairy": "Produits Laitiers et Fromages (Réfrigérés)",
+      "drinks": "Boissons et Jus",
+      "cleaning": "Produits de Nettoyage (Détergents)",
+      "personalCare": "Soins Personnels et Cosmétiques",
+      "snacks": "Bonbons et Biscuits (Snacks)",
+      "pets": "Aliments et Accessoires pour Animaux"
+    },
+    "catLabels": {
+      "selectCategory": "-- Choisir une catégorie de la liste principale --",
+      "catName": "Nom de la Catégorie",
+      "catDesc": "Description du Rayon (Optionnel)",
+      "catDescPlaceholder": "Exemple : Thon, Tomates, Champignons...",
+      "addSuccess": "La catégorie a été ajoutée au rayon avec succès !"
+    }
   },
 "pdfImporter": {
    "title": "Importateur Intelligent (PDF)",

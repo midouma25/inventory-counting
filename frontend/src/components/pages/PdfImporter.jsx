@@ -246,7 +246,7 @@ export default function PdfImporter() {
               {suppliers.map(sup => (
                 <option key={sup.id} value={sup.id}>{sup.name}</option>
               ))}
-              {suppliers.length === 0 && <option value="test_id">{t('pdfImporter.selectSupplier')}</option>}
+            {suppliers.length === 0 && <option value="" disabled>{t('pdfImporter.noSuppliers', 'لا يوجد موردين مسجلين في النظام!')}</option>}
             </select>
 
             <button 
