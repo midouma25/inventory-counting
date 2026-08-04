@@ -2,7 +2,7 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const { app } = require('electron');
 const ExcelJS = require('exceljs');
-const dbPath = path.join(app.getPath('userData'), 'pos_manager4.db');
+const dbPath = path.join(app.getPath('userData'), 'pos_manager5.db');
 const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 
@@ -421,7 +421,33 @@ const addPayment = db.transaction((data) => { const info = db.prepare('INSERT IN
 function getAdvances(employeeId) { if (employeeId) return db.prepare("SELECT * FROM advances WHERE employee_id = ? ORDER BY date DESC").all(employeeId); return db.prepare("SELECT a.*, e.name as employee_name FROM advances a JOIN employees e ON a.employee_id = e.id ORDER BY a.date DESC").all(); }
 function addAdvance(data) { const info = db.prepare('INSERT INTO advances (employee_id, amount, date, caisse_source, note) VALUES (?, ?, ?, ?, ?)').run(data.employeeId, data.amount, data.date, data.caisseSource || 'admin', data.note || ''); logAudit(data.caisseSource || 'Admin', 'ADD_ADVANCE', JSON.stringify({ amount: data.amount })); return { success: true, id: info.lastInsertRowid }; }
 
-function calculateEmployeePayroll(employeeId, startDate, endDate, hourlyRate) { const attendances = db.prepare(`SELECT * FROM attendance WHERE employee_id = ? AND date >= ? AND date <= ?`).all(employeeId, startDate, endDate); let totalHours = 0; attendances.forEach(record => { if (record.time_in && record.time_out) { const tIn = record.time_in.split(':'); const tOut = record.time_out.split(':'); const dIn = new Date(2000, 0, 1, tIn[0], tIn[1], tIn[2] || 0); const dOut = new Date(2000, 0, 1, tOut[0], tOut[1], tOut[2] || 0); let diff = (dOut - dIn) / (1000 * 60 * 60); if (diff < 0) diff += 24; totalHours += diff; } }); const pendingAdvances = db.prepare(`SELECT SUM(amount) as total FROM advances WHERE employee_id = ? AND status = 'pending'`).get(employeeId).total || 0; const grossSalary = totalHours * hourlyRate; const netSalary = grossSalary - pendingAdvances; return { employeeId, startDate, endDate, totalHours: Number(totalHours.toFixed(2)), hourlyRate, grossSalary: Number(grossSalary.toFixed(2)), totalAdvances: pendingAdvances, netSalary: Number(netSalary.toFixed(2)) }; }
+
+function calculateEmployeePayroll(employeeId, startDate, endDate, hourlyRate) { 
+  const overlap = db.prepare(`SELECT start_date, end_date FROM salaries WHERE employee_id = ? AND start_date <= ? AND end_date >= ?`).get(employeeId, endDate, startDate);
+  if (overlap) {
+     // 🔴 نُرجع البيانات فقط لكي تترجمها الواجهة الأمامية
+     return { isAlreadyPaid: true, overlapStart: overlap.start_date, overlapEnd: overlap.end_date };
+  }
+
+  const attendances = db.prepare(`SELECT * FROM attendance WHERE employee_id = ? AND date >= ? AND date <= ?`).all(employeeId, startDate, endDate); 
+  let totalHours = 0; 
+  attendances.forEach(record => { 
+    if (record.time_in && record.time_out) { 
+      const tIn = record.time_in.split(':'); 
+      const tOut = record.time_out.split(':'); 
+      const dIn = new Date(2000, 0, 1, tIn[0], tIn[1], tIn[2] || 0); 
+      const dOut = new Date(2000, 0, 1, tOut[0], tOut[1], tOut[2] || 0); 
+      let diff = (dOut - dIn) / (1000 * 60 * 60); 
+      if (diff < 0) diff += 24; 
+      totalHours += diff; 
+    } 
+  }); 
+  const pendingAdvances = db.prepare(`SELECT SUM(amount) as total FROM advances WHERE employee_id = ? AND status = 'pending'`).get(employeeId).total || 0; 
+  const grossSalary = totalHours * hourlyRate; 
+  const netSalary = grossSalary - pendingAdvances; 
+  return { employeeId, startDate, endDate, totalHours: Number(totalHours.toFixed(2)), hourlyRate, grossSalary: Number(grossSalary.toFixed(2)), totalAdvances: pendingAdvances, netSalary: Number(netSalary.toFixed(2)) }; 
+}
+
 
 const paySalary = db.transaction((data) => { 
   try { 
@@ -639,10 +665,95 @@ function getArchivedZReport(closureId) {
     return { success: true, data: { closure, shifts: detailedShifts } };
   } catch (error) { return { success: false, error: error.message }; }
 }
+// دالة حذف سلعة من الرف
+function deleteShelfProduct(productId) {
+  try {
+    db.prepare('DELETE FROM shelf_products WHERE id = ?').run(productId);
+    return { success: true };
+  } catch (error) { return { success: false, error: error.message }; }
+}
 
+// دالة تعديل سلعة في الرف
+function updateShelfProduct(productId, cleanName, quantity) {
+  try {
+    const sp = db.prepare('SELECT barcode FROM shelf_products WHERE id = ?').get(productId);
+    if(sp) {
+       db.prepare('UPDATE mapped_products SET clean_name = ? WHERE barcode = ?').run(cleanName, sp.barcode);
+       db.prepare('UPDATE shelf_products SET quantity = ? WHERE id = ?').run(quantity, productId);
+    }
+    return { success: true };
+  } catch (error) { return { success: false, error: error.message }; }
+}
 async function backupDatabase(destPath) { try { await db.backup(destPath); return { success: true }; } catch (error) { throw error; } }
-async function importSuppliersFromExcel(filePath) { try { const workbook = new ExcelJS.Workbook(); await workbook.xlsx.readFile(filePath); const worksheet = workbook.worksheets[0]; let importedCount = 0; const insertSupplier = db.prepare(`INSERT INTO suppliers (name, phone, initial_debt, total_debt, status) VALUES (?, ?, ?, ?, ?)`); db.transaction(() => { worksheet.eachRow((row, rowNumber) => { if (rowNumber === 1) return; const name = row.getCell(1).value?.toString() || ''; const phone = row.getCell(2).value?.toString() || ''; const initialDebtStr = row.getCell(3).value?.toString() || '0'; const initialDebt = parseFloat(initialDebtStr.replace(/[^0-9.-]+/g, "")) || 0; if (name.trim() !== '') { const status = initialDebt > 0 ? 'indebted' : 'clear'; insertSupplier.run(name.trim(), phone.trim(), initialDebt, initialDebt, status); importedCount++; } }); })(); return { success: true, count: importedCount }; } catch (error) { return { success: false, error: error.message }; } }
-// دالة الذاكرة الذكية: فحص المنتجات المستخرجة من الـ PDF
+// دالة استيراد ديون الموردين الذكية
+async function importSuppliersFromExcel(filePath) {
+  try {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(filePath);
+    const worksheet = workbook.worksheets[0];
+    
+    let supplierName = "";
+    let finalDebt = 0;
+    
+    // 1. استخراج الاسم من أول 10 أسطر في العمود الرابع (D) أو الثالث (C)
+    for (let i = 1; i <= 10; i++) {
+      let cellValue = worksheet.getRow(i).getCell(4).value; // العمود D
+      if (!cellValue) cellValue = worksheet.getRow(i).getCell(3).value; // احتياطياً العمود C
+      
+      if (cellValue && typeof cellValue === 'string') {
+        const val = cellValue.trim();
+        // تجاهل التواريخ والعناوين مثل Date أو Montant
+        if (val !== '' && !val.toLowerCase().includes('date') && !val.toLowerCase().includes('montant') && !val.toLowerCase().startsWith('le') && !/\d{2}\/\d{2}\/\d{4}/.test(val)) {
+          supplierName = val;
+          break;
+        }
+      }
+    }
+    
+    // إذا لم نعثر على الاسم في الخلايا (مثل ملف DANOUN)، نأخذه من اسم الملف ذكياً
+    if (!supplierName) {
+      const path = require('path');
+      let baseName = path.basename(filePath, path.extname(filePath));
+      // تنظيف اسم الملف من الأرقام في البداية والأقواس (مثل "15 Fateh (1)" -> "Fateh")
+      supplierName = baseName.replace(/^\d+\s*/, '').replace(/\(\d+\)/g, '').trim();
+    }
+    
+    // 2. استخراج الرصيد النهائي من العمود السادس (F) المسمى Reste
+    worksheet.eachRow((row, rowNumber) => {
+      let cellValue = row.getCell(6).value; // العمود F
+      
+      // دعم قراءة الأرقام سواء كانت قيم مباشرة أو ناتجة عن معادلات إكسيل
+      let val = (cellValue && typeof cellValue === 'object' && cellValue.result !== undefined) 
+                ? cellValue.result 
+                : cellValue;
+      
+      if (val !== null && val !== undefined && val !== '') {
+        // محاولة تحويل القيمة إلى رقم (إزالة المسافات وتوحيد الفواصل)
+        const num = parseFloat(val.toString().replace(/\s/g, '').replace(',', '.'));
+        if (!isNaN(num)) {
+          finalDebt = num; // سيستمر بالتحديث حتى يصل لآخر سطر فيه رقم
+        }
+      }
+    });
+    
+    // 3. إدخال أو تحديث المورد في قاعدة البيانات
+    const exist = db.prepare("SELECT id FROM suppliers WHERE name = ?").get(supplierName);
+    const status = finalDebt > 0 ? 'indebted' : 'clear';
+
+    if (exist) {
+       // المورد موجود مسبقاً، نقوم بتحديث دينه إلى الرقم النهائي الموجود في الإكسيل
+       db.prepare("UPDATE suppliers SET initial_debt = ?, total_debt = ?, status = ? WHERE id = ?").run(finalDebt, finalDebt, status, exist.id);
+    } else {
+       // مورد جديد، نقوم بإنشائه
+       db.prepare(`INSERT INTO suppliers (name, phone, initial_debt, total_debt, status) VALUES (?, ?, ?, ?, ?)`).run(supplierName, '-', finalDebt, finalDebt, status);
+    }
+    
+    logAudit('System', 'IMPORT_EXCEL', `استيراد ديون المورد ${supplierName} بمبلغ ${finalDebt}`);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}// دالة الذاكرة الذكية: فحص المنتجات المستخرجة من الـ PDF
 function enrichExtractedItems(items) {
   try {
     // نبحث عن الباركود في جدول القاموس، ونجلب الرف الخاص به من جدول رفوف الخريطة
@@ -687,5 +798,5 @@ module.exports = {
   openShift, getActiveShift, closeShift, getShiftSummary,
   getUsers, addUser, deleteUser,
   updateEmployee, deleteEmployee, logAudit, getAuditLogs, generateExcelBackup, backupDatabase, importSuppliersFromExcel, deleteSupplier, updateSupplier , deleteReceipt, deletePayment, updateAdvance, deleteAdvance, 
-  getAllShiftsSummary, closeBusinessDay, getDailyClosures, getArchivedZReport, updateAttendanceRecord, getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, saveMapLayout, getMapLayout,getStoreLayouts, saveStoreLayout, deleteStoreLayout, activateStoreLayout, getShelfProducts
+  getAllShiftsSummary, closeBusinessDay, getDailyClosures, getArchivedZReport, updateAttendanceRecord, getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, saveMapLayout, getMapLayout,getStoreLayouts, saveStoreLayout, deleteStoreLayout, activateStoreLayout, getShelfProducts, deleteShelfProduct, updateShelfProduct
 };

@@ -56,12 +56,32 @@ export default function Payroll() {
     }
   }, [selectedEmployee]);
 
+
+
   const handleCalculate = async (e) => {
     if (e) e.preventDefault();
     if (!selectedEmployee || !hourlyRate || !startDate || !endDate) return;
+    
+    // 🔴 التحقق المسبق من الباك-إند لمنع الدفع المزدوج
+    if (window.api && window.api.calculatePayroll) {
+      const checkRes = await window.api.calculatePayroll({ employeeId: selectedEmployee, startDate, endDate, hourlyRate: Number(hourlyRate) });
+      if (checkRes && checkRes.isAlreadyPaid) {
+        // استخدام الترجمة الديناميكية
+        showToast('error', t('payroll.errors.overlap', { 
+          start: checkRes.overlapStart, 
+          end: checkRes.overlapEnd, 
+          defaultValue: `لا يمكن الحساب! لقد تم دفع راتب مسبقاً (${checkRes.overlapStart} إلى ${checkRes.overlapEnd})` 
+        }));
+        clearPayrollResult(); 
+        return; 
+      }
+    }
+
     await calculatePayroll({ employeeId: selectedEmployee, startDate, endDate, hourlyRate: Number(hourlyRate) });
   };
 
+
+  
   const openEditAdvanceModal = (adv) => {
     setEditingAdvance(adv);
     setAdvanceData({

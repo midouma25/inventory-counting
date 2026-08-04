@@ -19,7 +19,8 @@
     "delete": "Supprimer",
     "deleteSuccess": "Supprimé avec succès",
     "selectOption": "-- Sélectionnez une option --",
-    "optional": "Optionnel"
+    "optional": "Optionnel",
+    "saveChanges": "Sauvegarder les modifications"
   },
   "sidebar": {
     "dashboard": "Tableau de bord",
@@ -92,27 +93,51 @@
     "confirmTool": "Valider l'outil",
     "toolNameRequired": "Veuillez entrer le nom de l'outil",
     "modal": {
-      "storedProducts": "Produits stockés dans ce rayon (Inventaire) :",
+     "storedProducts": "Produits stockés dans ce rayon (Inventaire) :",
       "loadingProducts": "Chargement des produits...",
       "noProducts": "Aucun produit n'est actuellement stocké dans ce rayon.",
       "productName": "Produit",
-      "quantity": "Quantité"
+      "quantity": "Quantité",
+      "actions": "Actions",
+      "edit": "Modifier",
+      "delete": "Supprimer",
+      "save": "Enregistrer",
+      "cancel": "Annuler"
     },
-        "catGroups": {
-      "grocery": "Produits Alimentaires (Épicerie Sèche)",
-      "dairy": "Produits Laitiers et Fromages (Réfrigérés)",
+"catGroups": {
+      "grocery": "Épicerie (Produits Secs)",
+      "dairy": "Produits Laitiers et Fromages",
       "drinks": "Boissons et Jus",
-      "cleaning": "Produits de Nettoyage (Détergents)",
+      "cleaning": "Produits d'Entretien",
       "personalCare": "Soins Personnels et Cosmétiques",
-      "snacks": "Bonbons et Biscuits (Snacks)",
-      "pets": "Aliments et Accessoires pour Animaux"
+      "snacks": "Snacks et Biscuits",
+      "pets": "Alimentation Animaux"
+    },
+    "catItems": {
+      "grocery": ["Conserves (Thon, Tomates)", "Pâtes", "Légumineuses (Lentilles, Pois chiches)", "Sucre & Sel", "Farine & Semoule", "Huiles & Ghee", "Épices"],
+      "dairy": ["Lait", "Fromages Divers", "Yaourt", "Beurre & Margarine", "Crèmes de cuisson"],
+      "drinks": ["Eau Minérale", "Jus Naturels", "Sodas", "Boissons Énergisantes", "Café & Thé", "Boissons Chaudes Instantanées"],
+      "cleaning": ["Lessives", "Liquides Vaisselle", "Désodorisants", "Nettoyants Sols & Vitres", "Insecticides"],
+      "personalCare": ["Shampooing & Après-shampooing", "Savon & Gel Douche", "Dentifrice & Brosses", "Crèmes et Soins", "Couches & Mouchoirs"],
+      "snacks": ["Biscuits & Gâteaux", "Chocolat", "Chips & Craquelins", "Gomme & Bonbons"],
+      "pets": ["Nourriture Chats", "Nourriture Chiens", "Litière & Accessoires"]
     },
     "catLabels": {
-      "selectCategory": "-- Choisir une catégorie de la liste principale --",
-      "catName": "Nom de la Catégorie",
-      "catDesc": "Description du Rayon (Optionnel)",
-      "catDescPlaceholder": "Exemple : Thon, Tomates, Champignons...",
-      "addSuccess": "La catégorie a été ajoutée au rayon avec succès !"
+      "selectCategory": "-- Sélectionnez une catégorie principale --",
+      "catName": "Nom de la catégorie",
+      "catDesc": "Description du rayon (optionnel)",
+      "catDescPlaceholder": "ex: Thon, Tomates, Champignons...",
+      "addSuccess": "Catégorie ajoutée au rayon avec succès !",
+      "addNewCategoryTitle": "Ajouter de nouvelles catégories",
+      "addCategoryBtn": "Ajouter cette catégorie"
+    },
+    "manualAdd": {
+      "title": "Ajouter un produit manuellement",
+      "productName": "Nom du produit",
+      "productNamePlaceholder": "ex: Thon Gold...",
+      "quantity": "Quantité",
+      "addBtn": "Ajouter",
+      "success": "Produit ajouté manuellement avec succès !"
     }
   },
 "pdfImporter": {
@@ -180,7 +205,7 @@
       "payNow": "Payer"
     }
   },
-  "suppliers": {
+"suppliers": {
     "title": "Fournisseurs",
     "subtitle": "Gérer les comptes et factures",
     "addSupplier": "Nouveau Fournisseur",
@@ -198,9 +223,17 @@
     },
     "actions": {
       "view": "Détails",
+      "edit": "Modifier",
       "pay": "Payer",
       "delete": "Supprimer",
-      "confirmDeleteBtn": "Confirmer la suppression"
+      "confirmDeleteBtn": "Confirmer la suppression",
+      "importSuccess": "{{count}} fournisseurs importés avec succès",
+      "importError": "Erreur lors de l'importation"
+    },
+    "messages": {
+      "saveError": "Erreur d'enregistrement",
+      "deleteError": "Erreur de suppression",
+      "deleteProtected": "Impossible de supprimer ce fournisseur car des factures ou des paiements y sont liés."
     },
     "modal": {
       "nameLabel": "Nom du fournisseur",
@@ -218,6 +251,7 @@
       "printReceipt": "Imprimer le reçu",
       "print": "Imprimer"
     }
+  
   },
   "receipt": {
     "title": "Reçu de réception / paiement",
@@ -356,6 +390,7 @@
     "exportReportWord": "Exporter le rapport (Word)",
     "selectEmployee": "Sélectionner un employé",
     "hourlyRate": "Taux horaire",
+    "overlap": "Calcul impossible ! Un salaire a déjà été payé pour cet employé sur une période superposée (du {{start}} au {{end}}).",
     "period": "Période",
     "totalHours": "Heures totales",
     "grossSalary": "Salaire Brut",

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Calendar as CalendarIcon, CheckCircle2, Clock, Truck, Banknote, Wrench, Trash2, CalendarClock, AlertCircle, ChevronRight, ChevronLeft } from 'lucide-react';
 import Modal from '../ui/Modal';
-import ConfirmAlert from '../ui/ConfirmAlert'; // 🔴 استيراد نافذة التنبيه المخصصة
+import ConfirmAlert from '../ui/ConfirmAlert';
 
 export default function Agenda() {
   const { t, i18n } = useTranslation();
@@ -10,10 +10,8 @@ export default function Agenda() {
   const [filter, setFilter] = useState('all'); 
   const [tasks, setTasks] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
   const [taskToDelete, setTaskToDelete] = useState(null);
 
-  // 🔴 نظام الإشعارات الذكي (Toast)
   const [toast, setToast] = useState(null);
   const showToast = (type, message) => {
     setToast({ type, message });
@@ -21,6 +19,8 @@ export default function Agenda() {
   };
 
   const [currentDate, setCurrentDate] = useState(new Date());
+  // 🔴 حفظ اليوم المحدد (يتم تحديثه عند الضغط على التقويم)
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState(new Date().toISOString().split('T')[0]);
   
   const todayString = new Date().toISOString().split('T')[0];
   const currentMonthName = currentDate.toLocaleString(i18n.language, { month: 'long', year: 'numeric' });
@@ -33,6 +33,12 @@ export default function Agenda() {
 
   const prevMonth = () => setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
   const nextMonth = () => setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+
+  // 🔴 الضغط على اليوم في التقويم
+  const handleDayClick = (day) => {
+    const clickedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day, 12);
+    setSelectedCalendarDate(clickedDate.toISOString().split('T')[0]);
+  };
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -74,7 +80,7 @@ export default function Agenda() {
         const normalizedTask = { ...addedTask, date: addedTask.task_date || newTask.date, time: addedTask.task_time || newTask.time };
         setTasks(prev => [...prev, normalizedTask].sort((a, b) => new Date(`${a.date} ${a.time || '00:00'}`) - new Date(`${b.date} ${b.time || '00:00'}`)));
         setIsModalOpen(false);
-        showToast('success', t('common.success')); // 🔴 إشعار بدلاً من التنبيه الأصلي
+        showToast('success', t('common.success'));
       }
     } catch (error) { 
       console.error("Error adding task:", error); 
@@ -116,9 +122,11 @@ export default function Agenda() {
   };
 
   const filteredTasks = tasks.filter(task => filter === 'all' ? true : task.status === filter);
+  
   const overdueTasks = filteredTasks.filter(task => task.date && task.date < todayString && task.status === 'pending');
-  const todayTasks = filteredTasks.filter(task => task.date === todayString);
-  const upcomingTasks = filteredTasks.filter(task => task.date && task.date > todayString);
+  // 🔴 مهام اليوم المحدد (إما اليوم الفعلي أو اليوم المضغوط في التقويم)
+  const selectedDateTasks = filteredTasks.filter(task => task.date === selectedCalendarDate);
+  const upcomingTasks = filteredTasks.filter(task => task.date && task.date > todayString && task.date !== selectedCalendarDate);
 
   const getTypeConfig = (type) => {
     switch (type) {
@@ -141,17 +149,15 @@ export default function Agenda() {
           <button onClick={() => toggleTaskStatus(task.id, task.status)} className={`transition-colors ${isCompleted ? 'text-emerald-500' : isOverdue ? 'text-red-400 hover:text-red-300' : 'text-slate-600 hover:text-emerald-400'}`}>
             {isOverdue && !isCompleted ? <AlertCircle size={24} /> : <CheckCircle2 size={24} />}
           </button>
-          
           <div>
             <h4 className={`font-medium ${isCompleted ? 'text-slate-500 line-through' : isOverdue ? 'text-red-200' : 'text-white'}`}>{task.title}</h4>
             <div className="flex items-center gap-3 mt-2 text-xs">
-              <span className={`flex items-center gap-1 ${isOverdue ? 'text-red-400' : 'text-slate-400'}`}><Clock size={14} /> {displayTime} {task.date !== todayString && `| ${task.date}`}</span>
+              <span className={`flex items-center gap-1 ${isOverdue ? 'text-red-400' : 'text-slate-400'}`}><Clock size={14} /> <bdi dir="ltr">{displayTime}</bdi> {task.date !== todayString && <bdi dir="ltr">| {task.date}</bdi>}</span>
               <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full border ${typeConfig.color}`}>{typeConfig.icon}{t(`agenda.types.${task.type}`, task.type)}</span>
               {task.amount > 0 && <span className="font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded-full">{task.amount.toLocaleString()} {t('currency')}</span>}
             </div>
           </div>
         </div>
-
         <div className="flex items-center gap-2">
           {!isCompleted && (
             <div className="relative" title={t('agenda.rescheduleTask', 'تأجيل المهمة')}>
@@ -168,12 +174,9 @@ export default function Agenda() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans text-start relative">
       
-      {/* 🔴 مكون الـ Toast */}
       {toast && (
         <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[9999] px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 ${
-          toast.type === 'success' ? 'bg-emerald-600 text-white' :
-          toast.type === 'warning' ? 'bg-amber-600 text-white' :
-          'bg-red-600 text-white'
+          toast.type === 'success' ? 'bg-emerald-600 text-white' : toast.type === 'warning' ? 'bg-amber-600 text-white' : 'bg-red-600 text-white'
         }`}>
           {toast.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
           <span className="font-bold">{toast.message}</span>
@@ -208,16 +211,37 @@ export default function Agenda() {
                 {[...Array(firstDayOfMonth)].map((_, i) => (
                    <div key={`empty-prev-${i}`} className="p-1.5 text-slate-700">{prevMonthDays - firstDayOfMonth + i + 1}</div>
                 ))}
-                {[...Array(daysInMonth)].map((_, i) => (
-                  <div key={i} className={`p-1.5 rounded-md cursor-pointer transition-colors ${isCurrentMonth && (i + 1 === currentDay) ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'}`}>
-                    {i + 1}
-                  </div>
-                ))}
+                {[...Array(daysInMonth)].map((_, i) => {
+                  const dayDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), i + 1, 12).toISOString().split('T')[0];
+                  // تحديد اليوم (أزرق غامق إذا كان اليوم الفعلي، أزرق فاتح إذا كان اليوم المختار للاستعراض)
+                  const isRealToday = dayDate === todayString;
+                  const isSelected = dayDate === selectedCalendarDate;
+
+                  return (
+                    <div 
+                      key={i} 
+                      onClick={() => handleDayClick(i + 1)}
+                      className={`p-1.5 rounded-md cursor-pointer transition-colors 
+                        ${isSelected ? 'bg-blue-600 text-white font-bold ring-2 ring-blue-400 ring-offset-2 ring-offset-slate-900' : 
+                          isRealToday ? 'bg-blue-900/50 text-blue-300 font-bold border border-blue-800' : 
+                          'text-slate-300 hover:bg-slate-800'}`}
+                    >
+                      {i + 1}
+                    </div>
+                  );
+                })}
                 {[...Array(42 - (firstDayOfMonth + daysInMonth))].map((_, i) => (
                    <div key={`empty-next-${i}`} className="p-1.5 text-slate-700">{i + 1}</div>
                 ))}
               </div>
             </div>
+            
+            <button 
+              onClick={() => setSelectedCalendarDate(todayString)} 
+              className="w-full mt-4 text-xs font-bold text-blue-400 hover:text-blue-300 bg-blue-900/20 py-2 rounded-lg transition-colors border border-blue-900/50"
+            >
+              {t('common.today', 'العودة لليوم')}
+            </button>
           </div>
 
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col gap-2 shadow-lg text-start">
@@ -236,19 +260,25 @@ export default function Agenda() {
               <div className="space-y-3">{overdueTasks.map(task => <TaskCard key={task.id} task={task} isOverdue={true} />)}</div>
             </div>
           )}
-          {todayTasks.length > 0 && (
-            <div>
-              <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>{t('agenda.sections.today')}</h3>
-              <div className="space-y-3">{todayTasks.map(task => <TaskCard key={task.id} task={task} isOverdue={false} />)}</div>
-            </div>
-          )}
+          
+          <div>
+            <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+              {selectedCalendarDate === todayString ? t('agenda.sections.today') : `${t('agenda.modal.dateLabel')} : ${selectedCalendarDate}`}
+            </h3>
+            {selectedDateTasks.length > 0 ? (
+              <div className="space-y-3">{selectedDateTasks.map(task => <TaskCard key={task.id} task={task} isOverdue={false} />)}</div>
+            ) : (
+              <div className="text-center p-8 border-2 border-dashed border-slate-800 rounded-xl text-slate-500">{t('common.noResults')}</div>
+            )}
+          </div>
+
           {upcomingTasks.length > 0 && (
             <div>
               <h3 className="text-lg font-medium text-slate-400 mb-4 border-b border-slate-800 pb-2 mt-8">{t('agenda.sections.upcoming')}</h3>
               <div className="space-y-3">{upcomingTasks.map(task => <TaskCard key={task.id} task={task} isOverdue={false} />)}</div>
             </div>
           )}
-          {filteredTasks.length === 0 && <div className="text-center p-12 border-2 border-dashed border-slate-800 rounded-xl text-slate-500">{t('common.noResults')}</div>}
         </div>
       </div>
 
@@ -269,7 +299,7 @@ export default function Agenda() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-1">{t('agenda.modal.dateLabel')}</label>
-              <input type="date" defaultValue={todayString} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 text-start" required />
+              <input type="date" defaultValue={selectedCalendarDate} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 text-start" required />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-1">{t('agenda.modal.timeLabel')} ({t('common.optional')})</label>
@@ -287,7 +317,6 @@ export default function Agenda() {
         </form>
       </Modal>
 
-      {/* 🔴 استخدام النافذة السوداء المخصصة بدلاً من النافذة العادية */}
       <ConfirmAlert 
         isOpen={!!taskToDelete}
         onClose={() => setTaskToDelete(null)}

@@ -14,6 +14,7 @@ const {
   openShift, getActiveShift, closeShift, getShiftSummary,
   getUsers, addUser, deleteUser, updateEmployee, deleteEmployee ,logAudit , getAuditLogs, backupDatabase, getShelfProducts,
   generateExcelBackup, updateSupplier, deleteSupplier, updateAdvance, deleteAdvance, getAllShiftsSummary , getDailyClosures, getArchivedZReport,updateAttendanceRecord,getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, closeBusinessDay, getSuppliersList, saveInvoiceDebt, saveMapLayout, getMapLayout, getStoreLayouts, saveStoreLayout, deleteStoreLayout, activateStoreLayout
+  , deleteReceipt, deletePayment, updateReceipt, updatePayment, importSuppliersFromExcel, deleteShelfProduct, updateShelfProduct
 } = require('./database');
 
 // 👇 استدعاء آمن للمكتبة ليتوافق مع جميع إصدارات Electron و Node.js
@@ -24,7 +25,8 @@ const parsePDF = typeof pdfParseRaw === 'function' ? pdfParseRaw : pdfParseRaw.d
 const express = require('express');
 const cors = require('cors');
 
-
+ipcMain.handle('delete-shelf-product', (e, id) => db.deleteShelfProduct(id));
+ipcMain.handle('update-shelf-product', (e, id, name, qty) => db.updateShelfProduct(id, name, qty));
 function createWindow() {
   // 1. إنشاء شاشة الإقلاع أولاً
   const splash = new BrowserWindow({
@@ -332,14 +334,31 @@ ipcMain.handle('backup-database', async (event) => {
 
 ipcMain.handle('import-suppliers-excel', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
-      title: 'استيراد الموردين من ملف إكسيل',
-      properties: ['openFile'],
+      title: 'استيراد ديون الموردين من ملفات إكسيل',
+      properties: ['openFile', 'multiSelections'], // 🔴 تفعيل التحديد المتعدد
       filters: [{ name: 'Excel Files', extensions: ['xlsx', 'xls'] }]
     });
 
     if (canceled || filePaths.length === 0) return { success: false, canceled: true };
 
-    return await db.importSuppliersFromExcel(filePaths[0]);
+    let successCount = 0;
+    let errors = [];
+
+    // قراءة كل الملفات المحددة واحداً تلو الآخر
+    for (let filePath of filePaths) {
+      const res = await db.importSuppliersFromExcel(filePath);
+      if (res.success) {
+        successCount++;
+      } else {
+        errors.push(`${require('path').basename(filePath)}: ${res.error}`);
+      }
+    }
+
+    if (successCount > 0) {
+      return { success: true, count: successCount, error: errors.join('\n') };
+    } else {
+      return { success: false, error: errors.join('\n') };
+    }
   });
 
 

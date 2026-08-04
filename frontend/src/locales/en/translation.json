@@ -21,7 +21,8 @@
     "delete": "Delete",
     "deleteSuccess": "Deleted successfully",
     "selectOption": "-- Select an option --",
-    "optional": "Optional"
+    "optional": "Optional",
+    "saveChanges": "Save Changes"
   },
   "sidebar": {
     "dashboard": "Dashboard",
@@ -97,23 +98,47 @@
       "loadingProducts": "Loading products...",
       "noProducts": "No products are currently stored in this shelf.",
       "productName": "Product",
-      "quantity": "Quantity"
+      "quantity": "Quantity",
+      "actions": "Actions",
+      "edit": "Edit",
+      "delete": "Delete",
+      "save": "Save",
+      "cancel": "Cancel"
     },
-      "catGroups": {
-      "grocery": "Grocery (Dry Goods)",
-      "dairy": "Dairy & Cheese (Refrigerated)",
-      "drinks": "Drinks & Juices",
+"catGroups": {
+      "grocery": "Groceries (Dry Foods)",
+      "dairy": "Dairy & Cheese (Fridges)",
+      "drinks": "Beverages & Juices",
       "cleaning": "Cleaning Supplies",
       "personalCare": "Personal Care & Cosmetics",
-      "snacks": "Snacks & Biscuits",
-      "pets": "Pet Food & Supplies"
+      "snacks": "Sweets & Snacks",
+      "pets": "Pet Supplies & Food"
+    },
+    "catItems": {
+      "grocery": ["Canned Goods (Tuna, Tomatoes)", "Pasta & Noodles", "Legumes (Lentils, Beans)", "Sugar & Salt", "Flour & Semolina", "Oils & Ghee", "Spices & Herbs"],
+      "dairy": ["Milk", "Various Cheeses", "Yogurt", "Butter & Margarine", "Cooking Creams"],
+      "drinks": ["Mineral Water", "Natural Juices", "Sodas", "Energy Drinks", "Coffee & Tea", "Instant Hot Drinks"],
+      "cleaning": ["Laundry Detergents", "Dishwashing Liquids", "Air Fresheners", "Floor & Glass Cleaners", "Insecticides"],
+      "personalCare": ["Shampoo & Conditioner", "Soap & Shower Gel", "Toothpaste & Brushes", "Skin Care & Creams", "Diapers & Tissues"],
+      "snacks": ["Biscuits & Cakes", "Chocolate", "Chips & Crackers", "Gum & Chewy Candies"],
+      "pets": ["Cat Food", "Dog Food", "Cat Litter & Accessories"]
     },
     "catLabels": {
       "selectCategory": "-- Select a main category --",
       "catName": "Category Name",
       "catDesc": "Shelf Description (optional)",
       "catDescPlaceholder": "e.g., Tuna, Tomatoes, Mushrooms...",
-      "addSuccess": "Category added to shelf successfully!"
+      "addSuccess": "Category added to shelf successfully!",
+      "addNewCategoryTitle": "Add New Categories to Shelf",
+      "addCategoryBtn": "Add this category to shelf"
+    },
+    "manualAdd": {
+      "title": "Manually Add Product to Shelf",
+      "productName": "Product Name",
+      "productNamePlaceholder": "e.g., Gold Tuna...",
+      "quantity": "Quantity",
+      "addBtn": "Add",
+      "success": "Product added manually successfully!"
     }
   }
   ,
@@ -182,14 +207,10 @@
       "payNow": "Pay Now"
     }
   },
-  "suppliers": {
+"suppliers": {
     "title": "Suppliers",
     "subtitle": "Manage supplier accounts and invoices",
-      "schedulePayment": "Schedule Payment",
-      "addPayment": "Add Payment",
-      "addReceipt": "Add Receipt (Items)",
-      "payments": "Payments History",
-      "receipts": "Receipts History",
+    "addSupplier": "New Supplier",
     "searchPlaceholder": "Search by name or phone...",
     "table": {
       "name": "Supplier Name",
@@ -204,9 +225,17 @@
     },
     "actions": {
       "view": "View",
+      "edit": "Edit",
       "pay": "Pay",
       "delete": "Delete",
-      "confirmDeleteBtn": "Confirm Delete"
+      "confirmDeleteBtn": "Confirm Delete",
+      "importSuccess": "Successfully imported {{count}} suppliers",
+      "importError": "Error importing from Excel"
+    },
+    "messages": {
+      "saveError": "Error saving supplier",
+      "deleteError": "Error deleting supplier",
+      "deleteProtected": "Cannot delete this supplier because there are linked receipts or payments. Please delete them first."
     },
     "modal": {
       "nameLabel": "Supplier Name",
@@ -215,15 +244,16 @@
     "details": {
       "schedulePayment": "Schedule Payment",
       "addPayment": "Add Payment",
-      "addReceipt": "Add Receipt",
-      "payments": "Payment History",
-      "receipts": "Received Invoices",
+      "addReceipt": "Add Receipt (Items)",
+      "payments": "Payments History",
+      "receipts": "Receipts History",
       "amount": "Amount",
       "date": "Date",
       "note": "Statement / Note",
       "printReceipt": "Print Receipt",
       "print": "Print"
     }
+  
   },
 "receipt": {
     "title": "Receipt",
@@ -361,6 +391,7 @@
     },
     "exportReportWord": "Export Report (Word)",
     "selectEmployee": "Select Employee",
+    "overlap": "Cannot calculate! A salary was already paid for this employee in an overlapping period (from {{start}} to {{end}}).",
     "hourlyRate": "Hourly Rate",
     "period": "Period",
     "totalHours": "Total Hours",

@@ -196,10 +196,24 @@ export default function DailyClosuresArchive() {
                   ) : (
                     closures.map(c => (
                       <tr key={c.id} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
-                        <td className="px-6 py-4 font-medium text-white flex items-center gap-2">
-                          <Calendar size={16} className="text-purple-400"/>
-                          <span dir="ltr">{new Date(c.closure_date).toLocaleString(i18n.language)}</span>
-                        </td>
+<td className="px-6 py-4 font-medium text-white">
+  <div className="flex items-center gap-3">
+    <Calendar size={18} className="text-purple-400 shrink-0"/>
+    <div className="flex flex-col items-start">
+      {/* بناء التاريخ يدوياً لتجنب انهيار التنسيق في المتصفح */}
+      <span className="text-sm tracking-widest font-mono" dir="ltr">
+        {(() => {
+          const d = new Date(c.closure_date);
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        })()}
+      </span>
+      {/* الوقت يظهر بشكل صحيح، لذلك نتركه كما هو */}
+      <span className="text-xs text-slate-400 mt-1 whitespace-nowrap">
+        {new Date(c.closure_date).toLocaleTimeString(i18n.language)}
+      </span>
+    </div>
+  </div>
+</td>
                         <td className="px-6 py-4 text-slate-300 flex items-center gap-2">
                           <User size={14} className="text-slate-500"/> {c.closed_by}
                         </td>

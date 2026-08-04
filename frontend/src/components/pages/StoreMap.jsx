@@ -6,7 +6,7 @@ import {
   RotateCw, Trash2, Save, XCircle, AlertCircle, CheckCircle2, 
   MousePointerSquareDashed, Grid3X3, Loader2,
   Settings2, Box, Tags, Plus, X, FolderKanban, CheckCircle, Map as MapIcon,
-  AlignLeft, Type
+  AlignLeft, Type, Edit, PackagePlus
 } from 'lucide-react';
 import Modal from '../ui/Modal'; 
 
@@ -28,43 +28,26 @@ export default function StoreMap() {
   const [shelfInventory, setShelfInventory] = useState([]);
   const [isLoadingInventory, setIsLoadingInventory] = useState(false);
 
-  // 🌟 حالات التصنيفات الهرمية ذات الوصف
   const [customCategory, setCustomCategory] = useState('');
   const [customCategoryDesc, setCustomCategoryDesc] = useState('');
 
-  // 🌟 قائمة الأقسام الكبرى للهايبر ماركت (مقسمة ومنظمة)
+  const [manualProductName, setManualProductName] = useState('');
+  const [manualProductQty, setManualProductQty] = useState('');
+  const [editingProductId, setEditingProductId] = useState(null);
+  const [editProductName, setEditProductName] = useState('');
+  const [editProductQty, setEditProductQty] = useState('');
+
+  // 🌟 جلب التصنيفات الكبرى ومحتوياتها من ملفات الترجمة بشكل ديناميكي
   const hypermarketCategories = [
-    {
-      group: t('storeMap.catGroups.grocery', 'المواد الغذائية (البقالة الجافة)'),
-      items: ['معلبات (تونة، طماطم)', 'عجائن ومعكرونة', 'بقوليات (عدس، حمص)', 'سكر وملح', 'دقيق وسميد', 'زيوت وسمن', 'توابل وبهارات']
-    },
-    {
-      group: t('storeMap.catGroups.dairy', 'الألبان والأجبان (ثلاجات)'),
-      items: ['حليب', 'أجبان بمختلف أنواعها', 'زبادي (ياغورت)', 'زبدة ومارغرين', 'كريمات الطبخ']
-    },
-    {
-      group: t('storeMap.catGroups.drinks', 'المشروبات والعصائر'),
-      items: ['مياه معدنية', 'عصائر طبيعية', 'مشروبات غازية', 'مشروبات طاقة', 'قهوة وشاي', 'مشروبات ساخنة سريعة التحضير']
-    },
-    {
-      group: t('storeMap.catGroups.cleaning', 'مواد التنظيف (المنظفات)'),
-      items: ['مساحيق غسيل الملابس', 'سائل الأواني', 'معطرات جو', 'منظفات أرضيات وزجاج', 'مبيدات حشرات']
-    },
-    {
-      group: t('storeMap.catGroups.personalCare', 'العناية الشخصية ومستحضرات التجميل'),
-      items: ['شامبو وبلسم', 'صابون وجل استحمام', 'معجون وفرش أسنان', 'كريمات وعناية بالبشرة', 'حفاضات ومناديل ورقية']
-    },
-    {
-      group: t('storeMap.catGroups.snacks', 'الحلويات والبسكويت (Snacks)'),
-      items: ['بسكويت وكيك', 'شوكولاتة', 'شيبس ومقرمشات', 'علكة وحلوى مضغ']
-    },
-    {
-      group: t('storeMap.catGroups.pets', 'أغذية ومستلزمات الحيوانات'),
-      items: ['طعام قطط', 'طعام كلاب', 'رمل قطط ومستلزمات النظافة']
-    }
+    { group: t('storeMap.catGroups.grocery'), items: t('storeMap.catItems.grocery', { returnObjects: true }) || [] },
+    { group: t('storeMap.catGroups.dairy'), items: t('storeMap.catItems.dairy', { returnObjects: true }) || [] },
+    { group: t('storeMap.catGroups.drinks'), items: t('storeMap.catItems.drinks', { returnObjects: true }) || [] },
+    { group: t('storeMap.catGroups.cleaning'), items: t('storeMap.catItems.cleaning', { returnObjects: true }) || [] },
+    { group: t('storeMap.catGroups.personalCare'), items: t('storeMap.catItems.personalCare', { returnObjects: true }) || [] },
+    { group: t('storeMap.catGroups.snacks'), items: t('storeMap.catItems.snacks', { returnObjects: true }) || [] },
+    { group: t('storeMap.catGroups.pets'), items: t('storeMap.catItems.pets', { returnObjects: true }) || [] }
   ];
 
-  // 🔴 حالات إنشاء أدوات مخصصة
   const [customTools, setCustomTools] = useState(() => {
     const saved = localStorage.getItem('pos_custom_tools');
     return saved ? JSON.parse(saved) : [];
@@ -81,23 +64,14 @@ export default function StoreMap() {
   };
 
   const baseTools = [
-    { type: 'shelf', icon: LayoutGrid, label: t('storeMap.tools.shelf', 'رف جندول'), color: 'bg-blue-600' },
-    { type: 'fridge', icon: Snowflake, label: t('storeMap.tools.fridge', 'ثلاجة ألبان'), color: 'bg-cyan-500' },
-    { type: 'freezer', icon: PackageOpen, label: t('storeMap.tools.freezer', 'مُجمّد لحوم'), color: 'bg-indigo-500' },
-    { type: 'cashier', icon: Monitor, label: t('storeMap.tools.cashier', 'نقطة بيع'), color: 'bg-emerald-600' },
-    { type: 'wall', icon: Grid3X3, label: t('storeMap.tools.wall', 'فاصل / جدار'), color: 'bg-slate-700' }
+    { type: 'shelf', icon: LayoutGrid, label: t('storeMap.tools.shelf'), color: 'bg-blue-600' },
+    { type: 'fridge', icon: Snowflake, label: t('storeMap.tools.fridge'), color: 'bg-cyan-500' },
+    { type: 'freezer', icon: PackageOpen, label: t('storeMap.tools.freezer'), color: 'bg-indigo-500' },
+    { type: 'cashier', icon: Monitor, label: t('storeMap.tools.cashier'), color: 'bg-emerald-600' },
+    { type: 'wall', icon: Grid3X3, label: t('storeMap.tools.wall'), color: 'bg-slate-700' }
   ];
 
-  const allTools = [
-    ...baseTools, 
-    ...customTools.map(ct => ({
-      type: ct.type,
-      icon: Icons[ct.icon] || Icons.Box,
-      label: ct.name,
-      color: ct.color,
-      isCustom: true
-    }))
-  ];
+  const allTools = [...baseTools, ...customTools.map(ct => ({ type: ct.type, icon: Icons[ct.icon] || Icons.Box, label: ct.name, color: ct.color, isCustom: true }))];
 
   const loadLayouts = async () => {
     setIsLoading(true);
@@ -106,12 +80,8 @@ export default function StoreMap() {
         const res = await window.api.getStoreLayouts();
         if (res.success) {
           setLayouts(res.data);
-          if (res.data.length > 0) {
-            const activeOrFirst = res.data.find(l => l.is_active === 1) || res.data[0];
-            switchTab(activeOrFirst);
-          } else {
-            handleCreateNewLayout();
-          }
+          if (res.data.length > 0) switchTab(res.data.find(l => l.is_active === 1) || res.data[0]);
+          else handleCreateNewLayout();
         }
       }
     } catch (error) { console.error("Error loading layouts:", error); }
@@ -123,16 +93,13 @@ export default function StoreMap() {
   const switchTab = (layoutObj) => {
     setActiveLayoutId(layoutObj.id);
     setGridSize({ rows: layoutObj.grid_rows || 10, cols: layoutObj.grid_cols || 14 });
-    try {
-      setPlacedItems(layoutObj.items_json ? JSON.parse(layoutObj.items_json) : []);
-    } catch (e) { setPlacedItems([]); }
+    try { setPlacedItems(layoutObj.items_json ? JSON.parse(layoutObj.items_json) : []); } catch (e) { setPlacedItems([]); }
     setSelectedItem(null);
   };
 
   const handleCreateNewLayout = () => {
     const newId = `temp_${Date.now()}`;
-    const newName = t('storeMap.newLayout', { count: layouts.length + 1 });
-    const newLayout = { id: newId, name: newName, is_active: 0, grid_rows: 10, grid_cols: 14, items_json: "[]" };
+    const newLayout = { id: newId, name: t('storeMap.newLayout', { count: layouts.length + 1 }), is_active: 0, grid_rows: 10, grid_cols: 14, items_json: "[]" };
     setLayouts([...layouts, newLayout]);
     switchTab(newLayout);
   };
@@ -141,16 +108,10 @@ export default function StoreMap() {
     try {
       const layoutToSave = layouts.find(l => l.id === activeLayoutId);
       if(!layoutToSave) return;
-      const payload = {
-        id: String(activeLayoutId).startsWith('temp_') ? null : activeLayoutId,
-        name: layoutToSave.name, gridRows: gridSize.rows, gridCols: gridSize.cols, items: placedItems
-      };
+      const payload = { id: String(activeLayoutId).startsWith('temp_') ? null : activeLayoutId, name: layoutToSave.name, gridRows: gridSize.rows, gridCols: gridSize.cols, items: placedItems };
       if (window.api && window.api.saveStoreLayout) {
         const res = await window.api.saveStoreLayout(payload);
-        if (res.success) {
-          showToast('success', t('storeMap.saveSuccess', 'تم حفظ المخطط بنجاح!'));
-          loadLayouts(); 
-        } else showToast('error', t('common.error'));
+        if (res.success) { showToast('success', t('storeMap.saveSuccess')); loadLayouts(); }
       }
     } catch (error) { showToast('error', t('common.error')); }
   };
@@ -171,15 +132,12 @@ export default function StoreMap() {
     try {
       if (window.api && window.api.deleteStoreLayout) {
         if (!String(id).startsWith('temp_')) await window.api.deleteStoreLayout(id);
-        showToast('success', t('common.deleteSuccess'));
-        loadLayouts();
+        showToast('success', t('common.deleteSuccess')); loadLayouts();
       }
     } catch (error) { console.error(error); }
   };
 
-  const updateLayoutName = (newName) => {
-    setLayouts(layouts.map(l => l.id === activeLayoutId ? { ...l, name: newName } : l));
-  };
+  const updateLayoutName = (newName) => setLayouts(layouts.map(l => l.id === activeLayoutId ? { ...l, name: newName } : l));
 
   const handleDragStartTool = (e, toolType) => e.dataTransfer.setData('toolType', toolType);
   const handleDragStartPlacedItem = (e, itemId) => e.dataTransfer.setData('sourceItemId', itemId);
@@ -194,22 +152,15 @@ export default function StoreMap() {
     if (sourceItemId) {
       if (isOccupied && isOccupied.id !== sourceItemId) { showToast('warning', t('storeMap.occupiedError')); return; }
       setPlacedItems(prev => prev.map(item => item.id === sourceItemId ? { ...item, row, col } : item));
-      setSelectedItem(placedItems.find(item => item.id === sourceItemId));
-      return;
+      setSelectedItem(placedItems.find(item => item.id === sourceItemId)); return;
     }
 
     if (!toolType) return;
     if (isOccupied) { setSelectedItem(isOccupied); return; }
 
     const toolObj = allTools.find(t => t.type === toolType);
-    const newItem = {
-      id: Date.now().toString(), type: toolType, row, col, rotation: 0, 
-      name: `${toolObj?.label || 'أداة'} ${placedItems.length + 1}`,
-      capacity: toolType === 'wall' ? 0 : 100, categories: [] 
-    };
-
-    setPlacedItems([...placedItems, newItem]);
-    setSelectedItem(newItem);
+    const newItem = { id: Date.now().toString(), type: toolType, row, col, rotation: 0, name: `${toolObj?.label || 'Tool'} ${placedItems.length + 1}`, capacity: toolType === 'wall' ? 0 : 100, categories: [] };
+    setPlacedItems([...placedItems, newItem]); setSelectedItem(newItem);
   };
 
   const handleRotate = () => {
@@ -220,94 +171,108 @@ export default function StoreMap() {
 
   const handleDelete = () => {
     if (!selectedItem) return;
-    setPlacedItems(placedItems.filter(item => item.id !== selectedItem.id));
-    setSelectedItem(null);
+    setPlacedItems(placedItems.filter(item => item.id !== selectedItem.id)); setSelectedItem(null);
   };
 
-  const handleClearAll = () => {
-    if(window.confirm(t('storeMap.confirmClear'))) { setPlacedItems([]); setSelectedItem(null); }
-  };
+  const handleClearAll = () => { if(window.confirm(t('storeMap.confirmClear'))) { setPlacedItems([]); setSelectedItem(null); } };
 
-  // 🌟 نظام إضافة التصنيفات الجديد (بنية الكائنات: Name + Description)
   const handleAddCategory = () => {
     const catName = customCategory.trim();
     if (!catName || !selectedItem) return;
-
-    // حماية لتوافق البيانات القديمة (تحويل النصوص إلى كائنات)
     let currentCats = selectedItem.categories || [];
     currentCats = currentCats.map(c => typeof c === 'string' ? { name: c, desc: '' } : c);
-
-    if (currentCats.some(c => c.name === catName)) {
-       showToast('warning', t('storeMap.catExists', 'هذا التصنيف مربوط بالرف مسبقاً!'));
-       return;
-    }
-
+    if (currentCats.some(c => c.name === catName)) { showToast('warning', t('storeMap.catExists')); return; }
     const updated = [...currentCats, { name: catName, desc: customCategoryDesc.trim() }];
     setPlacedItems(prev => prev.map(item => item.id === selectedItem.id ? { ...item, categories: updated } : item));
     setSelectedItem({ ...selectedItem, categories: updated });
-    
-    // تفريغ الحقول بعد الإضافة
-    setCustomCategory('');
-    setCustomCategoryDesc('');
-    showToast('success', t('storeMap.catLabels.addSuccess', 'تمت إضافة التصنيف للرف بنجاح!'));
+    setCustomCategory(''); setCustomCategoryDesc('');
+    showToast('success', t('storeMap.catLabels.addSuccess'));
   };
 
-  // 🌟 نظام إزالة التصنيفات
   const removeCategory = (catNameToRemove) => {
     let currentCats = selectedItem.categories || [];
     currentCats = currentCats.map(c => typeof c === 'string' ? { name: c, desc: '' } : c);
-
     const updated = currentCats.filter(c => c.name !== catNameToRemove);
     setPlacedItems(prev => prev.map(item => item.id === selectedItem.id ? { ...item, categories: updated } : item));
     setSelectedItem({ ...selectedItem, categories: updated });
   };
 
-  // عندما يتم اختيار تصنيف جاهز من القائمة المنسدلة، نقوم بملء الحقل فقط ليتسنى للمستخدم كتابة الوصف ثم الضغط على إضافة
   const handleSelectPredefined = (e) => {
-    const value = e.target.value;
-    if (value) {
-      setCustomCategory(value);
-      // Optional: document.getElementById('descInput').focus();
-    }
+    if (e.target.value) setCustomCategory(e.target.value);
+  };
+
+  const fetchInventory = async (shelfId) => {
+    setIsLoadingInventory(true);
+    try {
+      if (window.api && window.api.getShelfProducts) {
+        const res = await window.api.getShelfProducts(shelfId);
+        if (res.success) setShelfInventory(res.data);
+      }
+    } catch (error) { console.error("Error fetching shelf contents", error); } 
+    finally { setIsLoadingInventory(false); }
+  };
+
+  useEffect(() => {
+    if (selectedItem && selectedItem.id) fetchInventory(selectedItem.id);
+  }, [selectedItem]);
+
+  const handleAddManualProduct = async () => {
+    if (!manualProductName.trim() || !manualProductQty) return;
+    try {
+      const fakeBarcode = `MAN_ID_${Date.now()}`;
+      if (window.api && window.api.processPdfInventory) {
+        const res = await window.api.processPdfInventory({
+          shelfId: selectedItem.id, barcode: fakeBarcode, cleanName: manualProductName.trim(), dirtyName: manualProductName.trim(), quantity: Number(manualProductQty)
+        });
+        if (res.success) {
+          showToast('success', t('storeMap.manualAdd.success'));
+          setManualProductName(''); setManualProductQty('');
+          fetchInventory(selectedItem.id);
+        }
+      }
+    } catch (error) { console.error(error); }
+  };
+
+  const handleDeleteProduct = async (productId) => {
+    if(!window.confirm(t('storeMap.confirmDeleteProduct', 'Are you sure you want to delete this product?'))) return;
+    try {
+      if (window.api && window.api.deleteShelfProduct) {
+        await window.api.deleteShelfProduct(productId);
+        showToast('success', t('common.deleteSuccess'));
+        fetchInventory(selectedItem.id);
+      } 
+    } catch (e) { console.error(e); }
+  };
+
+  const startEditingProduct = (product) => {
+    setEditingProductId(product.id);
+    setEditProductName(product.clean_name);
+    setEditProductQty(product.quantity);
+  };
+
+  const handleSaveEditProduct = async () => {
+    try {
+      if (window.api && window.api.updateShelfProduct) {
+        await window.api.updateShelfProduct(editingProductId, editProductName, Number(editProductQty));
+        setEditingProductId(null);
+        showToast('success', t('common.saveSuccess'));
+        fetchInventory(selectedItem.id);
+      }
+    } catch(e) { console.error(e); }
   };
 
   const handleCreateCustomTool = () => {
     if (!newTool.name.trim()) { showToast('warning', t('storeMap.toolNameRequired')); return; }
     const newToolObj = { type: `custom_${Date.now()}`, name: newTool.name, icon: newTool.icon, color: newTool.color };
     const updatedCustomTools = [...customTools, newToolObj];
-    setCustomTools(updatedCustomTools);
-    localStorage.setItem('pos_custom_tools', JSON.stringify(updatedCustomTools));
-    setIsAddToolModalOpen(false);
-    setNewTool({ name: '', icon: 'ShoppingBasket', color: 'bg-purple-500' });
+    setCustomTools(updatedCustomTools); localStorage.setItem('pos_custom_tools', JSON.stringify(updatedCustomTools));
+    setIsAddToolModalOpen(false); setNewTool({ name: '', icon: 'ShoppingBasket', color: 'bg-purple-500' });
   };
-
-  useEffect(() => {
-    if (selectedItem && selectedItem.id) {
-      const fetchInventory = async () => {
-        setIsLoadingInventory(true);
-        try {
-          if (window.api && window.api.getShelfProducts) {
-            const res = await window.api.getShelfProducts(selectedItem.id);
-            if (res.success) setShelfInventory(res.data);
-          }
-        } catch (error) { console.error("Error fetching shelf contents", error); } 
-        finally { setIsLoadingInventory(false); }
-      };
-      fetchInventory();
-    }
-  }, [selectedItem]);
 
   if (isLoading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-blue-500"><Loader2 className="animate-spin" size={48} /></div>;
 
   const currentLayoutObj = layouts.find(l => l.id === activeLayoutId);
-
-  // دالة مساعدة لتأمين عرض التصنيفات (للتوافق مع البيانات القديمة)
-  const getSafeCategories = (cats) => {
-    if (!cats) return [];
-    return cats.map(c => typeof c === 'string' ? { name: c, desc: '' } : c);
-  };
-
-  const safeSelectedCategories = getSafeCategories(selectedItem?.categories);
+  const safeSelectedCategories = (selectedItem?.categories || []).map(c => typeof c === 'string' ? { name: c, desc: '' } : c);
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-slate-950 text-slate-300 p-6 font-sans text-start relative" dir={i18n.dir()}>
@@ -319,7 +284,7 @@ export default function StoreMap() {
         </div>
       )}
 
-      {/* 🔴 نظام التبويبات (Tabs Chrome-like) */}
+      {/* Tabs */}
       <div className="flex items-end gap-1 mb-6 border-b border-slate-800 overflow-x-auto no-scrollbar pb-px">
         {layouts.map(layout => (
           <div 
@@ -328,16 +293,13 @@ export default function StoreMap() {
           >
             {layout.is_active === 1 ? <CheckCircle size={16} className="text-emerald-500 shrink-0"/> : <FolderKanban size={16} className="shrink-0"/>}
             <span className="truncate font-medium flex-1">{layout.name}</span>
-            <button onClick={(e) => handleDeleteLayout(e, layout.id)} className={`p-1 rounded hover:bg-slate-800 text-slate-500 hover:text-red-400 ${activeLayoutId === layout.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-              <X size={14} />
-            </button>
+            <button onClick={(e) => handleDeleteLayout(e, layout.id)} className={`p-1 rounded hover:bg-slate-800 text-slate-500 hover:text-red-400 ${activeLayoutId === layout.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}><X size={14} /></button>
           </div>
         ))}
-        <button onClick={handleCreateNewLayout} className="px-4 py-3 rounded-t-xl hover:bg-slate-900 text-slate-400 hover:text-blue-400 transition-colors flex items-center justify-center">
-          <Plus size={18} />
-        </button>
+        <button onClick={handleCreateNewLayout} className="px-4 py-3 rounded-t-xl hover:bg-slate-900 text-slate-400 hover:text-blue-400 transition-colors flex items-center justify-center"><Plus size={18} /></button>
       </div>
 
+      {/* Header Actions */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div className="flex items-center gap-3 w-full md:w-auto">
            <input type="text" value={currentLayoutObj?.name || ''} onChange={(e) => updateLayoutName(e.target.value)} className="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-xl font-bold text-white focus:border-blue-500 focus:outline-none w-full md:w-64" placeholder={t('storeMap.layoutNamePlaceholder')} />
@@ -364,8 +326,7 @@ export default function StoreMap() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* 1. صندوق الأدوات */}
+        {/* 1. Toolbox */}
         <div className="lg:col-span-2 space-y-4">
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-xl">
             <h3 className="font-bold text-white mb-4 flex items-center gap-2 border-b border-slate-800 pb-3">
@@ -389,7 +350,7 @@ export default function StoreMap() {
           </div>
         </div>
 
-        {/* 2. لوحة الرسم التفاعلية */}
+        {/* 2. Canvas */}
         <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-xl p-4 md:p-6 shadow-2xl flex flex-col items-center justify-center overflow-x-auto" onClick={() => setSelectedItem(null)}>
           <div className="w-full aspect-[14/10] min-w-[600px] bg-slate-950 border-2 border-slate-800 rounded-lg p-1"
                style={{ display: 'grid', gridTemplateColumns: `repeat(${gridSize.cols}, 1fr)`, gridTemplateRows: `repeat(${gridSize.rows}, 1fr)`, gap: '2px' }}>
@@ -417,7 +378,7 @@ export default function StoreMap() {
           <p className="text-xs text-slate-500 mt-4 text-center bg-slate-800/50 px-4 py-1 rounded-full">{t('storeMap.canvasHint')}</p>
         </div>
 
-        {/* 3. نافذة الخصائص والإعدادات */}
+        {/* 3. Properties */}
         <div className="lg:col-span-3 space-y-4">
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-xl min-h-[300px]">
             {selectedItem ? (
@@ -447,16 +408,12 @@ export default function StoreMap() {
 
                 <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800">
                   <button onClick={handleRotate} className="bg-slate-800 hover:bg-blue-900/40 text-slate-300 hover:text-blue-400 border border-slate-700 rounded-lg py-2 flex flex-col items-center justify-center gap-1 transition-colors"><RotateCw size={18} /> <span className="text-[10px]">{t('storeMap.rotateBtn')}</span></button>
-                  <button onClick={handleDelete} className="bg-slate-800 hover:bg-red-900/40 text-slate-300 hover:text-red-400 border border-slate-700 rounded-lg py-2 flex flex-col items-center justify-center gap-1 transition-colors">
-                    <Trash2 size={18} /> <span className="text-[10px]">{t('common.delete')}</span>
-                  </button>
+                  <button onClick={handleDelete} className="bg-slate-800 hover:bg-red-900/40 text-slate-300 hover:text-red-400 border border-slate-700 rounded-lg py-2 flex flex-col items-center justify-center gap-1 transition-colors"><Trash2 size={18} /> <span className="text-[10px]">{t('common.delete')}</span></button>
                 </div>
               </div>
             ) : (
               <div className="space-y-5 animate-in fade-in">
-                <h3 className="font-bold text-white mb-4 border-b border-slate-800 pb-3 flex items-center gap-2">
-                  <Settings2 size={18} className="text-amber-400"/> {t('storeMap.gridSettings')}
-                </h3>
+                <h3 className="font-bold text-white mb-4 border-b border-slate-800 pb-3 flex items-center gap-2"><Settings2 size={18} className="text-amber-400"/> {t('storeMap.gridSettings')}</h3>
                 <div><label className="block text-xs font-medium text-slate-400 mb-1">{t('storeMap.gridCols')}</label><input type="number" min="5" max="30" value={gridSize.cols} onChange={(e) => setGridSize({...gridSize, cols: Number(e.target.value)})} className="w-full bg-slate-950 border border-slate-700 rounded-md px-3 py-2 text-sm text-white focus:border-amber-500 focus:outline-none" /></div>
                 <div><label className="block text-xs font-medium text-slate-400 mb-1">{t('storeMap.gridRows')}</label><input type="number" min="5" max="30" value={gridSize.rows} onChange={(e) => setGridSize({...gridSize, rows: Number(e.target.value)})} className="w-full bg-slate-950 border border-slate-700 rounded-md px-3 py-2 text-sm text-white focus:border-amber-500 focus:outline-none" /></div>
                 <p className="text-xs text-slate-500 text-center mt-4 border-t border-slate-800 pt-4">{t('storeMap.emptyProps')}</p>
@@ -467,12 +424,12 @@ export default function StoreMap() {
       </div>
 
       {/* ==========================================
-          النافذة المنبثقة لإدارة سلع الرف وعرض المخزون (تحديث شامل)
+          النافذة المنبثقة لإدارة الرفو والمخزون 
          ========================================== */}
-      <Modal isOpen={isInventoryOpen} onClose={() => setIsInventoryOpen(false)} title={`${t('storeMap.inventoryModalTitle')} ${selectedItem?.name}`}>
+      <Modal isOpen={isInventoryOpen} onClose={() => { setIsInventoryOpen(false); setEditingProductId(null); }} title={`${t('storeMap.inventoryModalTitle')} ${selectedItem?.name}`}>
         <div className="space-y-6 text-start p-2" dir={isRTL ? "rtl" : "ltr"}>
           
-          {/* 🌟 عرض التصنيفات الهرمية المربوطة بالرف */}
+          {/* الأقسام المربوطة */}
           <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 min-h-[120px]">
             <h4 className="text-sm font-medium text-slate-400 mb-4 flex items-center gap-2"><Tags size={16}/> {t('storeMap.linkedCategories')}</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -492,70 +449,117 @@ export default function StoreMap() {
             </div>
           </div>
 
+          {/* إضافة أقسام جديدة */}
           <div className="bg-slate-900 p-5 rounded-xl border border-slate-800">
             <h4 className="text-white font-bold mb-4 flex items-center gap-2 border-b border-slate-800 pb-3">
-              <Plus size={18} className="text-emerald-400" /> إضافة تصنيفات جديدة للرف
+              <Plus size={18} className="text-emerald-400" /> {t('storeMap.catLabels.addNewCategoryTitle')}
             </h4>
-            
             <div className="space-y-4">
-              {/* 🌟 القائمة المنسدلة المقسمة لمجموعات */}
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">{t('storeMap.catLabels.selectCategory', '-- اختر تصنيفاً من القائمة الكبرى --')}</label>
+                <label className="block text-sm font-medium text-slate-400 mb-2">{t('storeMap.catLabels.selectCategory')}</label>
                 <select onChange={handleSelectPredefined} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 font-medium">
-                  <option value="">{t('common.selectOption', '-- اضغط للاختيار --')}</option>
+                  <option value="">{t('common.selectOption')}</option>
                   {hypermarketCategories.map((group, gIndex) => (
                     <optgroup key={gIndex} label={group.group} className="bg-slate-900 text-blue-400 font-bold">
-                      {group.items.map((item, iIndex) => (
-                        <option key={iIndex} value={item} className="text-white bg-slate-950 font-normal">{item}</option>
-                      ))}
+                      {Array.isArray(group.items) && group.items.map((item, iIndex) => <option key={iIndex} value={item} className="text-white bg-slate-950 font-normal">{item}</option>)}
                     </optgroup>
                   ))}
                 </select>
               </div>
-
               <div className="grid grid-cols-1 gap-4 pt-2">
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-2 flex items-center gap-1"><Type size={14}/> {t('storeMap.catLabels.catName', 'اسم التصنيف')}</label>
-                  <input type="text" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 font-bold" placeholder="مثال: أجبان مبشورة..." />
+                  <label className="block text-sm font-medium text-slate-400 mb-2 flex items-center gap-1"><Type size={14}/> {t('storeMap.catLabels.catName')}</label>
+                  <input type="text" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 font-bold" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-2 flex items-center gap-1"><AlignLeft size={14}/> {t('storeMap.catLabels.catDesc', 'وصف الرف (اختياري)')}</label>
-                  <textarea value={customCategoryDesc} onChange={(e) => setCustomCategoryDesc(e.target.value)} rows="2" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 text-sm" placeholder={t('storeMap.catLabels.catDescPlaceholder', 'مثال: جبن أحمر، جبن موزاريلا، شيدر...')} />
+                  <label className="block text-sm font-medium text-slate-400 mb-2 flex items-center gap-1"><AlignLeft size={14}/> {t('storeMap.catLabels.catDesc')}</label>
+                  <textarea value={customCategoryDesc} onChange={(e) => setCustomCategoryDesc(e.target.value)} rows="2" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 text-sm" placeholder={t('storeMap.catLabels.catDescPlaceholder')} />
                 </div>
-                
                 <button onClick={handleAddCategory} disabled={!customCategory.trim()} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg font-bold transition-colors shadow-lg flex items-center justify-center gap-2 mt-2">
-                  <Plus size={18} /> إضافة هذا التصنيف للرف
+                  <Plus size={18} /> {t('storeMap.catLabels.addCategoryBtn')}
                 </button>
               </div>
             </div>
           </div>
 
+          {/* 🌟 قسم الإضافة اليدوية للسلع */}
+          <div className="bg-slate-900 p-5 rounded-xl border border-slate-800">
+            <h4 className="text-white font-bold mb-4 flex items-center gap-2 border-b border-slate-800 pb-3">
+              <PackagePlus size={18} className="text-amber-400" /> {t('storeMap.manualAdd.title')}
+            </h4>
+            <div className="flex flex-col sm:flex-row gap-3 items-end">
+              <div className="flex-1 w-full">
+                 <label className="block text-sm font-medium text-slate-400 mb-2">{t('storeMap.manualAdd.productName')}</label>
+                 <input type="text" value={manualProductName} onChange={e=>setManualProductName(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500" placeholder={t('storeMap.manualAdd.productNamePlaceholder')} />
+              </div>
+              <div className="w-full sm:w-24">
+                 <label className="block text-sm font-medium text-slate-400 mb-2">{t('storeMap.manualAdd.quantity')}</label>
+                 <input type="number" min="1" value={manualProductQty} onChange={e=>setManualProductQty(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white text-center focus:outline-none focus:border-blue-500" placeholder="0" dir="ltr" />
+              </div>
+              <button onClick={handleAddManualProduct} disabled={!manualProductName.trim() || !manualProductQty} className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-bold h-[42px] flex items-center justify-center gap-2 shadow-lg">
+                 <Plus size={18}/> {t('storeMap.manualAdd.addBtn')}
+              </button>
+            </div>
+          </div>
+
+          {/* 🌟 جدول السلع المخزنة */}
           <div className="mt-6 border-t border-slate-700 pt-6">
             <h4 className="text-white font-bold mb-3 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              {t('storeMap.modal.storedProducts', 'السلع المخزنة في هذا الرف (المخزون):')}
+              {t('storeMap.modal.storedProducts')}
             </h4>
             
-            <div className="bg-slate-950 rounded-lg border border-slate-800 max-h-48 overflow-y-auto">
+            <div className="bg-slate-950 rounded-lg border border-slate-800 max-h-60 overflow-y-auto">
               {isLoadingInventory ? (
-                <p className="text-slate-500 text-center py-6 text-sm">{t('storeMap.modal.loadingProducts', 'جاري جلب السلع...')}</p>
+                <p className="text-slate-500 text-center py-6 text-sm">{t('storeMap.modal.loadingProducts')}</p>
               ) : shelfInventory.length === 0 ? (
-                <p className="text-slate-500 text-center py-6 text-sm">{t('storeMap.modal.noProducts', 'لا توجد سلع مخزنة في هذا الرف حالياً.')}</p>
+                <p className="text-slate-500 text-center py-6 text-sm">{t('storeMap.modal.noProducts')}</p>
               ) : (
                 <table className="w-full text-sm text-start">
-                  <thead className="bg-slate-900 text-slate-400 sticky top-0">
+                  <thead className="bg-slate-900 text-slate-400 sticky top-0 z-10">
                     <tr>
-                      <th className="py-2.5 px-4 text-start">{t('storeMap.modal.productName', 'السلعة')}</th>
-                      <th className="py-2.5 px-4 text-center">{t('storeMap.modal.quantity', 'الكمية')}</th>
+                      <th className="py-2.5 px-4 text-start">{t('storeMap.modal.productName')}</th>
+                      <th className="py-2.5 px-4 text-center">{t('storeMap.modal.quantity')}</th>
+                      <th className="py-2.5 px-4 text-center">{t('storeMap.modal.actions')}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {shelfInventory.map((product) => (
-                      <tr key={product.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
-                        <td className="py-3 px-4 text-white font-medium">{product.clean_name}</td>
-                        <td className="py-3 px-4 text-center font-bold text-emerald-400" dir="ltr">+{product.quantity}</td>
-                      </tr>
-                    ))}
+                    {shelfInventory.map((product) => {
+                      const isEditing = editingProductId === product.id;
+                      return (
+                        <tr key={product.id} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
+                          <td className="py-3 px-4">
+                            {isEditing ? (
+                              <input type="text" value={editProductName} onChange={e=>setEditProductName(e.target.value)} className="bg-slate-900 border border-slate-700 text-white px-3 py-1.5 rounded-lg w-full focus:outline-none focus:border-blue-500" />
+                            ) : (
+                              <span className="text-white font-medium">{product.clean_name}</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-4 text-center" dir="ltr">
+                            {isEditing ? (
+                              <input type="number" value={editProductQty} onChange={e=>setEditProductQty(e.target.value)} className="bg-slate-900 border border-slate-700 text-white px-2 py-1.5 rounded-lg w-20 text-center focus:outline-none focus:border-blue-500" />
+                            ) : (
+                              <span className="font-bold text-emerald-400">+{product.quantity}</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <div className="flex items-center justify-center gap-3">
+                              {isEditing ? (
+                                <>
+                                  <button onClick={handleSaveEditProduct} className="text-emerald-400 hover:text-emerald-300 transition-colors" title={t('storeMap.modal.save')}><CheckCircle2 size={18}/></button>
+                                  <button onClick={()=>setEditingProductId(null)} className="text-slate-400 hover:text-slate-300 transition-colors" title={t('storeMap.modal.cancel')}><X size={18}/></button>
+                                </>
+                              ) : (
+                                <>
+                                  <button onClick={()=>startEditingProduct(product)} className="text-blue-400 hover:text-blue-300 transition-colors" title={t('storeMap.modal.edit')}><Edit size={18}/></button>
+                                  <button onClick={()=>handleDeleteProduct(product.id)} className="text-red-400 hover:text-red-300 transition-colors" title={t('storeMap.modal.delete')}><Trash2 size={18}/></button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               )}
@@ -565,6 +569,7 @@ export default function StoreMap() {
         </div>
       </Modal>
 
+      {/* نافذة إضافة أداة مخصصة */}
       <Modal isOpen={isAddToolModalOpen} onClose={() => setIsAddToolModalOpen(false)} title={t('storeMap.customToolModalTitle')}>
         <div className="space-y-6 text-start p-2" dir={isRTL ? "rtl" : "ltr"}>
           <div>

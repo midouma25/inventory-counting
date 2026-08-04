@@ -102,6 +102,8 @@ export const setupNetworkApi = () => {
     getAllShiftsSummary: () => fetchFromServer('getAllShiftsSummary'),
     closeBusinessDay: (adminName) => fetchFromServer('closeBusinessDay', adminName),
     getShelfProducts: (shelfId) => fetchFromServer('getShelfProducts', [shelfId]),
+    deleteShelfProduct: (id) => fetchFromServer('deleteShelfProduct', [id]),
+    updateShelfProduct: (id, name, qty) => fetchFromServer('updateShelfProduct', [id, name, qty]),
     showNotification: (data) => {
       if (Notification.permission === 'granted') new Notification(data.title, { body: data.body });
       else if (Notification.permission !== 'denied') {
