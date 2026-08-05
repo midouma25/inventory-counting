@@ -115,7 +115,7 @@ ipcMain.handle('login', async (event, credentials) => {
   
   try {
     // هنا نقوم باستدعاء الدالة المحصنة التي برمجناها في database.js
-    const result = dbManager.verifyLogin(credentials.username, credentials.password);
+    const result = verifyLogin(credentials.username, credentials.password);
     console.log("📦 النتيجة المُرسلة للواجهة:", result);
     return result;
   } catch (error) {
@@ -126,7 +126,7 @@ ipcMain.handle('login', async (event, credentials) => {
   ipcMain.handle('get-suppliers', () => getSuppliers());
   ipcMain.handle('add-supplier', (event, data) => addSupplier(data));
   
-  
+
 // 🔴 مسار تصحيح وقت الويندوز تلقائياً من داخل البرنامج (النسخة المدرعة)
   ipcMain.handle('set-windows-time', async (event, datetimeStr) => {
     return new Promise((resolve) => {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, ArrowDownCircle, Wallet, Edit, Trash2, ShieldAlert, Filter, Info } from 'lucide-react';
+import { Plus, Search, ArrowDownCircle, Wallet, Edit, Trash2, ShieldAlert, Filter, Info, CheckCircle2, AlertCircle } from 'lucide-react';
 import Modal from '../ui/Modal';
 import ConfirmAlert from '../ui/ConfirmAlert'; 
 import useEmployeeStore from '../../store/employeeStore';
@@ -17,6 +17,8 @@ export default function Expenses() {
   const [editingExpense, setEditingExpense] = useState(null);
   
   const [expenseToDelete, setExpenseToDelete] = useState(null);
+  const [hasActiveShift, setHasActiveShift] = useState(true); // حالة الوردية
+  const [toast, setToast] = useState(null); // حالة الإشعارات
 
   const { employees, fetchEmployees } = useEmployeeStore();
   const { suppliers, fetchSuppliers } = useSupplierStore();
@@ -34,6 +36,12 @@ export default function Expenses() {
   const myEmployeeRecord = useMemo(() => {
     return employees.find(e => e.name === user?.username);
   }, [employees, user]);
+
+  // دالة إظهار الإشعارات
+  const showToast = (type, message) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   const fetchExpensesList = async () => {
     try {
@@ -53,18 +61,40 @@ export default function Expenses() {
     fetchSuppliers();
   }, []);
 
+  // التحقق من الوردية عند فتح الصفحة
+  useEffect(() => {
+    const checkShift = async () => {
+      if (isSuperAdmin) {
+        setHasActiveShift(true);
+        return;
+      }
+      try {
+        if (window.api && window.api.getActiveShift) {
+          const shift = await window.api.getActiveShift(myCaisseName);
+          setHasActiveShift(!!shift); 
+        }
+      } catch (error) {
+        console.error("Error checking shift:", error);
+      }
+    };
+    checkShift();
+  }, [isSuperAdmin, myCaisseName]);
+
   const openAddModal = () => {
+    if (!hasActiveShift && !isSuperAdmin) {
+       showToast('warning', t('expenses.shiftRequiredAlert', 'الرجاء فتح ورديتك من شاشة الصندوق أولاً!'));
+       return;
+    }
     setEditingExpense(null);
     setFormData({ 
       description: '', category: 'utilities', amount: '', 
-      employeeId: isSuperAdmin ? '' : (myEmployeeRecord?.id || ''), 
+      employeeId: '', // تم تحرير الحقل ليكون فارغاً وجاهزاً للاختيار
       supplierId: '', caisseSource: myCaisseName, 
       date: new Date().toISOString().split('T')[0] 
     });
     setIsModalOpen(true);
   };
 
-  // 🔴 دالة فتح نافذة التعديل (أعدناها من جديد!)
   const openEditModal = (expense) => {
     setEditingExpense(expense);
     setFormData({
@@ -73,8 +103,8 @@ export default function Expenses() {
       amount: expense.amount,
       employeeId: '',
       supplierId: '',
-      caisseSource: expense.caisse_source || myCaisseName, // جلب الصندوق السابق
-      date: expense.date || new Date().toISOString().split('T')[0] // جلب التاريخ السابق
+      caisseSource: expense.caisse_source || myCaisseName, 
+      date: expense.date || new Date().toISOString().split('T')[0] 
     });
     setIsModalOpen(true);
   };
@@ -86,6 +116,7 @@ export default function Expenses() {
         const result = await window.api.deleteExpense(expenseToDelete, user?.username || 'Unknown');
         if (result && result.success) {
           fetchExpensesList();
+          showToast('success', t('common.success', 'تم الحذف بنجاح'));
         }
       }
     } catch (error) { console.error("Error deleting expense:", error); }
@@ -100,10 +131,9 @@ export default function Expenses() {
 
     try {
       if (formData.category === 'advance') {
-        const finalEmployeeId = isSuperAdmin ? formData.employeeId : myEmployeeRecord?.id;
         if (window.api && window.api.addAdvance) {
           await window.api.addAdvance({
-            employeeId: finalEmployeeId, amount: amountNum, date: dateStr, caisseSource: finalCaisseSource, note: formData.description
+            employeeId: formData.employeeId, amount: amountNum, date: dateStr, caisseSource: finalCaisseSource, note: formData.description
           });
         }
       } else if (formData.category === 'supplier_payment') {
@@ -114,7 +144,6 @@ export default function Expenses() {
         }
       } else {
         if (editingExpense) {
-          // 🔴 دعم التعديل الشامل
           await window.api.updateExpense(editingExpense.id, { 
             description: formData.description, 
             category: formData.category, 
@@ -130,6 +159,7 @@ export default function Expenses() {
       setIsModalOpen(false);
       setEditingExpense(null);
       fetchExpensesList(); 
+      showToast('success', t('common.success', 'تم الحفظ بنجاح'));
     } catch (error) { console.error("Error saving transaction:", error); }
   };
 
@@ -157,11 +187,40 @@ export default function Expenses() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans text-start relative">
+      
+      {/* نظام الإشعارات */}
+      {toast && (
+        <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[9999] px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 ${
+          toast.type === 'success' ? 'bg-emerald-600 text-white' :
+          toast.type === 'warning' ? 'bg-amber-600 text-white' :
+          'bg-red-600 text-white'
+        }`}>
+          {toast.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+          <span className="font-bold">{toast.message}</span>
+        </div>
+      )}
+
+      {/* رسالة تحذيرية تظهر فقط للكاشير الذي لم يفتح ورديته */}
+      {!hasActiveShift && !isSuperAdmin && (
+        <div className="mb-6 bg-amber-500/10 border border-amber-500/50 p-4 rounded-xl flex items-center gap-3 animate-in fade-in">
+          <ShieldAlert className="text-amber-400 shrink-0" size={24} />
+          <div>
+            <h3 className="text-amber-400 font-bold">{t('expenses.shiftRequired', 'لا توجد وردية مفتوحة!')}</h3>
+            <p className="text-amber-200/80 text-sm">
+              لا يمكنك إضافة مصاريف أو سلفيات. الرجاء الذهاب إلى شاشة "الصندوق" وفتح ورديتك (فوندوكاس) أولاً.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-white">{t('expenses.title')}</h1>
-          <p className="text-sm text-slate-500 mt-1">{t('expenses.subtitle')}</p>
+          <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
+            <Wallet className="text-blue-500" /> {t('expenses.title')}
+          </h1>
+          <p className="text-slate-500">{t('expenses.subtitle')}</p>
         </div>
+      
         <div className="flex items-center gap-3">
           {isSuperAdmin && (
              <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 shadow-sm">
@@ -182,8 +241,16 @@ export default function Expenses() {
              </div>
           )}
 
-          <button onClick={openAddModal} className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-md font-medium hover:bg-red-700 transition-colors">
-            <Plus size={18} /><span>{t('expenses.addExpense')}</span>
+          {/* زر إضافة مصروف مع تطبيق نظام الحماية */}
+          <button 
+            onClick={openAddModal} 
+            className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
+              !hasActiveShift && !isSuperAdmin 
+                ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700' 
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          >
+            <Plus size={18} /><span>{t('expenses.addExpense', 'إضافة مصروف')}</span>
           </button>
         </div>
       </div>
@@ -192,7 +259,7 @@ export default function Expenses() {
         <div className="mb-6 bg-blue-900/20 border border-blue-800/50 rounded-lg p-3 flex items-center gap-3 text-blue-300 text-sm" dir={i18n.dir()}>
            <Info size={18} className="text-blue-400 shrink-0" />
            <p className="leading-relaxed">
-             {t('expenses.cashierNotice', { name: myCaisseName, defaultValue: `You are viewing only the expenses and payments made from your own register (${myCaisseName}) across all days.` })}
+             {t('expenses.cashierNotice', { name: myCaisseName, defaultValue: `أنت تشاهد المصاريف والدفعات التي تمت من صندوقك الخاص فقط (${myCaisseName}) في جميع الأيام.` })}
            </p>
         </div>
       )}
@@ -200,7 +267,7 @@ export default function Expenses() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl flex items-center justify-between">
           <div>
-            <p className="text-sm text-slate-400">{t('expenses.kpi.today')}</p>
+            <p className="text-sm text-slate-400">{t('expenses.kpi.today', 'مصاريف اليوم')}</p>
             <h3 className="text-2xl font-bold text-white mt-1">{todayTotal.toLocaleString()} {t('currency')}</h3>
           </div>
           <div className="p-3 bg-red-950/30 rounded-lg text-red-400"><ArrowDownCircle size={24} /></div>
@@ -208,7 +275,7 @@ export default function Expenses() {
 
         <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl flex items-center justify-between">
           <div>
-            <p className="text-sm text-slate-400">{t('expenses.kpi.month')}</p>
+            <p className="text-sm text-slate-400">{t('expenses.kpi.month', 'إجمالي المصاريف')}</p>
             <h3 className="text-2xl font-bold text-slate-300 mt-1">{monthTotal.toLocaleString()} {t('currency')}</h3>
           </div>
           <div className="p-3 bg-slate-800 rounded-lg text-slate-400"><Wallet size={24} /></div>
@@ -255,7 +322,6 @@ export default function Expenses() {
                   <td className="px-6 py-4 text-center">
                     {exp.source === 'expense' ? (
                       <div className="flex items-center justify-center gap-2">
-                        {/* 🔴 زر التعديل أصبح بجانب زر الحذف للمصاريف العادية */}
                         <button onClick={() => openEditModal(exp)} className="p-2 text-blue-400 hover:bg-blue-900/50 rounded-lg transition-colors" title={t('expenses.editExpense')}>
                           <Edit size={18} />
                         </button>
@@ -264,7 +330,7 @@ export default function Expenses() {
                         </button>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-center text-xs text-slate-500 gap-1" title="يُرجى الذهاب لصفحة الموردين أو الرواتب لتعديل هذا السجل">
+                      <div className="flex items-center justify-center text-xs text-slate-500 gap-1" title={t('expenses.table.lockedHint', 'يُرجى الذهاب لصفحة الموردين أو الرواتب لتعديل هذا السجل')}>
                         <ShieldAlert size={14} /> {t('expenses.table.locked', 'مقفل')}
                       </div>
                     )}
@@ -284,7 +350,6 @@ export default function Expenses() {
       <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setEditingExpense(null); }} title={editingExpense ? t('expenses.editExpense') : t('expenses.addExpense')}>
         <form className="space-y-4" onSubmit={handleSubmitExpense} dir={isRTL ? "rtl" : "ltr"}>
           
-          {/* 🔴 السماح للمدير بتعديل الصندوق حتى في وضع التعديل (تم إزالة شرط !editingExpense) */}
           {isSuperAdmin && (
              <div>
                <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('expenses.caisseSourceLabel', 'مصدر الأموال')}</label>
@@ -306,19 +371,25 @@ export default function Expenses() {
             </select>
           </div>
 
+          {/* فك القيد: عرض جميع الموظفين عند اختيار سلفة عامل */}
           {formData.category === 'advance' && (
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('payroll.selectEmployee')}</label>
-              {isSuperAdmin ? (
-                <select required value={formData.employeeId} onChange={e => setFormData({...formData, employeeId: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 text-start">
-                  <option value="" disabled>{t('payroll.selectEmployee')}</option>
-                  {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-                </select>
-              ) : (
-                <div className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-blue-400 font-bold text-start cursor-not-allowed">
-                  {user?.username} - {t('expenses.myAdvance', 'سلفتي الشخصية')}
-                </div>
-              )}
+              <label className="block text-sm font-medium text-slate-400 mb-2 text-start">
+                {t('expenses.selectEmployee', 'اختر الموظف')}
+              </label>
+              <select 
+                value={formData.employeeId} 
+                onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })} 
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-blue-500 text-start"
+                required
+              >
+                <option value="" disabled>{t('expenses.selectEmployeePlaceholder', '-- اختر الموظف لتقديم السلفة --')}</option>
+                {employees.map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.name} {emp.name === user?.username ? t('expenses.myAdvance', " - (سلفتي الشخصية)") : ""}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
 
@@ -332,7 +403,6 @@ export default function Expenses() {
              </div>
           )}
 
-          {/* 🔴 حقل التاريخ متوفر للتعديل دائماً */}
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('expenses.dateLabel', 'التاريخ')}</label>
             <input type="date" required value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start" />
@@ -349,8 +419,8 @@ export default function Expenses() {
           </div>
 
           <div className="pt-4 flex justify-end gap-3 mt-4">
-            <button type="button" onClick={() => { setIsModalOpen(false); setEditingExpense(null); }} className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800 transition-colors">{t('common.cancel')}</button>
-            <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">{editingExpense ? t('expenses.saveChanges') : t('expenses.addExpense')}</button>
+            <button type="button" onClick={() => { setIsModalOpen(false); setEditingExpense(null); }} className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800 transition-colors">{t('common.cancel', 'إلغاء')}</button>
+            <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">{editingExpense ? t('expenses.saveChanges', 'حفظ التعديلات') : t('expenses.addExpense', 'إضافة مصروف')}</button>
           </div>
         </form>
       </Modal>
