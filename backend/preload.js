@@ -82,5 +82,6 @@ contextBridge.exposeInMainWorld('api', {
   getShelfProducts: (shelfId) => ipcRenderer.invoke('get-shelf-products', shelfId),
   deleteShelfProduct: (id) => ipcRenderer.invoke('delete-shelf-product', id),
 updateShelfProduct: (id, name, qty) => ipcRenderer.invoke('update-shelf-product', id, name, qty),
+setWindowsTime: (datetimeStr) => ipcRenderer.invoke('set-windows-time', datetimeStr),
   
 });

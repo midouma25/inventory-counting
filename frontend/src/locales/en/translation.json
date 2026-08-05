@@ -583,6 +583,7 @@
       "backupSuccess": "Backup created successfully.",
       "restoreSuccess": "Database restored! App will restart.",
       "restoreConfirm": "Are you sure? Current data will be replaced.",
+      "invalidFile": "The selected file is invalid! Please choose a valid database file (.db or .sqlite).",
       "error": "Database operation failed."
     }
   },

@@ -14,11 +14,13 @@ import EndOfDay from './components/EndOfDay';
 import Settings from './components/UsersManagement';
 import PrintPreview from './components/pages/PrintPreview';
 import Attendance from './components/pages/Attendance';
-import POS from './components/pages/POS'; // 🔴 شاشة البيع الجديدة
+import POS from './components/pages/POS'; 
 import DailyClosuresArchive from './components/DailyClosuresArchive';
 import AuditLogs from './components/pages/AuditLogs';
-import StoreMap from './components/pages/StoreMap'; // 🔴 شاشة مخطط المحل ثلاثي الأبعاد
-import PdfImporter from './components/pages/PdfImporter'; // <--- استيراد
+import StoreMap from './components/pages/StoreMap'; 
+import PdfImporter from './components/pages/PdfImporter'; 
+import SystemClock from './components/ui/SystemClock'; 
+
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   if (!isAuthenticated) return <Navigate to="/login" replace />;
@@ -28,7 +30,7 @@ const ProtectedRoute = ({ children }) => {
 const AdminRoute = ({ children }) => {
   const user = useAuthStore(state => state.user);
   const hasAccess = user?.role === 'admin' || user?.role === 'superadmin';
-  if (!hasAccess) return <Navigate to="/pos" replace />; // 🔴 توجيه الكاشير للـ POS
+  if (!hasAccess) return <Navigate to="/pos" replace />; 
   return children;
 };
 
@@ -42,12 +44,15 @@ const SuperAdminRoute = ({ children }) => {
 const IndexRedirect = () => {
   const user = useAuthStore(state => state.user);
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
-  return isAdmin ? <Dashboard /> : <Navigate to="/pos" replace />; // 🔴 توجيه افتراضي للكاشير
+  return isAdmin ? <Dashboard /> : <Navigate to="/pos" replace />; 
 };
 
 function App() {
   return (
     <HashRouter>
+      {/* 🔴 الساعة موضوعة هنا: خارج الـ Routes لكي تطفو فوق كل شاشات النظام ولا تعطل التوجيه */}
+      <SystemClock />
+
       <Routes>
         <Route path="/login" element={<Login />} />
 
@@ -73,6 +78,7 @@ function App() {
           <Route path="audit-logs" element={<SuperAdminRoute><AuditLogs /></SuperAdminRoute>} />
           <Route path="store-map" element={<SuperAdminRoute><StoreMap /></SuperAdminRoute>} />
           <Route path="pdf-importer" element={<SuperAdminRoute><PdfImporter /></SuperAdminRoute>} />
+          
         </Route>
       </Routes>
     </HashRouter>

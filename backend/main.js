@@ -11,16 +11,16 @@ const {
   getSupplierDetails, addReceipt, addPayment, getAdvances, addAdvance, 
   getSalaries, calculateEmployeePayroll, paySalary , getAgendaTasks, addAgendaTask, toggleAgendaTaskStatus, getDueThisWeek , deleteAgendaTask,
   rescheduleAgendaTask , getDailySummary,
-  openShift, getActiveShift, closeShift, getShiftSummary,
+  openShift, getActiveShift, closeShift, getShiftSummary,dbPath,
   getUsers, addUser, deleteUser, updateEmployee, deleteEmployee ,logAudit , getAuditLogs, backupDatabase, getShelfProducts,
   generateExcelBackup, updateSupplier, deleteSupplier, updateAdvance, deleteAdvance, getAllShiftsSummary , getDailyClosures, getArchivedZReport,updateAttendanceRecord,getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, closeBusinessDay, getSuppliersList, saveInvoiceDebt, saveMapLayout, getMapLayout, getStoreLayouts, saveStoreLayout, deleteStoreLayout, activateStoreLayout
-  , deleteReceipt, deletePayment, updateReceipt, updatePayment, importSuppliersFromExcel, deleteShelfProduct, updateShelfProduct
+  , deleteReceipt, deletePayment, updateReceipt, updatePayment, importSuppliersFromExcel, deleteShelfProduct, updateShelfProduct, setWindowsTime
 } = require('./database');
 
 // 👇 استدعاء آمن للمكتبة ليتوافق مع جميع إصدارات Electron و Node.js
 const pdfParseRaw = require('pdf-parse');
 const parsePDF = typeof pdfParseRaw === 'function' ? pdfParseRaw : pdfParseRaw.default;
-
+const { exec } = require('child_process');
 
 const express = require('express');
 const cors = require('cors');
@@ -69,13 +69,98 @@ function createWindow() {
     }, 3000); // يمكنك تقليلها إلى 1000 إذا أردت تسريع الفتح
   });
 }
+// 👇===== الكود السحري لتوحيد وتصحيح التوقيت المحلي لجميع صفحات البرنامج =====👇
+function fixDatesGlobal(data) {
+  if (!data || typeof data !== 'object') return data;
+  if (Array.isArray(data)) return data.map(item => fixDatesGlobal(item));
+  
+  const obj = { ...data };
+  for (const key in obj) {
+    const value = obj[key];
+    if (typeof value === 'string') {
+      // البحث عن أي نص يشبه التوقيت العالمي (سواء بصيغة Node.js أو SQLite)
+      const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
+      const sqliteRegex = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+      
+      if (isoRegex.test(value)) {
+        const d = new Date(value);
+        const pad = (n) => n.toString().padStart(2, '0');
+        obj[key] = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      } else if (sqliteRegex.test(value)) {
+        // إضافة Z لكي يتعرف عليه كأنه توقيت عالمي ويضيف له فارق الساعات الخاص بدولتك
+        const d = new Date(value.replace(' ', 'T') + 'Z');
+        const pad = (n) => n.toString().padStart(2, '0');
+        obj[key] = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      }
+    } else if (value !== null && typeof value === 'object') {
+      obj[key] = fixDatesGlobal(value);
+    }
+  }
+  return obj;
+}
 
+// 🔴 اعتراض كل الطلبات المرسلة للواجهة الأمامية وتمريرها على الفلتر أولاً
+const originalIpcHandle = ipcMain.handle;
+ipcMain.handle = function(channel, listener) {
+  return originalIpcHandle.call(this, channel, async (event, ...args) => {
+    const result = await listener(event, ...args);
+    return fixDatesGlobal(result); // إرسال بيانات نظيفة بالوقت الصحيح
+  });
+};
+// 👆========================================================================👆
 function setupIpcHandlers() {
-  ipcMain.handle('login', async (event, credentials) => verifyLogin(credentials.username, credentials.password));
-
+ipcMain.handle('login', async (event, credentials) => {
+  console.log("==================================");
+  console.log("👤 استلمت طلب الدخول من الواجهة:", credentials.username);
+  
+  try {
+    // هنا نقوم باستدعاء الدالة المحصنة التي برمجناها في database.js
+    const result = dbManager.verifyLogin(credentials.username, credentials.password);
+    console.log("📦 النتيجة المُرسلة للواجهة:", result);
+    return result;
+  } catch (error) {
+    console.error("🔥 خطأ في كوبري الدخول:", error);
+    return { success: false, message: 'serverError' };
+  }
+});
   ipcMain.handle('get-suppliers', () => getSuppliers());
   ipcMain.handle('add-supplier', (event, data) => addSupplier(data));
   
+  
+// 🔴 مسار تصحيح وقت الويندوز تلقائياً من داخل البرنامج (النسخة المدرعة)
+  ipcMain.handle('set-windows-time', async (event, datetimeStr) => {
+    return new Promise((resolve) => {
+      try {
+        // 1. تحويل الوقت القادم من الواجهة إلى كائن Date 
+        const dateObj = new Date(datetimeStr);
+        
+        // التحقق من أن التاريخ صالح لتجنب تحطم السكريبت
+        if (isNaN(dateObj.getTime())) {
+          console.error("🔥 خطأ: التاريخ المرسل غير صالح:", datetimeStr);
+          return resolve({ success: false, error: "invalid_date" });
+        }
+        
+        // 2. تحويل التاريخ لصيغة ISO العالمية (تفهمها كل أنظمة الويندوز مهما كانت لغتها)
+        const safeIsoDate = dateObj.toISOString(); 
+
+        // 3. أمر PowerShell مدرع ضد مسافات النصوص وأخطاء الترجمة
+        const command = `powershell.exe -Command "Start-Process powershell -Verb RunAs -WindowStyle Hidden -ArgumentList \\"-Command Set-Date -Date ([datetime]'${safeIsoDate}')\\""`;
+
+        exec(command, (error) => {
+          if (error) {
+            console.error("🔥 خطأ في تحديث وقت الويندوز:", error);
+            resolve({ success: false, error: error.message });
+          } else {
+            resolve({ success: true });
+          }
+        });
+      } catch (err) {
+        resolve({ success: false, error: err.message });
+      }
+    });
+  });
+
+
   ipcMain.handle('get-supplier-details', (event, id) => getSupplierDetails(id));
   ipcMain.handle('add-receipt', (event, data) => {
     try { return { success: true, id: addReceipt(data) }; } 
@@ -245,7 +330,7 @@ function startLocalNetworkServer() {
       // التحقق من وجود الدالة في database.js
       if (typeof db[method] === 'function') {
         const result = await db[method](...args);
-        res.json({ success: true, data: result });
+        res.json({ success: true, data: fixDatesGlobal(result) });
       } else {
         res.status(404).json({ success: false, error: 'Method not found' });
       }
@@ -306,25 +391,43 @@ ipcMain.handle('backup-database', async (event) => {
   }
 });
 
-  // 2. استعادة البيانات
+// 2. استعادة البيانات
+// 2. استعادة البيانات
   ipcMain.handle('restore-database', async () => {
-    const dbPath = path.join(app.getPath('userData'), 'pos_manager2.db');
+    
+    // 🔴 لقد قمنا بحذف تعريف dbPath من هنا، لأنه سيستخدم المسار القادم من database.js مباشرة!
     
     // فتح نافذة للمستخدم لاختيار ملف النسخة الاحتياطية
     const { canceled, filePaths } = await dialog.showOpenDialog({
-      title: 'اختيار ملف النسخة الاحتياطية',
+      title: 'اختيار ملف النسخة الاحتياطية (Select Backup File)',
       properties: ['openFile'],
-      filters: [{ name: 'SQLite Database', extensions: ['sqlite'] }]
+      filters: [
+        { name: 'Database Files', extensions: ['db', 'sqlite', 'sqlite3'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
     });
 
     if (canceled || filePaths.length === 0) return { success: false, canceled: true };
 
     try {
       const sourcePath = filePaths[0];
+      
+      const buffer = Buffer.alloc(16);
+      const fd = fs.openSync(sourcePath, 'r');
+      fs.readSync(fd, buffer, 0, 16, 0);
+      fs.closeSync(fd);
+      
+      const header = buffer.toString('utf8');
+      if (!header.startsWith('SQLite format 3')) {
+        return { success: false, error: 'invalid_format' }; 
+      }
+
+      // 🔴 هنا سيقوم بنسخ الملف المختار واستبداله بالمسار الأصلي المعرف في database.js
       fs.copyFileSync(sourcePath, dbPath);
-      // يجب إعادة تشغيل التطبيق ليقرأ قاعدة البيانات الجديدة
+      
       app.relaunch();
       app.exit(0);
+      
       return { success: true };
     } catch (error) {
       console.error('Restore Error:', error);
@@ -332,6 +435,7 @@ ipcMain.handle('backup-database', async (event) => {
     }
   });
 
+  
 ipcMain.handle('import-suppliers-excel', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
       title: 'استيراد ديون الموردين من ملفات إكسيل',

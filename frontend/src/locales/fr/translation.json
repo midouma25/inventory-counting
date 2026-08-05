@@ -581,6 +581,7 @@
       "backupSuccess": "Sauvegarde réussie.",
       "restoreSuccess": "Restauration réussie ! L'application va redémarrer.",
       "restoreConfirm": "Êtes-vous sûr ? Les données actuelles seront remplacées.",
+      "invalidFile": "Invalid file! Please select a valid database backup file (.db or .sqlite).",
       "error": "L'opération a échoué."
     }
   },

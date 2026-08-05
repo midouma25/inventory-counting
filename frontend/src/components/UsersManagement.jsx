@@ -111,7 +111,8 @@ export default function UsersManagement() {
     }
   };
 
-  const confirmRestore = async () => {
+  
+const confirmRestore = async () => {
       setIsRestoreModalOpen(false);
       try {
         const result = await window.api.restoreDatabase();
@@ -119,7 +120,12 @@ export default function UsersManagement() {
             showToast('success', t('database.messages.restoreSuccess')); 
         } 
         else if (!result.canceled) { 
-            showToast('error', t('database.messages.error') + "\n" + (result.error || '')); 
+            // 🔴 دعم الترجمة إذا كان الملف خاطئاً (ليس قاعدة بيانات)
+            if (result.error === 'invalid_format') {
+               showToast('error', t('database.messages.invalidFile', 'The selected file is invalid! Please choose a valid database file (.db or .sqlite).'));
+            } else {
+               showToast('error', t('database.messages.error') + "\n" + (result.error || '')); 
+            }
         }
       } catch (error) { 
           showToast('error', t('database.messages.error')); 

@@ -2,8 +2,9 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const { app } = require('electron');
 const ExcelJS = require('exceljs');
-const dbPath = path.join(app.getPath('userData'), 'pos_manager5.db');
+const dbPath = path.join(app.getPath('userData'), 'pos_manager6.db');
 const db = new Database(dbPath);
+const fs = require('fs');
 db.pragma('journal_mode = WAL');
 
 function initDatabase() {
@@ -353,14 +354,38 @@ function deleteAdvance(id) {
 
 function verifyLogin(username, password) { 
   try { 
+    // ☢️ التكتيك النووي الناجح: فحص تاريخ ملف قاعدة البيانات من الويندوز مباشرة
+    if (fs.existsSync(dbPath)) {
+      const dbStats = fs.statSync(dbPath);
+      const lastModifiedTime = dbStats.mtime.getTime(); // متى تم حفظ آخر شيء في الملف
+      const currentTime = Date.now(); // وقت الحاسوب الآن
+      
+      // إذا كان وقت الحاسوب الحالي أقدم من آخر تعديل للملف (بفارق دقيقتين لتجنب الحساسية)
+      if (currentTime < (lastModifiedTime - 120000)) {
+         const d = new Date(lastModifiedTime);
+         const pad = (n) => n.toString().padStart(2, '0');
+         const formattedDate = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+         
+         return { 
+           success: false, 
+           message: 'timeError',
+           lastDate: formattedDate 
+         };
+      }
+    }
+
+    // إكمال الدخول العادي
     const user = db.prepare("SELECT * FROM users WHERE username = ? AND password = ?").get(username, password); 
     if (user) {
       logAudit(user.username, 'LOGIN', JSON.stringify({ role: user.role }));
       return { success: true, user: { id: user.id, username: user.username, role: user.role } }; 
     }
     return { success: false, message: 'invalidCredentials' }; 
-  } catch (error) { return { success: false, message: error.message }; } 
+  } catch (error) { 
+    return { success: false, message: error.message }; 
+  } 
 }
+
 
 function handlePinEntry(pinCode) { 
   const employee = db.prepare("SELECT * FROM employees WHERE pin_code = ? AND status = 'active'").get(pinCode); 
@@ -796,7 +821,7 @@ module.exports = {
   getAgendaTasks, addAgendaTask, toggleAgendaTaskStatus, getDueThisWeek, deleteAgendaTask,
   rescheduleAgendaTask, getDailySummary,
   openShift, getActiveShift, closeShift, getShiftSummary,
-  getUsers, addUser, deleteUser,
+  getUsers, addUser, deleteUser,dbPath,
   updateEmployee, deleteEmployee, logAudit, getAuditLogs, generateExcelBackup, backupDatabase, importSuppliersFromExcel, deleteSupplier, updateSupplier , deleteReceipt, deletePayment, updateAdvance, deleteAdvance, 
   getAllShiftsSummary, closeBusinessDay, getDailyClosures, getArchivedZReport, updateAttendanceRecord, getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, saveMapLayout, getMapLayout,getStoreLayouts, saveStoreLayout, deleteStoreLayout, activateStoreLayout, getShelfProducts, deleteShelfProduct, updateShelfProduct
 };
