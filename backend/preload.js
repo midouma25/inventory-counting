@@ -83,5 +83,8 @@ contextBridge.exposeInMainWorld('api', {
   deleteShelfProduct: (id) => ipcRenderer.invoke('delete-shelf-product', id),
 updateShelfProduct: (id, name, qty) => ipcRenderer.invoke('update-shelf-product', id, name, qty),
 setWindowsTime: (datetimeStr) => ipcRenderer.invoke('set-windows-time', datetimeStr),
+checkActivation: () => ipcRenderer.invoke('check-activation'),
+  getHardwareId: () => ipcRenderer.invoke('get-hardware-id'),
+  activateApp: (key) => ipcRenderer.invoke('activate-app', key),
   
 });

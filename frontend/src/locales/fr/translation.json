@@ -612,5 +612,15 @@
     "alreadyCompletedShift": "Pointage déjà terminé pour aujourd'hui.",
     "has_open_shifts": "Impossible de clôturer: Il reste des sessions ouvertes.",
     "no_shifts_to_close": "Aucune session à clôturer."
-  }
+  },
+  "activation": {
+  "title": "Activation du système",
+  "subtitle": "Cette version n'est pas activée. Veuillez envoyer l'identifiant de la machine au développeur pour obtenir votre clé.",
+  "machineId": "ID Machine (Machine ID)",
+  "licenseKey": "Clé d'activation (License Key)",
+  "btn": "Activer l'application",
+  "emptyKey": "Veuillez saisir la clé d'activation !",
+  "invalidKey": "Clé d'activation invalide, veuillez vérifier votre saisie.",
+  "error": "Une erreur est survenue lors de la connexion au système."
+}
 }

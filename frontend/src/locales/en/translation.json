@@ -614,6 +614,15 @@
     "alreadyCompletedShift": "Shift already completed for today.",
     "has_open_shifts": "Cannot close day: Active shifts exist.",
     "no_shifts_to_close": "No shifts available to close."
-  }
-
+  },
+  "activation": {
+  "title": "System Activation",
+  "subtitle": "This version is not activated. Please send the Machine ID to the developer to receive your license key.",
+  "machineId": "Machine ID",
+  "licenseKey": "License Key",
+  "btn": "Activate System",
+  "emptyKey": "Please enter the license key!",
+  "invalidKey": "Invalid license key, please check your entry.",
+  "error": "An error occurred while connecting to the system."
+}
   }

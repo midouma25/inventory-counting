@@ -3,6 +3,7 @@ const db = require('./database');
 const path = require('path');
 const fs = require('fs');
 // أضف هذا السطر لإخفاء تحذيرات الأمان أثناء التطوير
+const licenseManager = require('./licenseManager');
 process.env['ELECTRON_DISABLE_SECURITY_WARNINGS'] = 'true';
 const { 
   initDatabase, verifyLogin, getSuppliers, addSupplier, getEmployees, 
@@ -300,6 +301,12 @@ ipcMain.on('show-notification', (event, data) => {
   }
 });
 
+
+  ipcMain.handle('check-activation', () => licenseManager.checkIsActivated());
+  ipcMain.handle('get-hardware-id', () => licenseManager.getHardwareId());
+  ipcMain.handle('activate-app', (event, key) => licenseManager.activateApp(key));
+
+  
 ipcMain.handle('get-users', () => getUsers());
   ipcMain.handle('add-user', (event, data) => addUser(data));
   ipcMain.handle('delete-user', (event, id) => deleteUser(id));

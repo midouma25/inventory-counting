@@ -20,6 +20,8 @@ import AuditLogs from './components/pages/AuditLogs';
 import StoreMap from './components/pages/StoreMap'; 
 import PdfImporter from './components/pages/PdfImporter'; 
 import SystemClock from './components/ui/SystemClock'; 
+import ActivationScreen from './components/ActivationScreen';
+
 
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
