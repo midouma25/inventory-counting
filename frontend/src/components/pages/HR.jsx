@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Search, Plus, UserCheck, AlertCircle, ScanLine, Users, X, Clock, Edit, Trash2, CheckCircle2 } from "lucide-react";
+import { Search, Plus, UserCheck, AlertCircle, ScanLine, Users, X, Clock, Edit, Trash2, CheckCircle2, Printer, IdCard, Download } from "lucide-react";
+import Barcode from 'react-barcode';
+import html2canvas from 'html2canvas'; 
+import { jsPDF } from 'jspdf';         
 
 import useEmployeeStore from "../../store/employeeStore";
 import useAttendanceStore from "../../store/attendanceStore";
 import useAuthStore from '../../store/authStore';
 import ConfirmAlert from '../ui/ConfirmAlert'; 
-import Modal from '../ui/Modal'; // استيراد الـ Modal المخصص
+import Modal from '../ui/Modal'; 
 
 const HR = () => {
   const { t, i18n } = useTranslation();
@@ -14,9 +17,8 @@ const HR = () => {
   const [activeTab, setActiveTab] = useState('attendance');
   const [editingEmployee, setEditingEmployee] = useState(null);
   
-  // 🔴 جلب حالة المستخدم الحالي للتحقق من كونه مديراً
   const user = useAuthStore(state => state.user);
-  const isSuperAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+  const isSuperAdmin = user?.role === 'superadmin'; 
   
   const { employees, fetchEmployees, addEmployee, isLoading: empLoading } = useEmployeeStore();
   const [searchQuery, setSearchQuery] = useState("");
@@ -35,11 +37,16 @@ const HR = () => {
   const [employeeToDelete, setEmployeeToDelete] = useState(null); 
   const [toast, setToast] = useState(null);
   
-  // 🔴 حالات نافذة تعديل وقت الحضور
   const [isEditAttendanceOpen, setIsEditAttendanceOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
   const [attTimeIn, setAttTimeIn] = useState('');
   const [attTimeOut, setAttTimeOut] = useState('');
+
+  const [isBadgeModalOpen, setIsBadgeModalOpen] = useState(false);
+  const [searchPin, setSearchPin] = useState('');
+  const [badgeEmployee, setBadgeEmployee] = useState(null);
+  const [searchError, setSearchError] = useState('');
+  const currentStoreName = localStorage.getItem('storeName') || 'GHERBI.AI';
 
   const showToast = (type, message) => {
     setToast({ type, message });
@@ -110,7 +117,6 @@ const HR = () => {
     }
   };
 
-  // 🔴 دالة فتح نافذة تعديل وقت الدخول/الخروج
   const openEditAttendance = (record) => {
     setEditingRecord(record);
     setAttTimeIn(record.time_in || '');
@@ -118,7 +124,6 @@ const HR = () => {
     setIsEditAttendanceOpen(true);
   };
 
-  // 🔴 دالة حفظ تعديل الوقت
   const saveAttendanceEdit = async (e) => {
     e.preventDefault();
     if(!editingRecord) return;
@@ -128,13 +133,66 @@ const HR = () => {
         if (res.success) {
           showToast('success', t('common.success', 'تم التعديل بنجاح'));
           setIsEditAttendanceOpen(false);
-          fetchAttendanceForDate(attendanceDate); // تحديث الجدول
+          fetchAttendanceForDate(attendanceDate); 
         } else {
           showToast('error', t('common.error', 'فشل التعديل'));
         }
       }
     } catch (err) {
       showToast('error', t('common.error', 'فشل التعديل'));
+    }
+  };
+
+  const handleSearchBadge = (e) => {
+    e.preventDefault();
+    setSearchError('');
+    try {
+      const emp = employees.find(e => e.pin_code === searchPin.trim());
+      if (emp) {
+        setBadgeEmployee(emp);
+      } else {
+        setSearchError(t('hr.badge.notFound', i18n.language === 'ar' ? 'لم يتم العثور على موظف بهذا الرمز!' : i18n.language === 'fr' ? 'Aucun employé trouvé avec ce code PIN !' : 'No employee found with this PIN!'));
+        setBadgeEmployee(null);
+      }
+    } catch (error) {
+      setSearchError(t('common.error', 'حدث خطأ في البحث'));
+    }
+  };
+
+  const handleExecutePrint = async () => {
+    try {
+      if (window.api && window.api.printReceipt) {
+        await window.api.printReceipt();
+      } else {
+        window.print();
+      }
+    } catch (error) {
+      showToast('error', t('common.error', 'خطأ في الطباعة'));
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    const element = document.getElementById('printable-badge');
+    if (!element) return;
+
+    try {
+      element.classList.remove('shadow-2xl');
+      const canvas = await html2canvas(element, { scale: 3, useCORS: true });
+      const imgData = canvas.toDataURL('image/png');
+      element.classList.add('shadow-2xl');
+
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: [80, 105] 
+      });
+
+      pdf.addImage(imgData, 'PNG', 0, 0, 80, 105);
+      pdf.save(`Badge_${badgeEmployee.name.replace(/\s+/g, '_')}.pdf`);
+      showToast('success', t('common.success', 'تم تحميل البطاقة بنجاح'));
+    } catch (error) {
+      console.error("PDF Generation Error: ", error);
+      showToast('error', t('common.error', 'حدث خطأ أثناء استخراج الملف'));
     }
   };
 
@@ -155,11 +213,21 @@ const HR = () => {
         </div>
       )}
 
-      <div className="flex justify-between items-end">
+      <div className="flex justify-between items-end flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">{t('hr.title', 'الموارد البشرية')}</h1>
           <p className="text-slate-400">{t('hr.subtitle', 'إدارة الحضور، الانصراف وسجلات العمال')}</p>
         </div>
+        
+        {isSuperAdmin && (
+          <button 
+            onClick={() => { setIsBadgeModalOpen(true); setBadgeEmployee(null); setSearchPin(''); setSearchError(''); }} 
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md font-medium hover:bg-blue-700 transition-colors shadow-lg shrink-0"
+          >
+            <IdCard size={18} />
+            <span>{t('hr.badge.printBtn', i18n.language === 'ar' ? 'بطاقة موظف' : i18n.language === 'fr' ? 'Badge Employé' : 'Employee Badge')}</span>
+          </button>
+        )}
       </div>
 
       <div className="flex bg-slate-900 border border-slate-800 rounded-lg w-fit p-1">
@@ -180,12 +248,12 @@ const HR = () => {
                 <h3 className="text-xl font-bold">{t('hr.scanner.title', 'تسجيل الدخول / الخروج')}</h3>
               </div>
               <form onSubmit={handleAttendanceSubmit} className="flex flex-col gap-4">
-                <input ref={inputRef} type="password" placeholder={t('hr.scanner.placeholder', 'مسح الباركود...')} value={pinInput} onChange={(e) => setPinInput(e.target.value)} className="w-full text-center text-xl py-6 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500 tracking-widest" autoFocus />
+                <input ref={inputRef} type="password" placeholder={t('hr.scanner.placeholder', 'مسح الباركود أو أدخل الرمز...')} value={pinInput} onChange={(e) => setPinInput(e.target.value)} className="w-full text-center text-xl py-6 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500 tracking-widest" autoFocus />
                 <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white text-lg py-4 rounded-lg font-medium transition-colors">{t('hr.scanner.submit', 'تسجيل')}</button>
               </form>
               
               <p className="text-xs text-slate-500 text-center mt-3">
-                {t('hr.scannerHint', 'القارئ يعمل كلوحة مفاتيح')}
+                {t('hr.scannerHint', 'القارئ يعمل كلوحة مفاتيح. ضع المؤشر في الحقل وقم بالمسح.')}
               </p>
 
               {feedback && <div className={`mt-4 p-3 rounded-lg text-sm text-center border ${feedback.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>{feedback.message}</div>}
@@ -207,7 +275,7 @@ const HR = () => {
 
           <div className="w-full lg:w-2/3 bg-slate-900/50 rounded-xl border border-slate-800 flex flex-col overflow-hidden shadow-lg">
             <div className="p-4 border-b border-slate-800 bg-slate-900 flex justify-between items-center">
-              <h3 className="font-bold flex items-center gap-2"><Clock className="w-5 h-5 text-blue-400" /> {t('hr.attendanceLog', 'سجل حضور الموظفين')}</h3>
+              <h3 className="font-bold flex items-center gap-2"><Clock className="w-5 h-5 text-blue-400" /> {t('hr.attendanceLog', 'سجل حركة الموظفين لليوم')}</h3>
               <input type="date" value={attendanceDate} onChange={(e) => setAttendanceDate(e.target.value)} className="bg-slate-950 border border-slate-700 text-white px-4 py-2 rounded-lg text-sm focus:outline-none focus:border-blue-500" />
             </div>
             <div className="flex-1 overflow-auto">
@@ -218,7 +286,6 @@ const HR = () => {
                     <th className="px-6 py-4 font-medium text-center">{t('hr.table.timeIn', 'وقت الدخول')}</th>
                     <th className="px-6 py-4 font-medium text-center">{t('hr.table.timeOut', 'وقت الخروج')}</th>
                     <th className="px-6 py-4 font-medium text-center">{t('hr.table.status', 'الحالة')}</th>
-                    {/* 🔴 عمود الإجراءات مخصص للمدير فقط */}
                     {isSuperAdmin && <th className="px-6 py-4 font-medium text-center">{t('suppliers.table.actions', 'إجراء')}</th>}
                   </tr>
                 </thead>
@@ -241,7 +308,6 @@ const HR = () => {
                             {!record.time_out ? t('hr.status.present', 'في الدوام') : t('hr.status.departed', 'أنهى الدوام')}
                           </span>
                         </td>
-                        {/* 🔴 زر التعديل يظهر للمدير فقط */}
                         {isSuperAdmin && (
                           <td className="px-6 py-4 text-center">
                             <button onClick={() => openEditAttendance(record)} className="p-2 text-blue-400 hover:bg-blue-900/50 rounded-lg transition-colors" title={t('hr.employees.actions.edit', 'تعديل الوقت')}>
@@ -283,7 +349,7 @@ const HR = () => {
               </thead>
               <tbody>
                 {empLoading ? (
-                  <tr><td colSpan={4} className="text-center py-8 text-slate-500">{t('hr.table.loading', 'تحميل...')}</td></tr>
+                  <tr><td colSpan={4} className="text-center py-8 text-slate-500">{t('hr.table.loading', 'جاري التحميل...')}</td></tr>
                 ) : filteredEmployees.length === 0 ? (
                   <tr><td colSpan={4} className="text-center py-8 text-slate-500">{t('hr.employees.empty', 'لا يوجد')}</td></tr>
                 ) : (
@@ -305,16 +371,8 @@ const HR = () => {
             </table>
           </div>
 
-          {/* Modal تعديل / إضافة موظف */}
-          {isDialogOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-              <div className="bg-slate-950 border border-slate-800 rounded-xl w-full max-w-md p-6 shadow-2xl">
-                <div className="flex justify-between items-center mb-6">
-                  <div>
-                    <h2 className="text-xl font-bold text-white">{editingEmployee ? t('hr.dialog.editTitle', 'تعديل') : t('hr.dialog.title', 'إضافة')}</h2>
-                  </div>
-                  <button onClick={() => setIsDialogOpen(false)} className="text-slate-500 hover:text-white"><X size={20}/></button>
-                </div>
+          <Modal isOpen={isDialogOpen} onClose={() => setIsDialogOpen(false)} title={editingEmployee ? t('hr.dialog.editTitle', 'تعديل') : t('hr.dialog.title', 'إضافة موظف')}>
+              <div className="p-2 text-start">
                 <form onSubmit={async (e) => {
                     e.preventDefault();
                     if (!formData.name || !formData.pinCode) return;
@@ -327,8 +385,8 @@ const HR = () => {
                     if (success) { 
                       setIsDialogOpen(false); 
                       store.fetchEmployees(); 
-                      showToast('success', t('common.success', 'نجاح'));
-                    } else { showToast('error', t('common.error', 'خطأ')); }
+                      showToast('success', t('common.success', 'تمت العملية بنجاح'));
+                    } else { showToast('error', t('common.error', 'حدث خطأ')); }
                   }} className="flex flex-col gap-4 text-start">
                   <div>
                     <label className="block text-sm font-medium text-slate-300 mb-1">{t('hr.dialog.name', 'الاسم')}</label>
@@ -341,7 +399,7 @@ const HR = () => {
                       <option value="cashier">{t('hr.roles.cashier', 'كاشير')}</option>
                       <option value="scale">{t('hr.roles.scale', 'ميزان')}</option>
                       <option value="stock">{t('hr.roles.stock', 'ترتيبات')}</option>
-                      <option value="admin">{t('hr.roles.admin', 'مدير')}</option>
+                      <option value="superadmin">Super Admin (المدير العام)</option>
                     </select>
                   </div>
                   <div>
@@ -350,16 +408,98 @@ const HR = () => {
                   </div>
                   <div className="mt-6 flex justify-end gap-3">
                     <button type="button" onClick={() => setIsDialogOpen(false)} className="px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-800 transition-colors">{t('common.cancel', 'إلغاء')}</button>
-                    <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">{editingEmployee ? t('hr.dialog.saveChanges', 'حفظ') : t('hr.dialog.save', 'إضافة')}</button>
+                    <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">{editingEmployee ? t('hr.dialog.saveChanges', 'حفظ التعديلات') : t('hr.dialog.save', 'إضافة')}</button>
                   </div>
                 </form>
+              </div>
+          </Modal>
+        </div>
+      )}
+
+      {/* شاشة طباعة البطاقة (A7 Thermal Hardware Print) */}
+      <Modal isOpen={isBadgeModalOpen} onClose={() => setIsBadgeModalOpen(false)} title={t('hr.badge.modalTitle', i18n.language === 'ar' ? 'إصدار بطاقة الدخول (Barcode)' : i18n.language === 'fr' ? "Émettre un badge d'accès" : 'Issue Access Badge (Barcode)')}>
+        <div className="p-4 text-start" dir={isRTL ? 'rtl' : 'ltr'}>
+          <p className="text-slate-400 mb-4 text-sm">
+            {t('hr.badge.modalDesc', i18n.language === 'ar' ? 'أدخل الرمز السري للموظف لتحويله إلى باركود قابل للطباعة والمسح الضوئي.' : i18n.language === 'fr' ? "Entrez le code PIN de l'employé pour générer un code-barres." : 'Enter the employee PIN to generate a printable barcode.')}
+          </p>
+          
+          <form onSubmit={handleSearchBadge} className="flex gap-2 mb-6">
+            <input 
+              type="password" 
+              placeholder={t('hr.badge.searchPlaceholder', i18n.language === 'ar' ? 'أدخل رمز PIN...' : i18n.language === 'fr' ? 'Entrez le code PIN...' : 'Enter PIN code...')}
+              value={searchPin}
+              onChange={(e) => setSearchPin(e.target.value)}
+              className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 tracking-widest text-center"
+            />
+            <button type="submit" className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center">
+              <Search size={18} />
+            </button>
+          </form>
+
+          {searchError && <div className="text-red-400 text-sm mb-4 text-center">{searchError}</div>}
+
+          {badgeEmployee && (
+            <div className="flex flex-col items-center border-t border-slate-800 pt-6">
+              
+              <div 
+                 id="printable-badge" 
+                 className="receipt-ticket-forced bg-white text-black shadow-2xl p-4 rounded-md mb-6 flex flex-col justify-between" 
+                 dir={isRTL ? "rtl" : "ltr"} 
+                 style={{ width: '80mm', minHeight: '105mm', margin: '0 auto' }}
+              >
+                <div>
+                    <div className="header-title" style={{ fontSize: '16px', marginBottom: '5px', textAlign: 'center', fontWeight: 'bold' }}>
+                      {currentStoreName}
+                    </div>
+                    <div className="header-subtitle" style={{ borderBottom: '1px dashed #000', paddingBottom: '5px', textAlign: 'center', fontSize: '12px' }}>
+                      {t('hr.badge.idCard', i18n.language === 'ar' ? 'بطاقة تعريف الموظف' : i18n.language === 'fr' ? "CARTE D'IDENTITÉ EMPLOYÉ" : 'EMPLOYEE ID CARD')}
+                    </div>
+                    
+                    <div style={{ textAlign: 'center', marginTop: '15px' }}>
+                       <h2 style={{ fontSize: '20px', fontWeight: '900', margin: '0 0 5px 0' }}>{badgeEmployee.name}</h2>
+                       <p style={{ fontSize: '13px', margin: '0 0 15px 0', color: '#444' }}>
+                          {t(`hr.roles.${badgeEmployee.role}`, {defaultValue: badgeEmployee.role})}
+                       </p>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'center', margin: '20px 0' }}>
+                      <div dir="ltr"> 
+                          <Barcode 
+                            value={badgeEmployee.pin_code} 
+                            width={2.5} 
+                            height={70} 
+                            fontSize={16}
+                            margin={0}
+                            background="#ffffff"
+                            lineColor="#000000"
+                          />
+                      </div>
+                    </div>
+                </div>
+
+                <div className="footer-area" style={{ marginTop: 'auto', paddingTop: '10px', fontSize: '11px', textAlign: 'center', borderTop: '1px dashed #000' }}>
+                  {t('hr.badge.scanInstruction', i18n.language === 'ar' ? 'يرجى مسح هذا الباركود عند الدخول والخروج.' : i18n.language === 'fr' ? "Veuillez scanner ce code-barres à l'entrée et à la sortie." : 'Please scan this barcode upon entry and exit.')}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full mt-4 no-print">
+                 <button onClick={handleExecutePrint} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-2 rounded-lg flex items-center justify-center gap-2 transition-colors">
+                   <Printer size={18} /> {t('hr.badge.printExecute', i18n.language === 'ar' ? 'طباعة' : i18n.language === 'fr' ? 'Imprimer' : 'Print')}
+                 </button>
+
+                 <button onClick={handleDownloadPDF} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-2 rounded-lg flex items-center justify-center gap-2 transition-colors">
+                   <Download size={18} /> {t('hr.badge.downloadPDF', i18n.language === 'ar' ? 'استخراج PDF' : i18n.language === 'fr' ? 'Télécharger PDF' : 'Download PDF')}
+                 </button>
+
+                 <button onClick={() => setIsBadgeModalOpen(false)} className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 px-2 rounded-lg transition-colors">
+                   {t('common.cancel', i18n.language === 'ar' ? 'إلغاء' : i18n.language === 'fr' ? 'Annuler' : 'Cancel')}
+                 </button>
               </div>
             </div>
           )}
         </div>
-      )}
+      </Modal>
 
-      {/* 🔴 نافذة تعديل الوقت للمدير فقط */}
       <Modal isOpen={isEditAttendanceOpen} onClose={() => setIsEditAttendanceOpen(false)} title={t('hr.employees.actions.edit', 'تعديل توقيت الدوام')}>
         <form onSubmit={saveAttendanceEdit} className="space-y-4">
           <div>

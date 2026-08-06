@@ -1,3 +1,26 @@
+# Project Structure
+
+```text
+backend/
+    ├── .env
+    ├── database.js
+    ├── licenseManager.js
+    ├── main.js
+    ├── package.json
+    ├── preload.js
+    ├── project_structure39.md
+    ├── splash.html
+├── assets/
+```
+
+
+---
+
+# Source Code
+
+## `database.js`
+
+```javascript
 const Database = require('better-sqlite3');
 const path = require('path');
 const { app } = require('electron');
@@ -9,10 +32,10 @@ db.pragma('journal_mode = WAL');
 
 function initDatabase() {
   try {
-    db.prepare(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'superadmin')`).run();
+    db.prepare(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'admin')`).run();
     try { 
-      db.prepare("UPDATE users SET role = 'superadmin' WHERE role = 'admin' OR username = 'admin'").run(); 
-      db.prepare("UPDATE employees SET role = 'superadmin' WHERE role = 'admin' OR name = 'admin'").run(); 
+      db.prepare("UPDATE users SET role = 'superadmin' WHERE username = 'admin'").run(); 
+      db.prepare("UPDATE employees SET role = 'superadmin' WHERE name = 'admin'").run(); 
     } catch(e) {}
     
     const checkAdmin = db.prepare("SELECT COUNT(*) as count FROM users WHERE username = 'admin'").get();
@@ -825,3 +848,1026 @@ module.exports = {
   updateEmployee, deleteEmployee, logAudit, getAuditLogs, generateExcelBackup, backupDatabase, importSuppliersFromExcel, deleteSupplier, updateSupplier , deleteReceipt, deletePayment, updateAdvance, deleteAdvance, 
   getAllShiftsSummary, closeBusinessDay, getDailyClosures, getArchivedZReport, updateAttendanceRecord, getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, saveMapLayout, getMapLayout,getStoreLayouts, saveStoreLayout, deleteStoreLayout, activateStoreLayout, getShelfProducts, deleteShelfProduct, updateShelfProduct
 };
+```
+
+---
+
+## `licenseManager.js`
+
+```javascript
+const { machineIdSync } = require('node-machine-id');
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const { app } = require('electron');
+
+// 🔴 نضع الكلمة السرية مباشرة هنا بدون استخدام .env
+const SECRET_SALT = "GHERBI_POS_SECRET_KEY_2026"; 
+
+// مسار حفظ مفتاح التفعيل في حاسوب الزبون
+const licensePath = path.join(app.getPath('userData'), 'system_license.key');
+
+function getHardwareId() {
+    try {
+        const hwid = machineIdSync(true); 
+        return hwid.toUpperCase();
+    } catch (error) {
+        return "UNKNOWN_DEVICE";
+    }
+}
+
+function generateExpectedKey() {
+    const hwid = getHardwareId();
+    // استخدام نفس الكلمة السرية
+    const hash = crypto.createHash('sha256').update(hwid + SECRET_SALT).digest('hex');
+    const rawKey = hash.substring(0, 20).toUpperCase();
+    return `${rawKey.substring(0,5)}-${rawKey.substring(5,10)}-${rawKey.substring(10,15)}-${rawKey.substring(15,20)}`;
+}
+
+function checkIsActivated() {
+    try {
+        if (fs.existsSync(licensePath)) {
+            const savedKey = fs.readFileSync(licensePath, 'utf8').trim();
+            const expectedKey = generateExpectedKey();
+            return savedKey === expectedKey;
+        }
+        return false;
+    } catch (e) {
+        return false;
+    }
+}
+
+function activateApp(userInputKey) {
+    const expectedKey = generateExpectedKey();
+    
+    // إزالة المسافات وتوحيد الحروف لتجنب أخطاء النسخ واللصق
+    if (userInputKey.trim().toUpperCase() === expectedKey) {
+        fs.writeFileSync(licensePath, userInputKey.trim().toUpperCase());
+        return { success: true };
+    }
+    
+    return { success: false, message: 'invalid_key' };
+}
+
+module.exports = { 
+    getHardwareId, 
+    checkIsActivated, 
+    activateApp, 
+    generateExpectedKey 
+};
+```
+
+---
+
+## `main.js`
+
+```javascript
+const { app, BrowserWindow, ipcMain , Notification, dialog } = require('electron');
+const db = require('./database'); 
+const path = require('path');
+const fs = require('fs');
+// أضف هذا السطر لإخفاء تحذيرات الأمان أثناء التطوير
+const licenseManager = require('./licenseManager');
+process.env['ELECTRON_DISABLE_SECURITY_WARNINGS'] = 'true';
+const { 
+  initDatabase, verifyLogin, getSuppliers, addSupplier, getEmployees, 
+  addEmployee, handlePinEntry, getExpenses, addExpense, deleteExpense, 
+  updateExpense, getTodayAttendance, 
+  getSupplierDetails, addReceipt, addPayment, getAdvances, addAdvance, 
+  getSalaries, calculateEmployeePayroll, paySalary , getAgendaTasks, addAgendaTask, toggleAgendaTaskStatus, getDueThisWeek , deleteAgendaTask,
+  rescheduleAgendaTask , getDailySummary,
+  openShift, getActiveShift, closeShift, getShiftSummary,dbPath,
+  getUsers, addUser, deleteUser, updateEmployee, deleteEmployee ,logAudit , getAuditLogs, backupDatabase, getShelfProducts,
+  generateExcelBackup, updateSupplier, deleteSupplier, updateAdvance, deleteAdvance, getAllShiftsSummary , getDailyClosures, getArchivedZReport,updateAttendanceRecord,getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, closeBusinessDay, getSuppliersList, saveInvoiceDebt, saveMapLayout, getMapLayout, getStoreLayouts, saveStoreLayout, deleteStoreLayout, activateStoreLayout
+  , deleteReceipt, deletePayment, updateReceipt, updatePayment, importSuppliersFromExcel, deleteShelfProduct, updateShelfProduct, setWindowsTime
+} = require('./database');
+
+// 👇 استدعاء آمن للمكتبة ليتوافق مع جميع إصدارات Electron و Node.js
+const pdfParseRaw = require('pdf-parse');
+const parsePDF = typeof pdfParseRaw === 'function' ? pdfParseRaw : pdfParseRaw.default;
+const { exec } = require('child_process');
+
+const express = require('express');
+const cors = require('cors');
+
+ipcMain.handle('delete-shelf-product', (e, id) => db.deleteShelfProduct(id));
+ipcMain.handle('update-shelf-product', (e, id, name, qty) => db.updateShelfProduct(id, name, qty));
+function createWindow() {
+  // 1. إنشاء شاشة الإقلاع أولاً
+  const splash = new BrowserWindow({
+    width: 650,
+    height: 400,
+    transparent: true, 
+    frame: false,      
+    alwaysOnTop: true, 
+    icon: path.join(__dirname, 'assets', 'icon.png'), // 🔴 إضافة اللوجو هنا
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true
+    },
+  });
+
+  splash.loadFile(path.join(__dirname, 'splash.html'));
+
+  // 2. إنشاء النافذة الرئيسية
+  const win = new BrowserWindow({
+    width: 1200, height: 800, minWidth: 900, minHeight: 600,
+    show: false, 
+    icon: path.join(__dirname, 'assets', 'icon.png'), // 🔴 إضافة اللوجو لشريط المهام
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+  });
+
+  win.setMenuBarVisibility(false);
+
+  // 👇==== الحل السحري للشاشة البيضاء ====👇
+  const isDev = !app.isPackaged; // هل نحن في وضع التطوير أم الإنتاج (exe)؟
+
+  if (isDev) {
+    // في وضع التطوير: اقرأ من سيرفر React
+    win.loadURL('http://localhost:5173'); 
+  } else {
+    // في وضع الإنتاج (exe): اقرأ من الملفات المبنية مباشرة
+    win.loadFile(path.join(__dirname, '../frontend/dist/index.html'));
+  }
+  // 👆=====================================👆
+
+  // 3. إظهار النافذة بعد التحميل
+  win.once('ready-to-show', () => {
+    setTimeout(() => {
+      if (!splash.isDestroyed()) {
+        splash.close(); 
+      }
+      win.show(); 
+    }, 3000); 
+  });
+}
+// 👇===== الكود السحري لتوحيد وتصحيح التوقيت المحلي لجميع صفحات البرنامج =====👇
+function fixDatesGlobal(data) {
+  if (!data || typeof data !== 'object') return data;
+  if (Array.isArray(data)) return data.map(item => fixDatesGlobal(item));
+  
+  const obj = { ...data };
+  for (const key in obj) {
+    const value = obj[key];
+    if (typeof value === 'string') {
+      // البحث عن أي نص يشبه التوقيت العالمي (سواء بصيغة Node.js أو SQLite)
+      const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
+      const sqliteRegex = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+      
+      if (isoRegex.test(value)) {
+        const d = new Date(value);
+        const pad = (n) => n.toString().padStart(2, '0');
+        obj[key] = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      } else if (sqliteRegex.test(value)) {
+        // إضافة Z لكي يتعرف عليه كأنه توقيت عالمي ويضيف له فارق الساعات الخاص بدولتك
+        const d = new Date(value.replace(' ', 'T') + 'Z');
+        const pad = (n) => n.toString().padStart(2, '0');
+        obj[key] = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      }
+    } else if (value !== null && typeof value === 'object') {
+      obj[key] = fixDatesGlobal(value);
+    }
+  }
+  return obj;
+}
+
+// 🔴 اعتراض كل الطلبات المرسلة للواجهة الأمامية وتمريرها على الفلتر أولاً
+const originalIpcHandle = ipcMain.handle;
+ipcMain.handle = function(channel, listener) {
+  return originalIpcHandle.call(this, channel, async (event, ...args) => {
+    const result = await listener(event, ...args);
+    return fixDatesGlobal(result); // إرسال بيانات نظيفة بالوقت الصحيح
+  });
+};
+// 👆========================================================================👆
+function setupIpcHandlers() {
+ipcMain.handle('login', async (event, credentials) => {
+  console.log("==================================");
+  console.log("👤 استلمت طلب الدخول من الواجهة:", credentials.username);
+  
+  try {
+    // هنا نقوم باستدعاء الدالة المحصنة التي برمجناها في database.js
+    const result = verifyLogin(credentials.username, credentials.password);
+    console.log("📦 النتيجة المُرسلة للواجهة:", result);
+    return result;
+  } catch (error) {
+    console.error("🔥 خطأ في كوبري الدخول:", error);
+    return { success: false, message: 'serverError' };
+  }
+});
+  ipcMain.handle('get-suppliers', () => getSuppliers());
+  ipcMain.handle('add-supplier', (event, data) => addSupplier(data));
+  
+
+// 🔴 مسار تصحيح وقت الويندوز تلقائياً من داخل البرنامج (النسخة المدرعة)
+  ipcMain.handle('set-windows-time', async (event, datetimeStr) => {
+    return new Promise((resolve) => {
+      try {
+        // 1. تحويل الوقت القادم من الواجهة إلى كائن Date 
+        const dateObj = new Date(datetimeStr);
+        
+        // التحقق من أن التاريخ صالح لتجنب تحطم السكريبت
+        if (isNaN(dateObj.getTime())) {
+          console.error("🔥 خطأ: التاريخ المرسل غير صالح:", datetimeStr);
+          return resolve({ success: false, error: "invalid_date" });
+        }
+        
+        // 2. تحويل التاريخ لصيغة ISO العالمية (تفهمها كل أنظمة الويندوز مهما كانت لغتها)
+        const safeIsoDate = dateObj.toISOString(); 
+
+        // 3. أمر PowerShell مدرع ضد مسافات النصوص وأخطاء الترجمة
+        const command = `powershell.exe -Command "Start-Process powershell -Verb RunAs -WindowStyle Hidden -ArgumentList \\"-Command Set-Date -Date ([datetime]'${safeIsoDate}')\\""`;
+
+        exec(command, (error) => {
+          if (error) {
+            console.error("🔥 خطأ في تحديث وقت الويندوز:", error);
+            resolve({ success: false, error: error.message });
+          } else {
+            resolve({ success: true });
+          }
+        });
+      } catch (err) {
+        resolve({ success: false, error: err.message });
+      }
+    });
+  });
+
+
+  ipcMain.handle('get-supplier-details', (event, id) => getSupplierDetails(id));
+  ipcMain.handle('add-receipt', (event, data) => {
+    try { return { success: true, id: addReceipt(data) }; } 
+    catch (e) { return { success: false, error: e.message }; }
+  });
+  ipcMain.handle('add-payment', (event, data) => {
+    try { return { success: true, id: addPayment(data) }; } 
+    catch (e) { return { success: false, error: e.message }; }
+  });
+  ipcMain.handle('save-map-layout', (event, items) => db.saveMapLayout(items));
+  ipcMain.handle('get-map-layout', () => db.getMapLayout());
+  ipcMain.handle('get-shelf-products', (event, shelfId) => db.getShelfProducts(shelfId));
+  ipcMain.handle("print-receipt", async (event) => {
+  
+    const win = BrowserWindow.fromWebContents(event.sender);
+
+    return new Promise((resolve)=>{
+
+        win.webContents.print({
+
+            silent:false,
+
+            printBackground:true,
+
+            margins:{
+                marginType:"none"
+            },
+
+            scaleFactor:100,
+
+            landscape:false,
+
+            color:false
+
+        },(success,errorType)=>{
+
+            resolve({
+                success,
+                errorType
+            });
+
+        });
+
+    });
+
+});
+  
+
+  // --- مسارات الخريطة والمخزون الذكي ---
+  ipcMain.handle('get-store-map-data', () => getStoreMapData());
+  ipcMain.handle('process-pdf-inventory', (event, data) => processPdfInventoryEntry(data.shelfId, data.barcode, data.cleanName, data.dirtyName, data.quantity));
+
+  ipcMain.handle('get-expenses', (event, caisseFilter) => getExpenses(caisseFilter));
+  ipcMain.handle('add-expense', (event, data) => addExpense(data));
+  ipcMain.handle('update-expense', (event, data) => updateExpense(data.id, data.expense));
+
+  ipcMain.handle('get-employees', () => getEmployees());
+  ipcMain.handle('add-employee', (event, data) => addEmployee(data));
+  ipcMain.handle('handle-pin-entry', (event, pinCode) => handlePinEntry(pinCode));
+  ipcMain.handle('get-today-attendance', (event, date) => getTodayAttendance(date));
+
+  ipcMain.handle('get-advances', (e, empId) => getAdvances(empId));
+  ipcMain.handle('add-advance', (e, data) => addAdvance(data));
+  ipcMain.handle('get-salaries', () => getSalaries());
+  ipcMain.handle('calculate-payroll', (e, params) => {
+    return calculateEmployeePayroll(params.employeeId, params.startDate, params.endDate, params.hourlyRate);
+  });
+  ipcMain.handle('pay-salary', (e, data) => {
+    try { return paySalary(data); } catch (err) { return { success: false, error: err.message }; }
+  });
+
+  ipcMain.handle('get-agenda-tasks', () => getAgendaTasks());
+  ipcMain.handle('add-agenda-task', (event, data) => addAgendaTask(data));
+  ipcMain.handle('toggle-agenda-task-status', (event, id, status) => toggleAgendaTaskStatus(id, status));
+  ipcMain.handle('get-due-this-week', () => getDueThisWeek());
+  ipcMain.handle('get-store-layouts', () => db.getStoreLayouts());
+  ipcMain.handle('save-store-layout', (event, data) => db.saveStoreLayout(data));
+  ipcMain.handle('delete-store-layout', (event, id) => db.deleteStoreLayout(id));
+  ipcMain.handle('activate-store-layout', (event, id) => db.activateStoreLayout(id));
+  // 🌟 مسارات استيراد الفواتير الذكية (PDF) 🌟
+  
+  // 1. جلب قائمة الموردين للنافذة المنسدلة
+  ipcMain.handle('get-suppliers-list', async () => {
+    try {
+      // نستخدم دالة getSuppliers الموجودة لديك مسبقاً في database.js
+      const suppliers = getSuppliers(); 
+      return { success: true, data: suppliers };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  // 2. ترحيل الفاتورة كدين (إضافة وصل استلام فاتورة)
+  ipcMain.handle('save-invoice-debt', async (event, data) => {
+    try {
+      // تجهيز البيانات لتتناسب مع دالة addReceipt الموجودة لديك
+      const receiptData = {
+        supplierId: data.supplierId,
+        amount: data.totalAmount,
+        date: data.date,
+        // إضافة ملاحظة توثيقية آلية لحماية حقوق المحل
+        notes: `فاتورة مستوردة آلياً (PDF) - الاسم المصدر بالملف: ${data.pdfSupplierName}` 
+      };
+      
+      const newId = addReceipt(receiptData);
+      return { success: true, id: newId };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+  ipcMain.handle('delete-agenda-task', async (event, id) => {
+    return deleteAgendaTask(id);
+  });
+
+  ipcMain.handle('reschedule-agenda-task', async (event, id, newDate) => {
+    return rescheduleAgendaTask(id, newDate);
+  });
+
+  ipcMain.handle('get-daily-summary', async (event, date) => {
+    return getDailySummary(date);
+  });
+
+  // --- مسارات الورديات (Shifts) الجديدة ---
+  ipcMain.handle('open-shift', async (event, data) => openShift(data));
+  ipcMain.handle('get-active-shift', async (event, cashierName) => getActiveShift(cashierName));
+  ipcMain.handle('close-shift', async (event, data) => closeShift(data));
+  ipcMain.handle('get-shift-summary', async (event, cashierName, startTime) => getShiftSummary(cashierName, startTime));
+}
+
+ipcMain.on('show-notification', (event, data) => {
+  if (Notification.isSupported()) {
+    new Notification({
+      title: data?.title || 'تنبيهات النظام ⚠️',
+      body: data?.body || 'لديك مهام مستحقة تحتاج إلى مراجعة',
+      icon: path.join(__dirname, 'assets', 'icon.png') 
+    }).show();
+  }
+});
+
+
+  ipcMain.handle('check-activation', () => licenseManager.checkIsActivated());
+  ipcMain.handle('get-hardware-id', () => licenseManager.getHardwareId());
+  ipcMain.handle('activate-app', (event, key) => licenseManager.activateApp(key));
+
+  
+ipcMain.handle('get-users', () => getUsers());
+  ipcMain.handle('add-user', (event, data) => addUser(data));
+  ipcMain.handle('delete-user', (event, id) => deleteUser(id));
+
+
+  ipcMain.handle('update-employee', (event, id, data) => updateEmployee(id, data));
+  ipcMain.handle('delete-employee', (event, id) => deleteEmployee(id));
+
+  ipcMain.handle('get-audit-logs', () => getAuditLogs());
+
+  ipcMain.handle('delete-expense', (event, id, username) => deleteExpense(id, username));
+  
+  ipcMain.handle('close-business-day', async (event, adminName) => closeBusinessDay(adminName));
+
+  ipcMain.handle('get-archived-zreport', async (event, id) => getArchivedZReport(id));
+// هذه الدالة ستحول حاسوب المدير إلى سيرفر يخدم الكاشيرات
+function startLocalNetworkServer() {
+  const apiApp = express();
+  apiApp.use(cors());
+  apiApp.use(express.json());
+
+  // دالة ذكية تستقبل أي طلب من الكاشير وتنفذه في قاعدة البيانات
+  apiApp.post('/api/:method', async (req, res) => {
+    const method = req.params.method;
+    const args = req.body.args || [];
+    
+    try {
+      // التحقق من وجود الدالة في database.js
+      if (typeof db[method] === 'function') {
+        const result = await db[method](...args);
+        res.json({ success: true, data: fixDatesGlobal(result) });
+      } else {
+        res.status(404).json({ success: false, error: 'Method not found' });
+      }
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // بث الواجهة الأمامية (Frontend) ليتمكن الكاشير من فتحها بمتصفح كروم
+  const frontendPath = path.join(__dirname, '..', 'frontend', 'dist'); // المسار بعد عمل Build للـ Vite
+  if (fs.existsSync(frontendPath)) {
+    apiApp.use(express.static(frontendPath));
+  }
+
+  // تشغيل السيرفر على البورت 3000 لجميع الأجهزة المتصلة بالراوتر
+  apiApp.listen(3000, '0.0.0.0', () => {
+    console.log('✅ Local Network Server is running on port 3000');
+  });
+}
+
+app.whenReady().then(() => {
+  initDatabase();
+  setupIpcHandlers();
+  startLocalNetworkServer();
+  createWindow();
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+});
+
+ipcMain.handle('backup-database', async (event) => {
+  try {
+    const defaultName = `POS_Backup_${new Date().toISOString().split('T')[0]}`;
+    
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      title: 'حفظ النسخة الاحتياطية (قاعدة البيانات + تقرير الإكسيل)',
+      defaultPath: defaultName,
+      buttonLabel: 'حفظ (Save)'
+    });
+
+    if (canceled || !filePath) return { success: false, canceled: true };
+
+    // تنظيف المسار لضمان إنشاء ملفين بنفس الاسم
+    const basePath = filePath.replace(/\.[^/.]+$/, ""); 
+    const dbOutputPath = `${basePath}.db`;
+    const excelOutputPath = `${basePath}.xlsx`;
+
+    // 1. توليد نسخة قاعدة البيانات (الطريقة الآمنة المخصصة لـ SQLite)
+    await backupDatabase(dbOutputPath);
+
+    // 2. توليد وحفظ تقرير الإكسيل
+    await generateExcelBackup(excelOutputPath);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Backup Error:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+// 2. استعادة البيانات
+// 2. استعادة البيانات
+  ipcMain.handle('restore-database', async () => {
+    
+    // 🔴 لقد قمنا بحذف تعريف dbPath من هنا، لأنه سيستخدم المسار القادم من database.js مباشرة!
+    
+    // فتح نافذة للمستخدم لاختيار ملف النسخة الاحتياطية
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      title: 'اختيار ملف النسخة الاحتياطية (Select Backup File)',
+      properties: ['openFile'],
+      filters: [
+        { name: 'Database Files', extensions: ['db', 'sqlite', 'sqlite3'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+
+    if (canceled || filePaths.length === 0) return { success: false, canceled: true };
+
+    try {
+      const sourcePath = filePaths[0];
+      
+      const buffer = Buffer.alloc(16);
+      const fd = fs.openSync(sourcePath, 'r');
+      fs.readSync(fd, buffer, 0, 16, 0);
+      fs.closeSync(fd);
+      
+      const header = buffer.toString('utf8');
+      if (!header.startsWith('SQLite format 3')) {
+        return { success: false, error: 'invalid_format' }; 
+      }
+
+      // 🔴 هنا سيقوم بنسخ الملف المختار واستبداله بالمسار الأصلي المعرف في database.js
+      fs.copyFileSync(sourcePath, dbPath);
+      
+      app.relaunch();
+      app.exit(0);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Restore Error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  
+ipcMain.handle('import-suppliers-excel', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      title: 'استيراد ديون الموردين من ملفات إكسيل',
+      properties: ['openFile', 'multiSelections'], // 🔴 تفعيل التحديد المتعدد
+      filters: [{ name: 'Excel Files', extensions: ['xlsx', 'xls'] }]
+    });
+
+    if (canceled || filePaths.length === 0) return { success: false, canceled: true };
+
+    let successCount = 0;
+    let errors = [];
+
+    // قراءة كل الملفات المحددة واحداً تلو الآخر
+    for (let filePath of filePaths) {
+      const res = await db.importSuppliersFromExcel(filePath);
+      if (res.success) {
+        successCount++;
+      } else {
+        errors.push(`${require('path').basename(filePath)}: ${res.error}`);
+      }
+    }
+
+    if (successCount > 0) {
+      return { success: true, count: successCount, error: errors.join('\n') };
+    } else {
+      return { success: false, error: errors.join('\n') };
+    }
+  });
+
+
+ipcMain.handle('update-receipt', (event, id, data) => { try { return db.updateReceipt(id, data); } catch (e) { return { success: false, error: e.message }; }});
+  ipcMain.handle('update-payment', (event, id, data) => { try { return db.updatePayment(id, data); } catch (e) { return { success: false, error: e.message }; }});
+  ipcMain.handle('delete-receipt', (event, id) => { try { return db.deleteReceipt(id); } catch(e) { return {success: false, error: e.message}; }});
+  ipcMain.handle('delete-payment', (event, id) => { try { return db.deletePayment(id); } catch(e) { return {success: false, error: e.message}; }});
+
+  ipcMain.handle('update-supplier', async (event, id, data) => {
+    return updateSupplier(id, data);
+  });
+
+  ipcMain.handle('delete-supplier', async (event, id) => {
+    return deleteSupplier(id);
+  });
+
+
+
+ipcMain.handle('parse-pdf-invoice', async () => {
+    try {
+      const { canceled, filePaths } = await dialog.showOpenDialog({
+        title: 'اختر ملف PDF (Bon de Livraison)',
+        filters: [{ name: 'PDF Files', extensions: ['pdf'] }]
+      });
+
+      if (canceled || filePaths.length === 0) return { success: false, canceled: true };
+
+      const PDFParser = require("pdf2json");
+      
+      return new Promise((resolve, reject) => {
+        const pdfParser = new PDFParser(this, 1);
+        
+        pdfParser.on("pdfParser_dataError", errData => {
+           resolve({ success: false, error: "تعذر قراءة هيكل الملف." });
+        });
+        
+        pdfParser.on("pdfParser_dataReady", pdfData => {
+            let text = pdfParser.getRawTextContent();
+            text = text.replace(/\r\n/g, '\n');
+            
+            const lines = text.split('\n');
+            let extractedItems = [];
+            
+            // 🌟 كائن جديد لتخزين بيانات الفاتورة الأساسية
+            let invoiceMeta = {
+              supplierName: "",
+              totalAmount: 0
+            };
+
+            for (let line of lines) {
+              const trimmedLine = line.trim();
+              if (!trimmedLine) continue;
+
+              // 1. استخراج اسم المورد
+              if (trimmedLine.toUpperCase().includes('FOURNISSEUR')) {
+                // استخراج ما بعد كلمة Fournisseur أو النقطتين
+                const parts = trimmedLine.split(/[:|]/);
+                if (parts.length > 1) {
+                  invoiceMeta.supplierName = parts[1].trim();
+                }
+              }
+
+              // 2. استخراج المبلغ الإجمالي
+              if (trimmedLine.toUpperCase().includes('NET A PAYER') || trimmedLine.toUpperCase().includes('TOTAL TTC')) {
+                // قنص الأرقام فقط من السطر (مع الفاصلة والنقطة)
+                let amountStr = trimmedLine.replace(/[^0-9,.]/g, '');
+                // توحيد الفواصل العشرية
+                amountStr = amountStr.replace(',', '.');
+                // بما أن الرقم قد يحتوي على مسافات (مثال 39 390)، استخراج الرقم كالتالي:
+                const amountMatches = trimmedLine.match(/[\d\s]+[.,]\d{2}/);
+                if (amountMatches) {
+                   const cleanAmount = parseFloat(amountMatches[0].replace(/\s/g, '').replace(',', '.'));
+                   if (!isNaN(cleanAmount)) {
+                     invoiceMeta.totalAmount = cleanAmount;
+                   }
+                }
+              }
+
+              // 3. استخراج السلع (الخوارزمية المدرعة السابقة)
+              const columns = trimmedLine.split(/\s{3,}/).map(col => col.trim());
+
+              if (columns.length >= 5 && /^\d+$/.test(columns[0])) {
+                const id = columns[0];
+                const barcode = columns[1];
+                
+                const qtyIndex = columns.length - 4;
+                const finalQtyIndex = qtyIndex > 1 ? qtyIndex : 2;
+                
+                const qtyStr = columns[finalQtyIndex];
+                const qty = parseFloat(qtyStr.replace(/\s/g, '').replace(',', '.'));
+                
+                if (!isNaN(qty)) {
+                  const dirtyName = columns.slice(2, finalQtyIndex).join(' ');
+                  extractedItems.push({
+                    id: id,
+                    barcode: barcode,
+                    dirtyName: dirtyName || "بدون اسم",
+                    quantity: qty,
+                  });
+                }
+              }
+            }
+
+            const enrichedItems = enrichExtractedItems(extractedItems);
+            
+            // 🌟 نرجع السلع + بيانات الفاتورة للواجهة الأمامية
+            resolve({ success: true, data: enrichedItems, meta: invoiceMeta });
+        });
+        
+        pdfParser.loadPDF(filePaths[0]);
+      });
+
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+ipcMain.handle('update-advance', (event, payload) => updateAdvance(payload.id, payload.data));
+ipcMain.handle('delete-advance', (event, id) => deleteAdvance(id));
+
+ipcMain.handle('get-all-shifts-summary', async () => getAllShiftsSummary());
+ipcMain.handle('get-daily-closures', async () => getDailyClosures());
+ipcMain.handle('update-attendance-record', (event, id, timeIn, timeOut) => updateAttendanceRecord(id, timeIn, timeOut)); 
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit();
+});
+```
+
+---
+
+## `package.json`
+
+```json
+{
+  "name": "pos-manager",
+  "version": "1.0.0",
+  "description": "Offline Supermarket Management System",
+  "author": "Cherif <midouma25@gmail.com>",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.cherif.posmanager",
+    "productName": "POS Manager",
+    "electronVersion": "30.0.0",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "database.js",
+      "dist/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "asar": true
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.11.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "exceljs": "^4.4.0",
+    "express": "^5.2.1",
+    "node-machine-id": "^1.1.12",
+    "pdf-parse": "^1.1.1",
+    "pdf2json": "^4.0.3"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.2.0",
+    "electron": "^43.1.1",
+    "electron-builder": "^24.13.3"
+  }
+}
+
+```
+
+---
+
+## `preload.js`
+
+```javascript
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('api', {
+  login: (credentials) => ipcRenderer.invoke('login', credentials),
+  printReceipt: () => ipcRenderer.invoke("print-receipt"),
+  getSuppliers: () => ipcRenderer.invoke('get-suppliers'),
+  addSupplier: (data) => ipcRenderer.invoke('add-supplier', data),
+  getSupplierDetails: (id) => ipcRenderer.invoke('get-supplier-details', id),
+  addReceipt: (data) => ipcRenderer.invoke('add-receipt', data),
+  addPayment: (data) => ipcRenderer.invoke('add-payment', data),
+  
+  getEmployees: () => ipcRenderer.invoke('get-employees'),
+  addEmployee: (data) => ipcRenderer.invoke('add-employee', data),
+  handlePinEntry: (pinCode) => ipcRenderer.invoke('handle-pin-entry', pinCode),
+  getTodayAttendance: (date) => ipcRenderer.invoke('get-today-attendance', date),
+  
+  getStoreMapData: () => ipcRenderer.invoke('get-store-map-data'),
+  processPdfInventory: (data) => ipcRenderer.invoke('process-pdf-inventory', data),
+
+  parsePdfInvoice: () => ipcRenderer.invoke('parse-pdf-invoice'),
+  addExpense: (data) => ipcRenderer.invoke('add-expense', data),
+  deleteExpense: (id) => ipcRenderer.invoke('delete-expense', id),
+  updateExpense: (id, expense) => ipcRenderer.invoke('update-expense', { id, expense }),
+
+  getAdvances: (empId) => ipcRenderer.invoke('get-advances', empId),
+  addAdvance: (data) => ipcRenderer.invoke('add-advance', data),
+  getSalaries: () => ipcRenderer.invoke('get-salaries'),
+  calculatePayroll: (params) => ipcRenderer.invoke('calculate-payroll', params),
+  paySalary: (data) => ipcRenderer.invoke('pay-salary', data),
+
+  getAgendaTasks: () => ipcRenderer.invoke('get-agenda-tasks'),
+  addAgendaTask: (data) => ipcRenderer.invoke('add-agenda-task', data),
+  toggleAgendaTaskStatus: (id, status) => ipcRenderer.invoke('toggle-agenda-task-status', id, status),
+  getDueThisWeek: () => ipcRenderer.invoke('get-due-this-week'),
+
+  getDailySummary: (date) => ipcRenderer.invoke('get-daily-summary', date),
+  deleteAgendaTask: (id) => ipcRenderer.invoke('delete-agenda-task', id),
+  rescheduleAgendaTask: (id, newDate) => ipcRenderer.invoke('reschedule-agenda-task', id, newDate),
+  showNotification: (title, body) => ipcRenderer.send('show-notification', { title, body }),
+  getSuppliersList: () => ipcRenderer.invoke('get-suppliers-list'),
+  saveInvoiceDebt: (data) => ipcRenderer.invoke('save-invoice-debt', data),
+  // --- مسارات الورديات (Shifts) الجديدة ---
+  openShift: (data) => ipcRenderer.invoke('open-shift', data),
+  getActiveShift: (cashierName) => ipcRenderer.invoke('get-active-shift', cashierName),
+  closeShift: (data) => ipcRenderer.invoke('close-shift', data),
+  getShiftSummary: (cashierName, startTime) => ipcRenderer.invoke('get-shift-summary', cashierName, startTime),
+
+  getUsers: () => ipcRenderer.invoke('get-users'),
+  addUser: (data) => ipcRenderer.invoke('add-user', data),
+  deleteUser: (id) => ipcRenderer.invoke('delete-user', id),
+
+  updateEmployee: (id, data) => ipcRenderer.invoke('update-employee', id, data),
+  deleteEmployee: (id) => ipcRenderer.invoke('delete-employee', id),
+
+  getAuditLogs: () => ipcRenderer.invoke('get-audit-logs'),
+  deleteExpense: (id, username) => ipcRenderer.invoke('delete-expense', id, username),
+  
+  updateReceipt: (id, data) => ipcRenderer.invoke('update-receipt', id, data),
+  updatePayment: (id, data) => ipcRenderer.invoke('update-payment', id, data),
+  deleteReceipt: (id) => ipcRenderer.invoke('delete-receipt', id),
+  deletePayment: (id) => ipcRenderer.invoke('delete-payment', id),
+  importSuppliersExcel: () => ipcRenderer.invoke('import-suppliers-excel'),
+  // Database Management
+  backupDatabase: () => ipcRenderer.invoke('backup-database'),
+  restoreDatabase: () => ipcRenderer.invoke('restore-database'),
+  updateSupplier: (id, data) => ipcRenderer.invoke('update-supplier', id, data),
+  deleteSupplier: (id) => ipcRenderer.invoke('delete-supplier', id),
+  getExpenses: (caisseFilter) => ipcRenderer.invoke('get-expenses', caisseFilter),
+  updateAdvance: (id, data) => ipcRenderer.invoke('update-advance', { id, data }),
+  deleteAdvance: (id) => ipcRenderer.invoke('delete-advance', id),
+  getAllShiftsSummary: () => ipcRenderer.invoke('get-all-shifts-summary'),
+  getDailyClosures: () => ipcRenderer.invoke('get-daily-closures'),
+  closeBusinessDay: (adminName) => ipcRenderer.invoke('close-business-day', adminName),
+  getArchivedZReport: (id) => ipcRenderer.invoke('get-archived-zreport', id),
+  updateAttendanceRecord: (id, timeIn, timeOut) => ipcRenderer.invoke('update-attendance-record', id, timeIn, timeOut),
+  saveMapLayout: (items) => ipcRenderer.invoke('save-map-layout', items),
+  getMapLayout: () => ipcRenderer.invoke('get-map-layout'),
+  getStoreLayouts: () => ipcRenderer.invoke('get-store-layouts'),
+  saveStoreLayout: (data) => ipcRenderer.invoke('save-store-layout', data),
+  deleteStoreLayout: (id) => ipcRenderer.invoke('delete-store-layout', id),
+  activateStoreLayout: (id) => ipcRenderer.invoke('activate-store-layout', id),
+  getShelfProducts: (shelfId) => ipcRenderer.invoke('get-shelf-products', shelfId),
+  deleteShelfProduct: (id) => ipcRenderer.invoke('delete-shelf-product', id),
+updateShelfProduct: (id, name, qty) => ipcRenderer.invoke('update-shelf-product', id, name, qty),
+setWindowsTime: (datetimeStr) => ipcRenderer.invoke('set-windows-time', datetimeStr),
+checkActivation: () => ipcRenderer.invoke('check-activation'),
+  getHardwareId: () => ipcRenderer.invoke('get-hardware-id'),
+  activateApp: (key) => ipcRenderer.invoke('activate-app', key),
+  
+});
+```
+
+---
+
+## `project_structure39.md`
+
+```markdown
+
+```
+
+---
+
+## `splash.html`
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loading POSManager...</title>
+  <style>
+    /* جعل الخلفية الأساسية شفافة لكي تظهر الشاشة بدون إطار مربع */
+    body {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    /* الحاوية الرئيسية للشاشة */
+    .splash-container {
+      width: 650px;
+      height: 400px;
+      background-color: #020617; /* Slate 950 */
+      border-radius: 20px;
+      display: flex;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+      overflow: hidden;
+      border: 1px solid #1e293b;
+    }
+
+    /* القسم الأيسر (النصي) */
+    .left-pane {
+      flex: 1;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      color: #f8fafc;
+    }
+
+    /* القسم الأيمن (الرسومي التجريدي) */
+    .right-pane {
+      flex: 1;
+      position: relative;
+      background: linear-gradient(-45deg, #0ea5e9, #6366f1, #3b82f6, #020617);
+      background-size: 400% 400%;
+      animation: gradientBG 8s ease infinite;
+    }
+
+    @keyframes gradientBG {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* أشكال هندسية فوق الخلفية المتحركة */
+    .shape {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(5px);
+      border-radius: 50%;
+    }
+    .shape-1 { width: 150px; height: 150px; top: -20px; right: -20px; border: 1px solid rgba(255,255,255,0.2); }
+    .shape-2 { width: 200px; height: 200px; bottom: -50px; left: -50px; }
+    .shape-3 { width: 80px; height: 80px; top: 40%; right: 40%; background: rgba(255, 255, 255, 0.05); }
+
+    .brand h1 {
+      font-size: 32px;
+      margin: 0;
+      font-weight: 900;
+      letter-spacing: 2px;
+    }
+    .brand h1 span { color: #3b82f6; }
+    .brand p {
+      color: #94a3b8;
+      font-size: 11px;
+      margin-top: 5px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      font-weight: bold;
+    }
+
+    .loading-section { margin-top: auto; margin-bottom: 4px; }
+    
+    .loading-text {
+      font-size: 14px;
+      color: #cbd5e1;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* دائرة التحميل الدوارة */
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 3px solid rgba(59, 130, 246, 0.3);
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* شريط التحميل */
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background: #1e293b;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: #3b82f6;
+      animation: fillProgress 3s ease-in-out forwards;
+    }
+    @keyframes fillProgress {
+      0% { width: 0%; }
+      50% { width: 70%; }
+      100% { width: 100%; }
+    }
+
+    .footer {
+      font-size: 10px;
+      color: #64748b;
+      margin-top: 30px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .footer span { color: #cbd5e1; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="splash-container">
+    <div class="left-pane">
+      <div class="brand">
+        <!-- 🔴 هذا السطر هو الذي سيظهر صورتك بدلاً من النص -->
+        <img src="./assets/icon.png" alt="Gherbi AI Logo" style="max-width: 220px; margin-bottom: 10px; drop-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+        <p>Code • Multimedia • Algo Trading • AI</p>
+      </div>
+
+      <div>
+        <div class="loading-section">
+          <div class="loading-text">
+            <div class="spinner"></div>
+            Loading Database & Modules...
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill"></div>
+          </div>
+        </div>
+
+        <div class="footer">
+          Developed By <br><span>Gherbi Mohamed Cherif</span>
+        </div>
+      </div>
+    </div>
+    <div class="right-pane">
+      <div class="shape shape-1"></div>
+      <div class="shape shape-2"></div>
+      <div class="shape shape-3"></div>
+    </div>
+  </div>
+</body>
+</html>
+```
+
+---
+

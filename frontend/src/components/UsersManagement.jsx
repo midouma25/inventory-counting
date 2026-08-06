@@ -89,7 +89,7 @@ export default function UsersManagement() {
     setUserToDelete(null); 
   };
 
-  if (currentUser?.role !== 'admin' && currentUser?.role !== 'superadmin') {
+  if (currentUser?.role !== 'superadmin') {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-950 text-red-500 text-xl font-bold gap-3">
         <AlertCircle size={32} /> {t('settings.accessDenied')}
@@ -186,7 +186,7 @@ const confirmRestore = async () => {
                   <option value="cashier">{t('hr.roles.cashier')}</option>
                   <option value="scale">{t('hr.roles.scale')}</option>
                   <option value="stock">{t('hr.roles.stock')}</option>
-                  <option value="admin">{t('hr.roles.admin')}</option>
+                  <option value="superadmin">{t('hr.roles.admin')}</option>
                 </select>
               </div>
 
@@ -214,7 +214,7 @@ const confirmRestore = async () => {
                   {users.map((u) => (
                     <tr key={u.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
                       <td className="px-6 py-4 font-medium text-white text-start flex items-center gap-2">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${u.role === 'admin' || u.role === 'superadmin' ? 'bg-blue-900/50 text-blue-400' : 'bg-emerald-900/50 text-emerald-400'}`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${u.role === 'superadmin' ? 'bg-blue-900/50 text-blue-400' : 'bg-emerald-900/50 text-emerald-400'}`}>
                           {u.username.charAt(0).toUpperCase()}
                         </div>
                         <span dir="ltr">{u.username}</span>

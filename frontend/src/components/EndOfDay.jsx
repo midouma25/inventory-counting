@@ -9,7 +9,7 @@ export default function EndOfDay() {
   const isRTL = i18n.dir() === 'rtl';
   
   const user = useAuthStore(state => state.user);
-  const isSuperAdmin = user?.role === 'superadmin' || user?.role === 'admin';
+  const isSuperAdmin = user?.role === 'superadmin';
   const cashierName = isSuperAdmin ? t('common.superAdmin') : (user?.username || 'Cashier');
 
   // قراءة اسم المحل

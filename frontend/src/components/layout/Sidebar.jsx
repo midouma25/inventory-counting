@@ -10,7 +10,7 @@ export default function Sidebar() {
   
   // معرفة هل المستخدم الحالي يمتلك صلاحيات مدير
   const user = useAuthStore(state => state.user);
-  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+  const isAdmin = user?.role === 'superadmin';
 
   // إضافة خاصية adminOnly للتحكم في ظهور الرابط
   const menuItems = [

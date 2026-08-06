@@ -28,24 +28,19 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-const AdminRoute = ({ children }) => {
-  const user = useAuthStore(state => state.user);
-  const hasAccess = user?.role === 'admin' || user?.role === 'superadmin';
-  if (!hasAccess) return <Navigate to="/pos" replace />; 
-  return children;
-};
 
 const SuperAdminRoute = ({ children }) => {
   const user = useAuthStore(state => state.user);
-  const hasSuperAccess = user?.role === 'superadmin' || user?.username === 'admin' || user?.role === 'admin';
-  if (!hasSuperAccess) return <Navigate to="/" replace />;
+  // السوبر أدمين فقط من يملك الصلاحية الآن
+  const hasSuperAccess = user?.role === 'superadmin';
+  if (!hasSuperAccess) return <Navigate to="/pos" replace />;
   return children;
 };
 
 const IndexRedirect = () => {
   const user = useAuthStore(state => state.user);
-  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
-  return isAdmin ? <Dashboard /> : <Navigate to="/pos" replace />; 
+  const isSuperAdmin = user?.role === 'superadmin';
+  return isSuperAdmin ? <Dashboard /> : <Navigate to="/pos" replace />; 
 };
 
 function App() {
@@ -105,10 +100,10 @@ function App() {
           <Route path="/preview" element={<PrintPreview />} />
           
           {/* 🛡️ مسارات الإدارة (المسير وصاحب المحل) */}
-          <Route path="suppliers" element={<AdminRoute><Suppliers /></AdminRoute>} />
-          <Route path="hr" element={<AdminRoute><HR /></AdminRoute>} />
-          <Route path="payroll" element={<AdminRoute><Payroll /></AdminRoute>} />
-          <Route path="agenda" element={<AdminRoute><Agenda /></AdminRoute>} />
+          <Route path="suppliers" element={<SuperAdminRoute><Suppliers /></SuperAdminRoute>} />
+          <Route path="hr" element={<SuperAdminRoute><HR /></SuperAdminRoute>} />
+          <Route path="payroll" element={<SuperAdminRoute><Payroll /></SuperAdminRoute>} />
+          <Route path="agenda" element={<SuperAdminRoute><Agenda /></SuperAdminRoute>} />
           
           {/* 👑 مسارات السوبر أدمين فقط */}
           <Route path="settings" element={<SuperAdminRoute><Settings /></SuperAdminRoute>} /> 

@@ -622,5 +622,16 @@
   "emptyKey": "Veuillez saisir la clé d'activation !",
   "invalidKey": "Clé d'activation invalide, veuillez vérifier votre saisie.",
   "error": "Une erreur est survenue lors de la connexion au système."
-}
+},
+"badge": {
+      "printBtn": "Badge Employé",
+      "modalTitle": "Émettre un badge d'accès (Code-barres)",
+      "modalDesc": "Entrez le code PIN de l'employé pour générer un code-barres imprimable.",
+      "searchPlaceholder": "Entrez le code PIN...",
+      "notFound": "Aucun employé trouvé avec ce code PIN !",
+      "printExecute": "Imprimer",
+      "downloadPDF": "Télécharger PDF",
+      "idCard": "CARTE D'IDENTITÉ EMPLOYÉ",
+      "scanInstruction": "Veuillez scanner ce code-barres à l'entrée et à la sortie."
+    }
 }

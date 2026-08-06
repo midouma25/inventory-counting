@@ -624,5 +624,16 @@
   "emptyKey": "Please enter the license key!",
   "invalidKey": "Invalid license key, please check your entry.",
   "error": "An error occurred while connecting to the system."
-}
+},
+"badge": {
+      "printBtn": "Employee Badge",
+      "modalTitle": "Issue Access Badge (Barcode)",
+      "modalDesc": "Enter the employee PIN to generate a printable barcode.",
+      "searchPlaceholder": "Enter PIN code...",
+      "notFound": "No employee found with this PIN!",
+      "printExecute": "Print",
+      "downloadPDF": "Download PDF",
+      "idCard": "EMPLOYEE ID CARD",
+      "scanInstruction": "Please scan this barcode upon entry and exit."
+    }
   }
