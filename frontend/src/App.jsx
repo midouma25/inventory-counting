@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'; 
 import useAuthStore from "./store/authStore";
 
@@ -21,7 +21,6 @@ import StoreMap from './components/pages/StoreMap';
 import PdfImporter from './components/pages/PdfImporter'; 
 import SystemClock from './components/ui/SystemClock'; 
 import ActivationScreen from './components/ActivationScreen';
-
 
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
@@ -50,6 +49,43 @@ const IndexRedirect = () => {
 };
 
 function App() {
+  // --- حالة التفعيل ---
+  const [isActivated, setIsActivated] = useState(null); // null = جاري التحقق
+
+  useEffect(() => {
+    const checkLicense = async () => {
+      try {
+        if (window.api && window.api.checkActivation) {
+          const activated = await window.api.checkActivation();
+          setIsActivated(activated);
+        } else {
+          // جعلناها false لتظهر الشاشة دائماً إذا لم يتم الاتصال بالباك اند بنجاح
+          setIsActivated(false); 
+        }
+      } catch (err) {
+        setIsActivated(false);
+      }
+    };
+    
+    checkLicense();
+  }, []);
+
+  // 1. شاشة التحميل (أثناء قراءة حالة التفعيل من النظام)
+  if (isActivated === null) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-300 font-sans" dir="rtl">
+        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-lg font-medium tracking-wide">جاري فحص تراخيص النظام...</p>
+      </div>
+    );
+  }
+
+  // 2. إذا كان غير مفعل، نعرض شاشة التفعيل فقط (لن يتم تحميل باقي التطبيق نهائياً)
+  if (isActivated === false) {
+    return <ActivationScreen onActivate={() => setIsActivated(true)} />;
+  }
+
+  // 3. إذا كان مفعلاً بنجاح، يتم تحميل التطبيق الكامل
   return (
     <HashRouter>
       {/* 🔴 الساعة موضوعة هنا: خارج الـ Routes لكي تطفو فوق كل شاشات النظام ولا تعطل التوجيه */}

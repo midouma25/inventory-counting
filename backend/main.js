@@ -33,22 +33,23 @@ function createWindow() {
   const splash = new BrowserWindow({
     width: 650,
     height: 400,
-    transparent: true, // الشفافية مفعلة لكي يظهر الحواف المنحنية فقط
-    frame: false,      // بدون إطار علوي (أزرار الإغلاق والتكبير)
-    alwaysOnTop: true, // تبقى فوق النوافذ الأخرى
+    transparent: true, 
+    frame: false,      
+    alwaysOnTop: true, 
+    icon: path.join(__dirname, 'assets', 'icon.png'), // 🔴 إضافة اللوجو هنا
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true
     },
   });
 
-  // تحميل ملف HTML الخاص بشاشة الإقلاع
   splash.loadFile(path.join(__dirname, 'splash.html'));
 
-  // 2. إنشاء النافذة الرئيسية (في الخلفية ومخفية)
+  // 2. إنشاء النافذة الرئيسية
   const win = new BrowserWindow({
     width: 1200, height: 800, minWidth: 900, minHeight: 600,
-    show: false, // تبقى مخفية أثناء التحميل
+    show: false, 
+    icon: path.join(__dirname, 'assets', 'icon.png'), // 🔴 إضافة اللوجو لشريط المهام
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -57,17 +58,27 @@ function createWindow() {
   });
 
   win.setMenuBarVisibility(false);
-  win.loadURL('http://localhost:5173'); // (قم بتغييرها للمسار المحلي لاحقاً عند عمل Build)
 
-  // 3. عندما تجهز النافذة الرئيسية تماماً
+  // 👇==== الحل السحري للشاشة البيضاء ====👇
+  const isDev = !app.isPackaged; // هل نحن في وضع التطوير أم الإنتاج (exe)؟
+
+  if (isDev) {
+    // في وضع التطوير: اقرأ من سيرفر React
+    win.loadURL('http://localhost:5173'); 
+  } else {
+    // في وضع الإنتاج (exe): اقرأ من الملفات المبنية مباشرة
+    win.loadFile(path.join(__dirname, '../frontend/dist/index.html'));
+  }
+  // 👆=====================================👆
+
+  // 3. إظهار النافذة بعد التحميل
   win.once('ready-to-show', () => {
-    // نضع تأخير زمني بسيط (3 ثوانٍ) لكي يستمتع العميل برؤية اللوجو الخاص بك واسمك
     setTimeout(() => {
       if (!splash.isDestroyed()) {
-        splash.close(); // إغلاق شاشة الإقلاع
+        splash.close(); 
       }
-      win.show(); // إظهار البرنامج
-    }, 3000); // يمكنك تقليلها إلى 1000 إذا أردت تسريع الفتح
+      win.show(); 
+    }, 3000); 
   });
 }
 // 👇===== الكود السحري لتوحيد وتصحيح التوقيت المحلي لجميع صفحات البرنامج =====👇

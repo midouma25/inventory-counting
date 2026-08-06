@@ -3,5 +3,5 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: './', // <-- هذا السطر السحري يخبر Vite باستخدام مسارات نسبية
+  base: './',  // 🔴 هذا السطر هو الحل السحري! يخبر البرنامج أن يبحث عن الملفات في نفس المجلد
 })

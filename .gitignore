@@ -6,12 +6,16 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-
+release-builds
 node_modules
 dist
 dist-ssr
 *.local
 POS_Keygen
+licenseManager.js
+*.js
+**backend/licenseManager.js
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

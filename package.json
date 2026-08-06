@@ -1,0 +1,36 @@
+{
+  "name": "gherbi-pos",
+  "version": "1.0.0",
+  "description": "A professional system for managing sales and point-of-sale operations",
+  "author": "Mohamed Cherif Gherbi",
+  "main": "backend/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.gherbiai.pos",
+    "productName": "Gherbi POS System",
+    "asar": true,
+    "directories": {
+      "output": "release-builds"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    },
+    "files": [
+      "backend/**/*",
+      "frontend/dist/**/*",
+      "package.json"
+    ]
+  },
+  "devDependencies": {
+    "electron": "^43.3.0",
+    "electron-builder": "^26.15.3"
+  }
+}
