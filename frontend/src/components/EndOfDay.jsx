@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Play, Lock, Calculator, Banknote, AlertCircle, Clock, CheckCircle2, RotateCcw, User, LineChart, Printer, X } from 'lucide-react';
+import { Play, Lock, Calculator, Banknote, AlertCircle, Clock, CheckCircle2, RotateCcw, User, LineChart, Printer, X, Download, Globe } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 import Modal from './ui/Modal'; 
 import html2canvas from 'html2canvas'; 
@@ -12,7 +12,7 @@ export default function EndOfDay() {
   
   const user = useAuthStore(state => state.user);
   const isSuperAdmin = user?.role === 'superadmin';
-  const cashierName = isSuperAdmin ? t('common.superAdmin', i18n.language === 'ar' ? 'المدير العام' : i18n.language === 'fr' ? 'Super Admin' : 'Super Admin') : (user?.username || 'Cashier');
+  const cashierName = isSuperAdmin ? t('common.superAdmin', i18n.language === 'ar' ? 'المدير العام' : 'Super Admin') : (user?.username || 'Cashier');
 
   // قراءة اسم المحل
   const currentStoreName = localStorage.getItem('storeName') || 'GHERBI.AI';
@@ -24,7 +24,6 @@ export default function EndOfDay() {
   const [summary, setSummary] = useState({ expenses: 0, supplierPayments: 0, advances: 0, totalOut: 0 });
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   
-  // حالة زر الطباعة التلقائية (مفعل افتراضياً)
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(true);
 
   // حالات خاصة بالكاشير (وصل 80mm)
@@ -86,7 +85,7 @@ export default function EndOfDay() {
         setOpeningBalanceInput('');
         fetchData();
       } else {
-        const errorMsg = res.message ? t(`backendErrors.${res.message}`, { defaultValue: res.message }) : t('common.error', i18n.language === 'ar' ? 'حدث خطأ' : i18n.language === 'fr' ? 'Erreur' : 'Error');
+        const errorMsg = res.message ? t(`backendErrors.${res.message}`, { defaultValue: res.message }) : t('common.error');
         showToast('error', errorMsg);
       }
     } catch (err) { console.error(err); }
@@ -96,8 +95,19 @@ export default function EndOfDay() {
   const currentOpeningBalance = activeShift ? activeShift.opening_balance : 0;
   const todaySales = (actualAmount === '' || actualAmount === 0) ? 0 : (Number(actualAmount) + totalOut) - Number(currentOpeningBalance);
   
-  // الدالة الذكية للطباعة والحفظ كـ PDF في نفس الوقت
-  const handlePrintAndSave = async () => {
+  // ------------------------------------------------------------------
+  // الأزرار الأربعة
+  // ------------------------------------------------------------------
+  
+  // 1. زر تغيير اللغة
+  const toggleLanguage = () => {
+    const langs = ['ar', 'fr', 'en'];
+    const nextLang = langs[(langs.indexOf(i18n.language) + 1) % langs.length];
+    i18n.changeLanguage(nextLang);
+  };
+
+  // 2. زر الطباعة المباشرة
+  const handlePrint = async () => {
     try {
       if (window.api && window.api.printReceipt) {
         await window.api.printReceipt();
@@ -106,16 +116,24 @@ export default function EndOfDay() {
       }
     } catch (error) {
       console.error("Print Error:", error);
+      window.print();
     }
+  };
 
+  // 3. زر حفظ الـ PDF 
+  const handleSavePDF = async () => {
     const element = document.getElementById('printable-receipt');
     if (!element) return;
+    
     try {
       element.classList.remove('shadow-2xl');
-      const canvas = await html2canvas(element, { scale: 3, useCORS: true });
+      const canvas = await html2canvas(element, { 
+        scale: 3, 
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      });
+      
       const imgData = canvas.toDataURL('image/png');
-      element.classList.add('shadow-2xl');
-
       const pdfWidth = 80;
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
@@ -127,16 +145,29 @@ export default function EndOfDay() {
 
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
       pdf.save(`Shift_Receipt_${cashierName}_${new Date().toISOString().split('T')[0]}.pdf`);
+      element.classList.add('shadow-2xl');
+      
+      showToast('success', t('common.success', i18n.language === 'ar' ? 'تم الحفظ بنجاح' : 'Saved successfully'));
     } catch (error) {
       console.error("PDF Generation Error: ", error);
+      showToast('error', t('common.error'));
     }
   };
 
-  // تشغيل الدالة تلقائياً فقط إذا كان الزر مفعلاً
+  // 4. الإغلاق
+  const handleCloseReceipt = () => {
+    setShowReceipt(false);
+    setActiveShift(null);
+    setActualAmount('');
+    setNotes('');
+  };
+
+  // طباعة وحفظ تلقائي إذا كان الزر مفعلاً
   useEffect(() => {
     if (showReceipt && receiptData && autoPrintEnabled && !isSuperAdmin) {
       const timer = setTimeout(() => {
-        handlePrintAndSave();
+        handlePrint();
+        handleSavePDF();
       }, 500);
       return () => clearTimeout(timer);
     }
@@ -160,18 +191,10 @@ export default function EndOfDay() {
         
         setIsConfirmModalOpen(false);
         setShowReceipt(true);
-        showToast('success', t('common.success', i18n.language === 'ar' ? 'نجاح' : i18n.language === 'fr' ? 'Succès' : 'Success'));
       }
     } catch (err) { console.error(err); }
   };
 
-  const handleCloseReceipt = () => {
-    setShowReceipt(false);
-    setActiveShift(null);
-    setActualAmount('');
-    setNotes('');
-  };
-  
   const executeCloseDay = async () => {
     try {
       const reportSnapshot = {
@@ -186,11 +209,11 @@ export default function EndOfDay() {
         setZReportData(reportSnapshot);
         setIsCloseDayModalOpen(false);
         setShowZReport(true); 
-        showToast('success', t('common.success', i18n.language === 'ar' ? 'نجاح' : i18n.language === 'fr' ? 'Succès' : 'Success'));
+        showToast('success', t('common.success'));
         fetchData(); 
       } else {
         setIsCloseDayModalOpen(false);
-        const errorMsg = res.message ? t(`backendErrors.${res.message}`, { defaultValue: res.message }) : t('common.error', i18n.language === 'ar' ? 'حدث خطأ' : i18n.language === 'fr' ? 'Erreur' : 'Error');
+        const errorMsg = res.message ? t(`backendErrors.${res.message}`, { defaultValue: res.message }) : t('common.error');
         showToast('error', errorMsg);
       }
     } catch (err) { console.error(err); }
@@ -205,6 +228,12 @@ export default function EndOfDay() {
     </div>
   );
 
+  // دالة لتنظيم التاريخ بشكل يدوي وتفادي تقاطع الأرقام
+  const getFormattedDate = () => {
+    const d = new Date();
+    return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+  };
+
   // ==========================================
   // واجهة المراقبة للمدير (SuperAdmin)
   // ==========================================
@@ -213,59 +242,58 @@ export default function EndOfDay() {
       <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans relative text-start">
         {renderToast()}
         
-        {/* 🔵 شاشة تقرير المدير (Z-Report) بحجم A4 */}
+        {/* تقرير Z-Report للمدير */}
         {showZReport && zReportData && (
           <div className="fixed inset-0 z-[9999] bg-slate-950/90 flex flex-col items-center p-4 backdrop-blur-sm overflow-y-auto" dir={isRTL ? "rtl" : "ltr"}>
-            
             <div className="flex gap-4 mb-4 no-print mt-4">
               <button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg flex items-center gap-2 shadow-lg">
-                <Printer size={20} /> {t('common.printReport', i18n.language === 'ar' ? 'طباعة التقرير (A4)' : i18n.language === 'fr' ? 'Imprimer (A4)' : 'Print Report (A4)')}
+                <Printer size={20} /> {t('common.printReport', i18n.language === 'ar' ? 'طباعة التقرير (A4)' : 'Print Report')}
               </button>
               <button onClick={() => setShowZReport(false)} className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-2 px-6 rounded-lg flex items-center gap-2 border border-slate-700">
-                <X size={20} /> {t('common.close', i18n.language === 'ar' ? 'إغلاق' : i18n.language === 'fr' ? 'Fermer' : 'Close')}
+                <X size={20} /> {t('common.close', 'إغلاق')}
               </button>
             </div>
 
-            <div className="printable-area bg-white text-black shadow-2xl relative font-sans w-full max-w-[210mm] min-h-[297mm] p-10 mx-auto">
+            <div className="printable-area bg-white text-black shadow-2xl relative font-sans w-full max-w-[210mm] min-h-[297mm] p-10 mx-auto" style={{ color: '#000000', backgroundColor: '#ffffff' }}>
               <div className="text-center mb-8 border-b-2 border-black pb-4">
                 <h2 className="text-3xl font-bold mb-2">{currentStoreName}</h2>
-                <h3 className="text-xl font-bold text-gray-700 mb-2">{t('zreport.title', i18n.language === 'ar' ? 'التقرير الختامي (Z-REPORT)' : i18n.language === 'fr' ? 'Rapport Final (Z-REPORT)' : 'Final Report (Z-REPORT)')}</h3>
-                <div className="flex justify-between text-sm text-gray-600 mt-4 font-bold">
-                  <span>{t('zreport.date', i18n.language === 'ar' ? 'التاريخ:' : i18n.language === 'fr' ? 'Date:' : 'Date:')} <span dir="ltr">{new Date(zReportData.date).toLocaleString(i18n.language)}</span></span>
-                  <span>{t('zreport.closed_by', i18n.language === 'ar' ? 'تم الإغلاق بواسطة:' : i18n.language === 'fr' ? 'Clôturé par:' : 'Closed by:')} <span>{zReportData.adminName}</span></span>
+                <h3 className="text-xl font-bold mb-2">{t('zreport.title', i18n.language === 'ar' ? 'التقرير الختامي (Z-REPORT)' : 'Final Report (Z-REPORT)')}</h3>
+                <div className="flex justify-between text-sm mt-4 font-bold">
+                  <span>{t('zreport.date', i18n.language === 'ar' ? 'التاريخ:' : 'Date:')} <span dir="ltr">{getFormattedDate()}</span></span>
+                  <span>{t('zreport.closed_by', i18n.language === 'ar' ? 'تم الإغلاق بواسطة:' : 'Closed by:')} <span>{zReportData.adminName}</span></span>
                 </div>
               </div>
 
               <div className="mb-8">
-                <h4 className="text-lg font-bold bg-gray-200 p-2 mb-4 border border-black">{t('zreport.summary', i18n.language === 'ar' ? 'الملخص المالي لليوم' : i18n.language === 'fr' ? 'Résumé Financier' : 'Financial Summary')}</h4>
+                <h4 className="text-lg font-bold bg-gray-200 p-2 mb-4 border border-black">{t('zreport.summary', i18n.language === 'ar' ? 'الملخص المالي لليوم' : 'Financial Summary')}</h4>
                 <div className="grid grid-cols-3 gap-6 text-center">
                   <div className="border-2 border-black rounded-lg p-4">
-                    <p className="text-sm font-bold text-gray-600 mb-1">{t('zreport.opening', i18n.language === 'ar' ? 'إجمالي الافتتاح' : i18n.language === 'fr' ? 'Ouverture' : 'Total Opening')}</p>
-                    <p className="font-black text-xl" dir="ltr">{zReportData.totals.opening.toLocaleString()} {t('currency', 'DA')}</p>
+                    <p className="text-sm font-bold mb-1">{t('zreport.opening', i18n.language === 'ar' ? 'إجمالي الافتتاح' : 'Total Opening')}</p>
+                    <p className="font-black text-xl" dir="ltr">{zReportData.totals.opening.toLocaleString()} {t('currency', 'د.ج')}</p>
                   </div>
                   <div className="border-2 border-black rounded-lg p-4 bg-gray-50">
-                    <p className="text-sm font-bold text-gray-600 mb-1">{t('zreport.net_sales', i18n.language === 'ar' ? 'صافي المبيعات' : i18n.language === 'fr' ? 'Ventes Nettes' : 'Net Sales')}</p>
-                    <p className="font-black text-xl" dir="ltr">{zReportData.totals.sales.toLocaleString()} {t('currency', 'DA')}</p>
+                    <p className="text-sm font-bold mb-1">{t('zreport.net_sales', i18n.language === 'ar' ? 'صافي المبيعات' : 'Net Sales')}</p>
+                    <p className="font-black text-xl" dir="ltr">{zReportData.totals.sales.toLocaleString()} {t('currency', 'د.ج')}</p>
                   </div>
                   <div className="border-2 border-black rounded-lg p-4 bg-gray-100">
-                    <p className="text-sm font-bold text-gray-800 mb-1">{t('zreport.actual_cash', i18n.language === 'ar' ? 'إجمالي الصندوق الفعلي' : i18n.language === 'fr' ? 'Tiroir Réel' : 'Actual Cash')}</p>
-                    <p className="font-black text-2xl" dir="ltr">{zReportData.totals.actual.toLocaleString()} {t('currency', 'DA')}</p>
+                    <p className="text-sm font-bold mb-1">{t('zreport.actual_cash', i18n.language === 'ar' ? 'إجمالي الصندوق الفعلي' : 'Actual Cash')}</p>
+                    <p className="font-black text-2xl" dir="ltr">{zReportData.totals.actual.toLocaleString()} {t('currency', 'د.ج')}</p>
                   </div>
                 </div>
               </div>
 
               <div>
-                <h4 className="text-lg font-bold bg-gray-200 p-2 mb-4 border border-black">{t('zreport.shifts_details', i18n.language === 'ar' ? 'تفاصيل الورديات' : i18n.language === 'fr' ? 'Détails des Quarts' : 'Shifts Details')}</h4>
+                <h4 className="text-lg font-bold bg-gray-200 p-2 mb-4 border border-black">{t('zreport.shifts_details', i18n.language === 'ar' ? 'تفاصيل الورديات' : 'Shifts Details')}</h4>
                 <table className="w-full border-collapse text-sm text-center border-2 border-black">
                   <thead>
                     <tr className="border-b-2 border-black bg-gray-100">
-                      <th className="p-3 border border-black">{t('zreport.cashier', i18n.language === 'ar' ? 'الكاشير' : i18n.language === 'fr' ? 'Caissier' : 'Cashier')}</th>
-                      <th className="p-3 border border-black">{t('zreport.time_in', i18n.language === 'ar' ? 'الدخول' : i18n.language === 'fr' ? 'Entrée' : 'Time In')}</th>
-                      <th className="p-3 border border-black">{t('zreport.time_out', i18n.language === 'ar' ? 'الخروج' : i18n.language === 'fr' ? 'Sortie' : 'Time Out')}</th>
-                      <th className="p-3 border border-black">{t('zreport.opening', i18n.language === 'ar' ? 'الافتتاح' : i18n.language === 'fr' ? 'Ouverture' : 'Opening')}</th>
-                      <th className="p-3 border border-black">{t('zreport.deductions', i18n.language === 'ar' ? 'مسحوبات' : i18n.language === 'fr' ? 'Déductions' : 'Deductions')}</th>
-                      <th className="p-3 border border-black">{t('zreport.sales', i18n.language === 'ar' ? 'المبيعات' : i18n.language === 'fr' ? 'Ventes' : 'Sales')}</th>
-                      <th className="p-3 border border-black">{t('zreport.actual_drawer', i18n.language === 'ar' ? 'الدرج الفعلي' : i18n.language === 'fr' ? 'Tiroir Réel' : 'Actual Drawer')}</th>
+                      <th className="p-3 border border-black">{t('zreport.cashier', i18n.language === 'ar' ? 'الكاشير' : 'Cashier')}</th>
+                      <th className="p-3 border border-black">{t('zreport.time_in', i18n.language === 'ar' ? 'الدخول' : 'Time In')}</th>
+                      <th className="p-3 border border-black">{t('zreport.time_out', i18n.language === 'ar' ? 'الخروج' : 'Time Out')}</th>
+                      <th className="p-3 border border-black">{t('zreport.opening', i18n.language === 'ar' ? 'الافتتاح' : 'Opening')}</th>
+                      <th className="p-3 border border-black">{t('zreport.deductions', i18n.language === 'ar' ? 'مسحوبات' : 'Deductions')}</th>
+                      <th className="p-3 border border-black">{t('zreport.sales', i18n.language === 'ar' ? 'المبيعات' : 'Sales')}</th>
+                      <th className="p-3 border border-black">{t('zreport.actual_drawer', i18n.language === 'ar' ? 'الدرج الفعلي' : 'Actual Drawer')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -273,7 +301,7 @@ export default function EndOfDay() {
                       <tr key={idx} className="border-b border-black font-bold">
                         <td className="p-3 border border-black">{s.cashier_name}</td>
                         <td className="p-3 border border-black" dir="ltr">{new Date(s.start_time).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</td>
-                        <td className="p-3 border border-black" dir="ltr">{s.end_time ? new Date(s.end_time).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' }) : t('zreport.not_closed', i18n.language === 'ar' ? 'لم تُغلق' : i18n.language === 'fr' ? 'Non Clôturé' : 'Not Closed')}</td>
+                        <td className="p-3 border border-black" dir="ltr">{s.end_time ? new Date(s.end_time).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' }) : t('zreport.not_closed', 'لم تُغلق')}</td>
                         <td className="p-3 border border-black" dir="ltr">{Number(s.opening_balance).toLocaleString()}</td>
                         <td className="p-3 border border-black" dir="ltr">{s.totalOut?.toLocaleString()}</td>
                         <td className="p-3 border border-black" dir="ltr">{s.calculatedSales?.toLocaleString()}</td>
@@ -286,10 +314,10 @@ export default function EndOfDay() {
 
               <div className="mt-16 pt-8 border-t-2 border-black flex justify-between font-bold text-lg px-8">
                 <div className="text-center w-48">
-                  <p className="border-b-2 border-black pb-2 mb-2">{t('zreport.manager_sig', i18n.language === 'ar' ? 'توقيع الإدارة' : i18n.language === 'fr' ? 'Signature Direction' : 'Manager Signature')}</p>
+                  <p className="border-b-2 border-black pb-2 mb-2">{t('zreport.manager_sig', i18n.language === 'ar' ? 'توقيع الإدارة' : 'Manager Signature')}</p>
                 </div>
                 <div className="text-center w-48">
-                  <p className="border-b-2 border-black pb-2 mb-2">{t('zreport.company_seal', i18n.language === 'ar' ? 'ختم المحل' : i18n.language === 'fr' ? 'Cachet' : 'Company Seal')}</p>
+                  <p className="border-b-2 border-black pb-2 mb-2">{t('zreport.company_seal', i18n.language === 'ar' ? 'ختم المحل' : 'Company Seal')}</p>
                 </div>
               </div>
 
@@ -373,8 +401,8 @@ export default function EndOfDay() {
                               {s.end_time ? <span className="text-red-400/80" dir="ltr">{new Date(s.end_time).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span> : <span className="text-slate-600">---</span>}
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-center font-bold text-slate-300" dir="ltr">{Number(s.opening_balance).toLocaleString()} {t('currency')}</td>
-                          <td className="px-6 py-4 text-center font-bold text-amber-400" dir="ltr">{s.status === 'open' ? '---' : `+${s.calculatedSales.toLocaleString()} ${t('currency')}`}</td>
+                          <td className="px-6 py-4 text-center font-bold text-slate-300" dir="ltr">{Number(s.opening_balance).toLocaleString()} {t('currency', 'د.ج')}</td>
+                          <td className="px-6 py-4 text-center font-bold text-amber-400" dir="ltr">{s.status === 'open' ? '---' : `+${s.calculatedSales.toLocaleString()} ${t('currency', 'د.ج')}`}</td>
                         </tr>
                       ))
                     )}
@@ -389,11 +417,11 @@ export default function EndOfDay() {
                 <div className="bg-slate-950 p-4 rounded-lg mb-6 border border-slate-800 space-y-3">
                   <div className="flex justify-between items-center pb-3 border-b border-slate-800">
                       <span className="text-slate-400">{t('eod.grandTotalActual', 'إجمالي الدرج الفعلي')}</span>
-                      <span className="text-emerald-400 font-bold text-xl" dir="ltr">{grandTotals.actual.toLocaleString()} {t('currency')}</span>
+                      <span className="text-emerald-400 font-bold text-xl" dir="ltr">{grandTotals.actual.toLocaleString()} {t('currency', 'د.ج')}</span>
                   </div>
                   <div className="flex justify-between items-center">
                       <span className="text-slate-400">{t('eod.grandTotalSales', 'إجمالي المبيعات')}</span>
-                      <span className="text-amber-400 font-bold text-xl" dir="ltr">{grandTotals.sales.toLocaleString()} {t('currency')}</span>
+                      <span className="text-amber-400 font-bold text-xl" dir="ltr">{grandTotals.sales.toLocaleString()} {t('currency', 'د.ج')}</span>
                   </div>
                 </div>
                 <div className="flex justify-end gap-3">
@@ -448,83 +476,103 @@ export default function EndOfDay() {
     <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans relative">
       {renderToast()}
       
-      {/* 🔴 شاشة طباعة وصل الكاشير (80mm) بالتصميم الذكي والجميل */}
+      {/* ستايل إجباري لضبط أبعاد الطابعة في نافذة الطباعة الافتراضية (Actual Size) */}
+      <style type="text/css" media="print">
+        {`
+          @page { size: 80mm auto; margin: 0; }
+          body { margin: 0; padding: 0; }
+        `}
+      </style>
+
+      {/* 🔴 شاشة الوصل الحراري 80mm - الكود القديم الخاص بك تماماً */}
       {showReceipt && receiptData && !isSuperAdmin && (
         <div className="fixed inset-0 z-[9999] bg-slate-950/90 flex flex-col items-center justify-center p-4 backdrop-blur-sm overflow-y-auto" dir={isRTL ? "rtl" : "ltr"}>
           
-          <div 
-             id="printable-receipt" 
-             className="receipt-ticket-forced bg-white text-black shadow-2xl p-4 rounded-md mb-6 flex flex-col justify-between" 
-             dir={isRTL ? "rtl" : "ltr"} 
-             style={{ width: '80mm', minHeight: '105mm', margin: '0 auto' }}
-          >
-            <div>
-              {/* 🟢 تم إزالة الكلاسات الخارجية لتفادي مشكلة الخطوط الزائدة في الصور */}
-              <div style={{ textAlign: 'center', marginBottom: '12px', borderBottom: '2px dashed #000', paddingBottom: '12px' }}>
-                <div style={{ fontSize: '20px', fontWeight: '900', marginBottom: '6px' }}>
-                  {currentStoreName}
-                </div>
-                <div style={{ 
-                  display: 'inline-block', 
-                  backgroundColor: '#000', 
-                  color: '#fff', 
-                  padding: '4px 12px', 
-                  borderRadius: '6px', 
-                  fontSize: '13px', 
-                  fontWeight: 'bold' 
-                }}>
-                  {t('eod.receipt_title', i18n.language === 'ar' ? 'وصل إغلاق الوردية' : i18n.language === 'fr' ? 'Reçu de Clôture' : 'Shift Close Receipt')}
-                </div>
-              </div>
+          <div id="printable-receipt" className="receipt-ticket-forced mx-auto shadow-2xl bg-white text-black print:shadow-none" dir={isRTL ? "rtl" : "ltr"}>
+            <div className="header-title">GHERBI.AI</div>
+            <div className="header-subtitle">CODE &bull; MULTIMEDIA &bull; ALGO &bull; AI</div>
+            <div className="header-title" style={{ marginTop: '1mm' }}><bdi>{currentStoreName}</bdi></div>
+            
+            <div className="badge-action">
+              {t('eod.x_report', i18n.language === 'ar' ? 'تقرير الوردية (X-REPORT)' : i18n.language === 'fr' ? 'Rapport de Quart (X-REPORT)' : 'Shift Report (X-REPORT)')}
               
-              <div style={{ marginTop: '15px', fontSize: '14px', fontWeight: 'bold' }}>
-                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #ccc', padding: '6px 0' }}>
-                   <span>{t('eod.cashier', i18n.language === 'ar' ? 'الكاشير:' : i18n.language === 'fr' ? 'Caissier:' : 'Cashier:')}</span>
-                   <span>{receiptData.cashier}</span>
-                 </div>
-                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #ccc', padding: '6px 0' }}>
-                   <span>{t('hr.table.timeIn', i18n.language === 'ar' ? 'الدخول:' : i18n.language === 'fr' ? 'Entrée:' : 'Time In:')}</span>
-                   <span dir="ltr">{new Date(receiptData.startTime).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span>
-                 </div>
-                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #ccc', padding: '6px 0' }}>
-                   <span>{t('eod.time_out', i18n.language === 'ar' ? 'الخروج:' : i18n.language === 'fr' ? 'Sortie:' : 'Time Out:')}</span>
-                   <span dir="ltr">{new Date(receiptData.endTime).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span>
-                 </div>
-                 
-                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #ccc', padding: '6px 0', marginTop: '8px' }}>
-                   <span>{t('eod.opening', i18n.language === 'ar' ? 'الافتتاح:' : i18n.language === 'fr' ? 'Ouverture:' : 'Opening:')}</span>
-                   <span dir="ltr">{Number(receiptData.opening).toLocaleString()} {t('currency', 'DA')}</span>
-                 </div>
-                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #ccc', padding: '6px 0', color: '#dc2626' }}>
-                   <span>{t('eod.deductions', i18n.language === 'ar' ? 'مسحوبات:' : i18n.language === 'fr' ? 'Déductions:' : 'Deductions:')}</span>
-                   <span dir="ltr">-{Number(receiptData.out).toLocaleString()} {t('currency', 'DA')}</span>
-                 </div>
-                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #ccc', padding: '6px 0', color: '#16a34a' }}>
-                   <span>{t('eod.sales', i18n.language === 'ar' ? 'المبيعات:' : i18n.language === 'fr' ? 'Ventes:' : 'Sales:')}</span>
-                   <span dir="ltr">+{Number(receiptData.sales).toLocaleString()} {t('currency', 'DA')}</span>
-                 </div>
+              {/* حل مشكلة التاريخ המقلوب */}
+              <div style={{ fontSize: '10px', marginTop: '2px', fontWeight: 'normal' }} dir="ltr">
+                {getFormattedDate()}
+              </div>
+            </div>
+            
+            <div className="receipt-divider"></div>
 
-                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #000', borderTop: '2px solid #000', padding: '10px 4px', marginTop: '15px', fontSize: '18px', backgroundColor: '#f9fafb', borderRadius: '4px' }}>
-                   <span>{t('eod.actual_drawer', i18n.language === 'ar' ? 'الدرج الفعلي:' : i18n.language === 'fr' ? 'Tiroir Réel:' : 'Actual Drawer:')}</span>
-                   <span dir="ltr" style={{ fontWeight: '900' }}>{Number(receiptData.actual).toLocaleString()} {t('currency', 'DA')}</span>
-                 </div>
+            <div className="flex flex-col w-full my-2">
+              <div className="info-row">
+                <span className="label-field">{t('eod.cashierName', i18n.language === 'ar' ? 'الكاشير:' : i18n.language === 'fr' ? 'Caissier:' : 'Cashier:')}</span>
+                <span className="value-field">{receiptData.cashier}</span>
+              </div>
+              <div className="info-row">
+                <span className="label-field">{t('hr.table.timeIn', i18n.language === 'ar' ? 'الدخول:' : i18n.language === 'fr' ? 'Entrée:' : 'Time In:')}</span>
+                <span className="value-field" dir="ltr">{new Date(receiptData.startTime).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span>
+              </div>
+              <div className="info-row">
+                <span className="label-field">{t('eod.time_out', i18n.language === 'ar' ? 'الخروج:' : i18n.language === 'fr' ? 'Sortie:' : 'Time Out:')}</span>
+                <span className="value-field" dir="ltr">{new Date(receiptData.endTime).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span>
               </div>
             </div>
 
-            <div className="footer-area" style={{ marginTop: 'auto', paddingTop: '15px', fontSize: '11px', textAlign: 'center', borderTop: '1px dashed #000' }}>
-              <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>{t('eod.receipt_footer', i18n.language === 'ar' ? 'تم تأكيد وإغلاق الوردية بنجاح.' : i18n.language === 'fr' ? 'Clôture confirmée avec succès.' : 'Shift closed successfully.')}</div>
-              <div style={{ fontSize: '10px', color: '#444' }}>POWERED BY GHERBI.AI</div>
+            <div className="receipt-divider"></div>
+
+            <div className="flex flex-col w-full my-2">
+              <div className="info-row">
+                <span className="label-field">{t('eod.opening_balance', i18n.language === 'ar' ? 'الافتتاح:' : i18n.language === 'fr' ? 'Ouverture:' : 'Opening:')}</span>
+                <span className="value-field" dir="ltr"><bdi>{receiptData.opening.toLocaleString()} {t('currency', 'DA')}</bdi></span>
+              </div>
+              <div className="info-row">
+                <span className="label-field">{t('eod.total_deducted', i18n.language === 'ar' ? 'المسحوبات:' : i18n.language === 'fr' ? 'Déductions:' : 'Deductions:')}</span>
+                <span className="value-field" dir="ltr"><bdi>{(receiptData.out || 0).toLocaleString()} {t('currency', 'DA')}</bdi></span>
+              </div>
+            </div>
+
+            <div className="amount-box">
+              <span className="box-title">{t('eod.actual_cash', i18n.language === 'ar' ? 'الدرج الفعلي:' : i18n.language === 'fr' ? 'Tiroir Réel:' : 'Actual Drawer:')}</span>
+              <span className="box-value" dir="ltr">
+                <bdi>{(receiptData.actual || 0).toLocaleString()} {t('currency', 'DA')}</bdi>
+              </span>
+            </div>
+
+            <div className="amount-box">
+              <span className="box-title">{t('eod.today_sales', i18n.language === 'ar' ? 'المبيعات:' : i18n.language === 'fr' ? 'Ventes:' : 'Sales:')}</span>
+              <span className="box-value" dir="ltr">
+                <bdi>{(receiptData.sales || 0).toLocaleString()} {t('currency', 'DA')}</bdi>
+              </span>
+            </div>
+
+            <div className="signatures-area" style={{ justifyContent: 'center', marginTop: '8mm' }}>
+              <span>{t('eod.receipt_footer', i18n.language === 'ar' ? 'احتفظ بالوصل للمراجعة' : i18n.language === 'fr' ? 'Conservez ce reçu' : 'Keep for review')}</span>
+            </div>
+
+            <div className="receipt-divider"></div>
+
+            <div className="footer-area">
+              <div className="dev-brand">POWERED BY GHERBI.AI</div>
             </div>
           </div>
 
-          <div className="flex gap-3 w-full max-w-xs mt-4 no-print">
-             <button onClick={handlePrintAndSave} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors">
-               <Printer size={18} /> {t('common.print', i18n.language === 'ar' ? 'إعادة الطباعة' : i18n.language === 'fr' ? 'Réimprimer' : 'Reprint')}
-             </button>
-             <button onClick={handleCloseReceipt} className="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-lg transition-colors">
-               {t('common.close', i18n.language === 'ar' ? 'إغلاق' : i18n.language === 'fr' ? 'Fermer' : 'Close')}
-             </button>
+          {/* 🔴 الأزرار الأربعة */}
+          <div className="grid grid-cols-2 gap-2 w-full max-w-xs mt-6 no-print">
+            <button onClick={toggleLanguage} className="col-span-2 bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors border border-slate-700">
+              <Globe size={18} /> {t('common.language', 'تغيير لغة الوصل')}
+            </button>
+            <button onClick={handlePrint} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors">
+              <Printer size={18} /> {t('common.print', 'طباعة')}
+            </button>
+            <button onClick={handleSavePDF} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors">
+              <Download size={18} /> {t('common.save', 'حفظ PDF')}
+            </button>
+            <button onClick={handleCloseReceipt} className="col-span-2 bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-lg shadow-red-900/20">
+              <X size={18} /> {t('common.close', 'إغلاق ومتابعة')}
+            </button>
           </div>
+
         </div>
       )}
 
@@ -581,7 +629,7 @@ export default function EndOfDay() {
                     </button>
                     <span className="text-sm font-bold text-slate-300 flex items-center gap-2">
                       <Printer size={16} className={autoPrintEnabled ? "text-blue-400" : "text-slate-500"} />
-                      {t('eod.auto_print', i18n.language === 'ar' ? 'طباعة وحفظ الوصل تلقائياً (PDF)' : i18n.language === 'fr' ? 'Impression et sauvegarde auto (PDF)' : 'Auto Print & Save (PDF)')}
+                      {t('eod.auto_print', i18n.language === 'ar' ? 'طباعة وحفظ الوصل تلقائياً' : 'Auto Print & Save')}
                     </span>
                   </div>
                 </div>
