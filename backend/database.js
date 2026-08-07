@@ -307,22 +307,39 @@ function closeShift(data) {
   }
 }
 
-function getShiftSummary(cashierName, startTime) { 
+function getShiftSummary(cashierName, providedStartTime) { 
   try { 
+    // 🔥 الحل الجذري: تجاهل التوقيت القادم من الواجهة لتفادي مشكلة (Timezone)
+    // وجلب التوقيت الخام (UTC) مباشرة من الوردية المفتوحة في قاعدة البيانات
+    let actualStartTime = providedStartTime;
+    const activeShift = db.prepare("SELECT start_time FROM shifts WHERE cashier_name = ? AND status = 'open'").get(cashierName);
+    if (activeShift) {
+       actualStartTime = activeShift.start_time;
+    }
+
     let paymentsRow, advancesRow, expensesRow; 
     if (cashierName === 'المدير العام' || cashierName === 'Super Admin' || cashierName === 'admin') { 
-      expensesRow = db.prepare("SELECT SUM(amount) as total FROM expenses WHERE created_at >= ?").get(startTime); 
-      paymentsRow = db.prepare("SELECT SUM(amount) as total FROM payments WHERE created_at >= ?").get(startTime); 
-      advancesRow = db.prepare("SELECT SUM(amount) as total FROM advances WHERE created_at >= ?").get(startTime); 
+      expensesRow = db.prepare("SELECT SUM(amount) as total FROM expenses WHERE created_at >= ?").get(actualStartTime); 
+      paymentsRow = db.prepare("SELECT SUM(amount) as total FROM payments WHERE created_at >= ?").get(actualStartTime); 
+      advancesRow = db.prepare("SELECT SUM(amount) as total FROM advances WHERE created_at >= ?").get(actualStartTime); 
     } else { 
-      expensesRow = db.prepare("SELECT SUM(amount) as total FROM expenses WHERE caisse_source = ? AND created_at >= ?").get(cashierName, startTime); 
-      paymentsRow = db.prepare("SELECT SUM(amount) as total FROM payments WHERE caisse_source = ? AND created_at >= ?").get(cashierName, startTime); 
-      advancesRow = db.prepare("SELECT SUM(amount) as total FROM advances WHERE caisse_source = ? AND created_at >= ?").get(cashierName, startTime); 
+      expensesRow = db.prepare("SELECT SUM(amount) as total FROM expenses WHERE caisse_source = ? AND created_at >= ?").get(cashierName, actualStartTime); 
+      paymentsRow = db.prepare("SELECT SUM(amount) as total FROM payments WHERE caisse_source = ? AND created_at >= ?").get(cashierName, actualStartTime); 
+      advancesRow = db.prepare("SELECT SUM(amount) as total FROM advances WHERE caisse_source = ? AND created_at >= ?").get(cashierName, actualStartTime); 
     } 
-    return { success: true, data: { expenses: expensesRow.total || 0, supplierPayments: paymentsRow.total || 0, advances: advancesRow.total || 0, totalOut: (expensesRow.total || 0) + (paymentsRow.total || 0) + (advancesRow.total || 0) } }; 
-  } catch (error) { return { success: false, error: error.message }; } 
+    return { 
+      success: true, 
+      data: { 
+        expenses: expensesRow.total || 0, 
+        supplierPayments: paymentsRow.total || 0, 
+        advances: advancesRow.total || 0, 
+        totalOut: (expensesRow.total || 0) + (paymentsRow.total || 0) + (advancesRow.total || 0) 
+      } 
+    }; 
+  } catch (error) { 
+    return { success: false, error: error.message }; 
+  } 
 }
-
 async function generateExcelBackup(outputPath) { const workbook = new ExcelJS.Workbook(); await workbook.xlsx.writeFile(outputPath); }
 
 function updateExpense(id, expense) { 

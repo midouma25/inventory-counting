@@ -15,7 +15,7 @@ const {
   openShift, getActiveShift, closeShift, getShiftSummary,dbPath,
   getUsers, addUser, deleteUser, updateEmployee, deleteEmployee ,logAudit , getAuditLogs, backupDatabase, getShelfProducts,
   generateExcelBackup, updateSupplier, deleteSupplier, updateAdvance, deleteAdvance, getAllShiftsSummary , getDailyClosures, getArchivedZReport,updateAttendanceRecord,getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, closeBusinessDay, getSuppliersList, saveInvoiceDebt, saveMapLayout, getMapLayout, getStoreLayouts, saveStoreLayout, deleteStoreLayout, activateStoreLayout
-  , deleteReceipt, deletePayment, updateReceipt, updatePayment, importSuppliersFromExcel, deleteShelfProduct, updateShelfProduct, setWindowsTime
+  , deleteReceipt, deletePayment, updateReceipt, updatePayment, importSuppliersFromExcel, deleteShelfProduct, updateShelfProduct, setWindowsTime,saveReceiptPdf, printReceipt
 } = require('./database');
 
 // 👇 استدعاء آمن للمكتبة ليتوافق مع جميع إصدارات Electron و Node.js
@@ -172,7 +172,34 @@ ipcMain.handle('login', async (event, credentials) => {
     });
   });
 
+ipcMain.handle("save-receipt-pdf", async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    try {
+      const { canceled, filePath } = await dialog.showSaveDialog(win, {
+        title: 'حفظ الوصل كـ PDF',
+        defaultPath: `Receipt_${Date.now()}.pdf`,
+        filters: [{ name: 'PDF Files', extensions: ['pdf'] }]
+      });
 
+      if (canceled || !filePath) return { success: false, canceled: true };
+
+      // 🔴 إجبار مقاس A7 بدقة الميكرون (74mm x 105mm)
+      const pdfData = await win.webContents.printToPDF({
+        printBackground: true,
+        pageSize: { width: 74000, height: 105000 }, 
+        margins: { marginType: 'none' }
+      });
+
+      const fs = require('fs');
+      fs.writeFileSync(filePath, pdfData);
+      
+      return { success: true };
+    } catch (error) {
+      console.error("PDF Save Error:", error);
+      return { success: false, error: error.message };
+    }
+  });
+  
   ipcMain.handle('get-supplier-details', (event, id) => getSupplierDetails(id));
   ipcMain.handle('add-receipt', (event, data) => {
     try { return { success: true, id: addReceipt(data) }; } 

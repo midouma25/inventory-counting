@@ -1,16 +1,31 @@
 {
   "name": "pos-client",
+  "productName": "GHERBI.AI POS Client",
   "version": "1.0.0",
   "main": "main.js",
-  "scripts": {
-    "start": "electron .",
-    "build": "electron-builder --win"
-  },
   "build": {
-    "appId": "com.gherbi.client",
-    "productName": "POS Client",
+    "appId": "com.gherbi.pos.client",
+    "productName": "GHERBI.AI POS Client",
     "win": {
-      "target": "portable"
+      "icon": "assets/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico"
     }
+  },
+  "devDependencies": {
+    "electron": "^22.3.27"
   }
 }

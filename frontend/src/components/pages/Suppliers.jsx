@@ -170,19 +170,19 @@ export default function Suppliers() {
       header: t('suppliers.table.actions'), 
       cell: ({ row }) => ( 
         <div className="flex items-center gap-2">
-          <button onClick={() => fetchSupplierDetails(row.original.id)} className="p-2 text-blue-400 hover:bg-blue-900/50 rounded-lg transition-colors" title={t('suppliers.actions.view')}>
+          <button onClick={() => fetchSupplierDetails(row.original.id)} className="p-2 text-blue-400 hover:bg-blue-900/50 rounded-lg transition-colors" title={t('suppliers.actions.view', i18n.language === 'ar' ? 'عرض التفاصيل' : i18n.language === 'fr' ? 'Voir' : 'View')}>
             <Eye size={18} />
           </button>
-          <button onClick={() => openEditSupplierModal(row.original)} className="p-2 text-emerald-400 hover:bg-emerald-900/50 rounded-lg transition-colors" title={t('suppliers.actions.edit')}>
+          <button onClick={() => openEditSupplierModal(row.original)} className="p-2 text-emerald-400 hover:bg-emerald-900/50 rounded-lg transition-colors" title={t('suppliers.actions.edit', i18n.language === 'ar' ? 'تعديل' : i18n.language === 'fr' ? 'Modifier' : 'Edit')}>
             <Edit size={18} />
           </button>
-          <button onClick={() => confirmDeleteSupplier(row.original.id)} className="p-2 text-red-400 hover:bg-red-900/50 rounded-lg transition-colors" title={t('suppliers.actions.delete')}>
+          <button onClick={() => confirmDeleteSupplier(row.original.id)} className="p-2 text-red-400 hover:bg-red-900/50 rounded-lg transition-colors" title={t('suppliers.actions.delete', i18n.language === 'ar' ? 'حذف' : i18n.language === 'fr' ? 'Supprimer' : 'Delete')}>
             <Trash2 size={18} />
           </button>
         </div>
       ) 
     }, 
-  ], [t, fetchSupplierDetails]);
+  ], [t, fetchSupplierDetails, i18n.language]);
 
   const table = useReactTable({ data: suppliers, columns, state: { globalFilter }, onGlobalFilterChange: setGlobalFilter, getCoreRowModel: getCoreRowModel(), getFilteredRowModel: getFilteredRowModel(), getSortedRowModel: getSortedRowModel() });
   
@@ -256,10 +256,10 @@ export default function Suppliers() {
                       <p className="text-sm text-slate-300">{r.note || '-'}</p>
                     </div>
                     <div className="flex gap-2 ms-4 border-s border-slate-800 ps-4">
-                      {/* 🔴 التعديل هنا: الترجمة لأزرار التول تيب */}
-                      <button onClick={() => handlePreview('receipt', r)} className="p-2 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-colors border border-slate-800" title={t('common.viewDocument')}><Eye size={18} /></button>
-                      <button onClick={() => openEditTransactionModal('receipt', r)} className="p-2 text-blue-400 hover:bg-slate-800 hover:text-blue-300 rounded-lg transition-colors border border-slate-800" title={t('common.edit')}><Edit size={18} /></button>
-                      <button onClick={() => handleDeleteTransactionClick('receipt', r.id)} className="p-2 text-red-400 hover:bg-slate-800 hover:text-red-300 rounded-lg transition-colors border border-slate-800" title={t('common.delete')}><Trash2 size={18} /></button>
+                      {/* 🔴 هنا زر فتح الطباعة / عرض الوصل */}
+                      <button onClick={() => handlePreview('receipt', r)} className="p-2 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-colors border border-slate-800" title={t('common.viewDocument', i18n.language === 'ar' ? 'عرض / طباعة الوصل' : i18n.language === 'fr' ? 'Imprimer le reçu' : 'Print Receipt')}><Eye size={18} /></button>
+                      <button onClick={() => openEditTransactionModal('receipt', r)} className="p-2 text-blue-400 hover:bg-slate-800 hover:text-blue-300 rounded-lg transition-colors border border-slate-800" title={t('common.edit', i18n.language === 'ar' ? 'تعديل' : i18n.language === 'fr' ? 'Modifier' : 'Edit')}><Edit size={18} /></button>
+                      <button onClick={() => handleDeleteTransactionClick('receipt', r.id)} className="p-2 text-red-400 hover:bg-slate-800 hover:text-red-300 rounded-lg transition-colors border border-slate-800" title={t('common.delete', i18n.language === 'ar' ? 'حذف' : i18n.language === 'fr' ? 'Supprimer' : 'Delete')}><Trash2 size={18} /></button>
                     </div>
                   </div>
                 ))
@@ -287,10 +287,10 @@ export default function Suppliers() {
                       <p className="text-sm text-slate-300">{p.note || '-'}</p>
                     </div>
                     <div className="flex gap-2 ms-4 border-s border-slate-800 ps-4">
-                      {/* 🔴 التعديل هنا: الترجمة لأزرار التول تيب */}
-                      <button onClick={() => handlePreview('payment', p)} className="p-2 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-colors border border-slate-800" title={t('common.viewDocument')}><Eye size={18} /></button>
-                      <button onClick={() => openEditTransactionModal('payment', p)} className="p-2 text-blue-400 hover:bg-slate-800 hover:text-blue-300 rounded-lg transition-colors border border-slate-800" title={t('common.edit')}><Edit size={18} /></button>
-                      <button onClick={() => handleDeleteTransactionClick('payment', p.id)} className="p-2 text-red-400 hover:bg-slate-800 hover:text-red-300 rounded-lg transition-colors border border-slate-800" title={t('common.delete')}><Trash2 size={18} /></button>
+                      {/* 🔴 هنا زر فتح الطباعة / عرض الوصل */}
+                      <button onClick={() => handlePreview('payment', p)} className="p-2 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-colors border border-slate-800" title={t('common.viewDocument', i18n.language === 'ar' ? 'عرض / طباعة الوصل' : i18n.language === 'fr' ? 'Imprimer le reçu' : 'Print Receipt')}><Eye size={18} /></button>
+                      <button onClick={() => openEditTransactionModal('payment', p)} className="p-2 text-blue-400 hover:bg-slate-800 hover:text-blue-300 rounded-lg transition-colors border border-slate-800" title={t('common.edit', i18n.language === 'ar' ? 'تعديل' : i18n.language === 'fr' ? 'Modifier' : 'Edit')}><Edit size={18} /></button>
+                      <button onClick={() => handleDeleteTransactionClick('payment', p.id)} className="p-2 text-red-400 hover:bg-slate-800 hover:text-red-300 rounded-lg transition-colors border border-slate-800" title={t('common.delete', i18n.language === 'ar' ? 'حذف' : i18n.language === 'fr' ? 'Supprimer' : 'Delete')}><Trash2 size={18} /></button>
                     </div>
                   </div>
                 ))
@@ -299,7 +299,6 @@ export default function Suppliers() {
           </div>
         </div>
 
-        {/* Modal for adding/editing transaction */}
         <Modal isOpen={isTransactionModalOpen} onClose={() => setIsTransactionModalOpen(false)} title={transactionType === 'receipt' ? t('suppliers.details.addReceipt') : t('suppliers.details.addPayment')}>
           <form className="space-y-4" onSubmit={handleSaveTransaction} dir={isRTL ? "rtl" : "ltr"}>
             <div>
@@ -335,7 +334,6 @@ export default function Suppliers() {
           </form>
         </Modal>
 
-        {/* Modal for scheduling payment */}
         <Modal isOpen={isScheduleModalOpen} onClose={() => setIsScheduleModalOpen(false)} title={t('suppliers.details.schedulePayment')}>
           <form className="space-y-4 text-start" onSubmit={async (e) => {
             e.preventDefault();

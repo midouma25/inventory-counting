@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html dir="rtl">
+<html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>POS Client - الاتصال بالسيرفر</title>
+  <title>GHERBI.AI POS - اتصال الكاشير</title>
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #0f172a; /* لون داكن يتناسب مع تصميمك */
+      background-color: #020617; /* لون Slate-950 مطابق لتصميم النظام */
       color: #e2e8f0;
       display: flex;
       flex-direction: column;
@@ -14,50 +14,120 @@
       justify-content: center;
       height: 100vh;
       margin: 0;
+      overflow: hidden;
     }
     .container {
-      background: #1e293b;
+      background: #0f172a; /* Slate-900 */
       padding: 40px;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+      border-radius: 16px;
+      border: 1px solid #1e293b; /* Slate-800 */
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
       text-align: center;
+      width: 100%;
+      max-width: 400px;
     }
+    
+    /* تنسيقات الهوية الجديدة */
+    .logo {
+      width: 90px;
+      height: 90px;
+      margin-bottom: 15px;
+      animation: pulse 2s infinite;
+    }
+    .brand {
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      color: #ffffff;
+      margin-bottom: 5px;
+    }
+    .subtitle {
+      font-size: 12px;
+      color: #94a3b8; /* Slate-400 */
+      margin-bottom: 30px;
+      letter-spacing: 1px;
+    }
+
+    .instruction {
+      font-size: 14px;
+      color: #cbd5e1; /* Slate-300 */
+      margin-bottom: 15px;
+    }
+
     input {
-      padding: 12px;
+      padding: 15px;
       font-size: 18px;
-      margin: 20px 0;
+      margin-bottom: 20px;
       width: 100%;
       box-sizing: border-box;
       text-align: center;
-      border-radius: 8px;
-      border: 1px solid #3b82f6;
-      background: #0f172a;
+      border-radius: 10px;
+      border: 1px solid #334155;
+      background: #020617;
       color: white;
       outline: none;
+      transition: all 0.3s ease;
+      letter-spacing: 2px;
     }
+    input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+    }
+    input::placeholder {
+      color: #475569;
+      letter-spacing: normal;
+    }
+
     button {
-      padding: 12px 30px;
+      padding: 14px 30px;
       font-size: 18px;
       background-color: #2563eb;
       color: white;
       border: none;
-      border-radius: 8px;
+      border-radius: 10px;
       cursor: pointer;
       width: 100%;
       font-weight: bold;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
     }
     button:hover {
       background-color: #1d4ed8;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 8px -1px rgba(37, 99, 235, 0.4);
+    }
+    button:active {
+      transform: translateY(1px);
+    }
+
+    .footer {
+      margin-top: 25px;
+      font-size: 11px;
+      color: #475569;
+      font-weight: bold;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>نظام الكاشير (النسخة الطرفية)</h2>
-    <p>يرجى إدخال عنوان الـ IP الخاص بالحاسوب الرئيسي:</p>
+    <!-- صورة اللوجو الجديد الخاص بك -->
+    <img src="./assets/icon.png" alt="GHERBI.AI Logo" class="logo" />
     
-    <input type="text" id="ipInput" placeholder="مثال: 192.168.1.5" />
+    <div class="brand">GHERBI.AI POS</div>
+    <div class="subtitle">CODE • MULTIMEDIA • ALGO • AI</div>
+    
+    <p class="instruction">يرجى إدخال عنوان الـ IP الخاص بالحاسوب الرئيسي (السيرفر):</p>
+    
+    <input type="text" id="ipInput" placeholder="مثال: 192.168.1.5" autocomplete="off" spellcheck="false" />
     <button onclick="connectToServer()">اتصال بالنظام</button>
+
+    <div class="footer">Powered by Mohamed Cherif Gherbi</div>
   </div>
 
   <script>
@@ -67,18 +137,27 @@
       document.getElementById('ipInput').value = savedIP;
     }
 
+    // إضافة ميزة الاتصال عند الضغط على زر Enter
+    document.getElementById('ipInput').addEventListener('keypress', function (e) {
+      if (e.key === 'Enter') {
+        connectToServer();
+      }
+    });
+
     // 2. دالة الاتصال
     function connectToServer() {
-      const ip = document.getElementById('ipInput').value;
+      const ip = document.getElementById('ipInput').value.trim();
       if (ip) {
         // حفظ الـ IP للمرات القادمة
         localStorage.setItem('serverIP', ip);
         
-        // استبدل 5000 برقم الـ PORT الخاص بالـ Express في الباك اند عندك
-        const port = 3000; 
-        
-        // التوجه فوراً إلى شاشة البرنامج الرئيسي عبر الشبكة!
-        window.location.href = `http://${ip}:${port}`;
+        // التوجه فوراً إلى شاشة البرنامج الرئيسي عبر الشبكة (البورت 3000)
+        window.location.href = `http://${ip}:3000`;
+      } else {
+        // تأثير اهتزاز بسيط إذا كان الحقل فارغاً
+        const input = document.getElementById('ipInput');
+        input.style.borderColor = '#ef4444';
+        setTimeout(() => input.style.borderColor = '#334155', 1000);
       }
     }
   </script>
