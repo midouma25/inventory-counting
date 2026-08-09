@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Printer, FileText, LayoutList, CheckCircle2, AlertCircle, Trash2, Tag, Layers, Package, ScanLine, Download, ArrowUpDown, ListPlus, Edit, Check, XEraser } from 'lucide-react';
+import { Search, Plus, Printer, FileText, LayoutList, CheckCircle2, AlertCircle, Trash2, Tag, Layers, Package, ScanLine, Download, ArrowUpDown, ListPlus, Edit, Check, Eraser } from 'lucide-react';
 import Modal from '../ui/Modal';
 import ConfirmAlert from '../ui/ConfirmAlert';
 
@@ -87,7 +87,8 @@ export default function Inventory() {
     setIsNameDictModalOpen(false);
     showToast('success', t('common.success'));
   };
-
+  
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -557,7 +558,7 @@ export default function Inventory() {
                           </button>
 
                           <button onClick={() => handleClearSingleDigitalQty(item)} className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-bold text-xs flex items-center gap-1 transition-colors border border-slate-600">
-                             <XEraser size={14} /> {t('inventory.clearQty')}
+                             <Eraser size={14} /> {t('inventory.clearQty')}
                           </button>
                         </div>
                       </td>
