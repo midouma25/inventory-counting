@@ -23,7 +23,10 @@
     "selectOption": "-- Select an option --",
     "optional": "Optional",
     "saveChanges": "Save Changes",
-    "actions": "Actions"
+    "actions": "Actions",
+    "edit": "Edit",
+    "name": "Name",
+    "confirmDelete": "Confirm Deletion"
   },
   "sidebar": {
     "dashboard": "Dashboard",
@@ -673,7 +676,9 @@
     "deleteWarning": "Are you sure? All dependent items will be deleted.",
     "sortByCategory": "Sort by Category",
     "clearQty": "Clear",
-    "qtyCleared": "Quantity cleared successfully"
+    "qtyCleared": "Quantity cleared successfully",
+    "seedBtn": "Load Local Brands",
+    "seedSuccess": "Database loaded successfully! 🚀"
   },
 "badge": {
       "printBtn": "Employee Badge",

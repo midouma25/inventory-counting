@@ -21,6 +21,10 @@
     "selectOption": "-- Sélectionnez une option --",
     "optional": "Optionnel",
     "saveChanges": "Sauvegarder les modifications",
+    "enterValue": "Saisir",
+    "edit": "Modifier",
+    "name": "Nom",
+    "confirmDelete": "Confirmer la suppression",
     "actions": "Actions"
   },
   "sidebar": {
@@ -671,7 +675,9 @@
     "deleteWarning": "Voulez-vous vraiment supprimer ? Tous les éléments dépendants seront supprimés.",
     "sortByCategory": "Trier par Catégorie",
     "clearQty": "Effacer",
-    "qtyCleared": "Quantité effacée avec succès"
+    "qtyCleared": "Quantité effacée avec succès",
+    "seedBtn": "Charger Marques (Algérie)",
+    "seedSuccess": "Base de données chargée avec succès! 🚀"
   },
 "badge": {
       "printBtn": "Badge Employé",

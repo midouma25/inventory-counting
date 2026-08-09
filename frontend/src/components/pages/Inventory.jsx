@@ -88,7 +88,45 @@ export default function Inventory() {
     showToast('success', t('common.success'));
   };
   
-  
+  // 🌟 دالة التغذية التلقائية لقاعدة البيانات (السوق الجزائري + المستورد)
+  const loadAlgerianMarketSeed = () => {
+    const seedData = {
+      "عجائن وسميد": ["ماما Mama", "سيم Sim", "عمر بن عمر", "سفينة Safina", "أكسترا Extra", "الوردة البيضاء", "للا خديجة", "بانزاني Panzani", "باريلا Barilla", "ريفوار وكاريه Rivoire & Carret"],
+      "طماطم مصبرة": ["الحارة", "إيزيس Isis", "كاب CAB", "صبيا Sobia", "إيزم Izem", "التاج", "جودي Jouda", "سيكام Sicam", "موتي Mutti", "هاينز Heinz"],
+      "زيت": ["إيليو Elio", "سيفيتال Cevital", "عافية Afia", "فلوريال Fleurial", "لوسيور Lesieur", "بوجي Puget", "ينار", "الزهرة"],
+      "قهوة": ["بونال Bonal", "فاكتو Facto", "أروما Aroma", "1001", "طابا Taba", "نسكافيه Nescafé", "كارت نوار Carte Noire", "لافازا Lavazza", "فاميل Famille"],
+      "شاي": ["الخنشلي", "الصحراء", "الخيمة", "ليبتون Lipton", "توينينغز Twinings", "سلطان Sultan", "القافلة"],
+      "حليب": ["كانديا Candia", "صومام Soummam", "الحضنة Hodna", "طاسيلي", "جيبلي", "لوشا Le Chat", "لحظة Loya", "نيدو Nestlé Nido", "سليا Célia"],
+      "أجبان": ["البقرة الضاحكة La Vache Qui Rit", "كيري Kiri", "رئيس Président", "بربر Berbère", "تارتينو Tartino", "الفنك Le Fennec", "باتيراج Pâturages", "فريكو Frico", "شيدار", "غرويير Gruyère", "كرافت Kraft"],
+      "ياغورت": ["صومام", "دانون Danone", "أكتيفيا Activia", "دانيت Danette", "أكتيميل Actimel", "الحضنة", "ترافل Trèfle", "أويكوس Oikos"],
+      "تونة ومعلبات": ["المنار El Manar", "ماروكا Maruca", "ريغال Régal", "سيدي داود", "إيزابيل Isabel", "ريو ماري Rio Mare", "سوبيقي Saupiquet"],
+      "عصائر": ["رامي Ramy", "رويبة Rouiba", "نڨاوس Ngaous", "إفروي Ifruit", "توجة Toudja", "راني Rani", "تروبيكو Tropico", "كابري سن Capri Sun", "جذور"],
+      "مشروبات غازية": ["حمود بوعلام", "سيليكتو Selecto", "سليم Slim", "كوكا كولا Coca-Cola", "بيبسي Pepsi", "سبرايت Sprite", "فانتا Fanta", "ميريندا Mirinda", "سفن أب 7Up", "شويبس Schweppes", "ريد بول Red Bull", "مونستر Monster"],
+      "مياه معدنية": ["إفري Ifri", "سعيدة Saida", "قديلة Guedila", "لالة خديجة", "موزاية Mouzaia", "توجة", "نسلة بيور لايف Nestlé", "مسرغين"],
+      "شوكولاتة": ["المرجان El Mordjene", "نوتيلا Nutella", "ميلكا Milka", "فيريرو روشيه Ferrero", "كيندر Kinder", "تويكس Twix", "سنيكرز Snickers", "مارس Mars", "ليندت Lindt"],
+      "بسكويت": ["بيمو Bimo", "بالماري Palmary", "بيفا Bifa", "لو LU", "أوريو Oreo", "برانس Prince", "ماكسون Maxon", "تيفاني Tiffany", "كندر بوينو"],
+      "غسيل الملابس": ["إيزيس Isis", "أومو Omo", "أريال Ariel", "تايد Tide", "لوشا Le Chat", "تاست Test", "أمير Amir", "بونكس Bonux", "ماكسيس Maxis"],
+      "جافيل ومنظفات": ["براف Bref", "فافو Favo", "عادي Adi", "لكروا La Croix", "بينغو Bingo", "أجاكس Ajax", "العملاق", "سانيبون Sanytol"],
+      "غسيل الأواني": ["إيزيس Isis", "بريل Pril", "ماكسيس Maxis", "فيري Fairy"],
+      "شامبو": ["فينوس Venus", "دوف Dove", "هيد آند شولدرز Head & Shoulders", "بانتين Pantene", "إلسيف Elseve", "كلير Clear", "كادوم Cadum"],
+      "صابون": ["الكف", "الدزاير", "دوف Dove", "بالموليف Palmolive", "لو بتي مارسيي Le Petit Marseillais", "لوكس Lux", "فا Fa", "لايف بوي Lifebuoy"],
+      "معجون أسنان": ["سيجنال Signal", "كولجيت Colgate", "سنسوداين Sensodyne", "كرست Crest", "المسواك"],
+      "حفاضات وورق": ["مولفيكس Molfix", "بامبرز Pampers", "كانبيبي Canbebe", "بيبي لوك Baby Look", "أوافي Awafy", "كوتكس Cotex", "لوتوس Lotus", "بيبي جوي BabyJoy"]
+    };
+
+    const existingDict = JSON.parse(localStorage.getItem('inv_names_dict') || '{}');
+    
+    Object.keys(seedData).forEach(key => {
+      const existingArray = existingDict[key] || [];
+      const combined = Array.from(new Set([...existingArray, ...seedData[key]]));
+      existingDict[key] = combined;
+    });
+
+    localStorage.setItem('inv_names_dict', JSON.stringify(existingDict));
+    setInvNamesDict(existingDict); 
+    showToast('success', t('inventory.seedSuccess', 'تم شحن قاعدة البيانات بنجاح! 🚀'));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -181,14 +219,14 @@ export default function Inventory() {
     } catch (e) { console.error(e); }
   };
 
-  // 🌟 الجرد الرقمي: تفريغ الخانة بالكامل وتصفيرها في قاعدة البيانات لكي تطبع فارغة
+  // 🌟 الجرد الرقمي: تفريغ الخانة بالكامل وتصفيرها
   const handleClearSingleDigitalQty = async (item) => {
     try {
       const res = await window.api.updateInvItem(item.id, {
         name: item.name,
         piecesPerBox: item.pieces_per_box,
         price: item.price,
-        systemQty: 0 // تصفيرها في قاعدة البيانات لكي لا تظهر في الطباعة
+        systemQty: 0
       });
       if (res && res.success) {
         setActualQuantities({ ...actualQuantities, [item.id]: '' });
@@ -406,7 +444,7 @@ export default function Inventory() {
         </div>
       )}
 
-      {/* 🔴 الأزرار العلوية تم ربطها بـ t() لكي تتغير لغتها */}
+      {/* 🔴 الأزرار العلوية بالترجمة */}
       <div className="flex justify-between items-start mb-8 flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white flex items-center gap-3">
@@ -434,8 +472,7 @@ export default function Inventory() {
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-6 flex flex-wrap gap-4 justify-between items-center shadow-lg">
         <div className="flex gap-3 flex-1 flex-wrap">
           
-          {/* 🔴 أزرار تعديل وحذف العائلة أصبحت واضحة */}
-          <div className="flex items-center gap-2 bg-slate-950 border border-slate-700 rounded-lg pr-2">
+          <div className="flex items-center gap-1 bg-slate-950 border border-slate-700 rounded-lg pr-1">
             <select value={selectedFamily} onChange={(e) => { setSelectedFamily(e.target.value); setSelectedType('all'); }} className="bg-transparent px-4 py-2 text-white focus:outline-none min-w-[150px]">
               <option value="all">{t('inventory.allFamilies')}</option>
               {treeData.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
@@ -455,8 +492,7 @@ export default function Inventory() {
             )}
           </div>
 
-          {/* 🔴 أزرار تعديل وحذف النوع أصبحت واضحة */}
-          <div className="flex items-center gap-2 bg-slate-950 border border-slate-700 rounded-lg pr-2">
+          <div className="flex items-center gap-1 bg-slate-950 border border-slate-700 rounded-lg pr-1">
             <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)} className="bg-transparent px-4 py-2 text-white focus:outline-none min-w-[150px]">
               <option value="all">{t('inventory.allTypes')}</option>
               {typesForFilter.map(tOption => (
@@ -735,9 +771,18 @@ export default function Inventory() {
                       className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 min-h-[150px] leading-relaxed" 
                       placeholder={t('inventory.namesPlaceholder')} />
           </div>
-          <div className="pt-2 flex justify-end gap-3">
-            <button type="button" onClick={() => setIsNameDictModalOpen(false)} className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800">{t('common.cancel')}</button>
-            <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">{t('common.save')}</button>
+          <div className="pt-4 flex justify-between items-center border-t border-slate-800 mt-4">
+            <button 
+              type="button" 
+              onClick={loadAlgerianMarketSeed} 
+              className="text-xs bg-purple-600/20 text-purple-400 hover:bg-purple-600 hover:text-white px-3 py-2 rounded-lg font-bold transition-colors"
+            >
+              🚀 {t('inventory.seedBtn')}
+            </button>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setIsNameDictModalOpen(false)} className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800">{t('common.cancel')}</button>
+              <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">{t('common.save')}</button>
+            </div>
           </div>
         </form>
       </Modal>
