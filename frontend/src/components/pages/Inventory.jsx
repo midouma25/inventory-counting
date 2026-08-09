@@ -55,7 +55,7 @@ export default function Inventory() {
 
   // 🌟 نافذة قاعدة بيانات السوق
   const [isMarketModalOpen, setIsMarketModalOpen] = useState(false);
-  const [marketMapping, setMarketMapping] = useState({}); // { "Type Name": "Family_ID" }
+  const [marketMapping, setMarketMapping] = useState({}); 
 
   const [familyName, setFamilyName] = useState('');
   const [typeData, setTypeData] = useState({ familyId: '', name: '' });
@@ -95,9 +95,9 @@ export default function Inventory() {
   const saveNamesToDict = (e) => {
     e.preventDefault();
     if (!dictSelection.typeId) {
-  showToast('error', t('inventory.selectTypeFirst'));
-  return;
-}
+      showToast('error', t('inventory.selectTypeFirst', 'يرجى اختيار النوع أولاً'));
+      return;
+    }
     
     const newNames = dictInput.split('\n').map(n => n.trim()).filter(n => n !== '');
     const currentList = invNamesDict[dictSelection.typeId] || [];
@@ -110,10 +110,10 @@ export default function Inventory() {
     setDictInput('');
     setDictSelection({ familyId: '', typeId: '' });
     setIsNameDictModalOpen(false);
-    showToast('success', t('common.success'));
+    showToast('success', t('common.success', 'تم الحفظ بنجاح'));
   };
 
-  // 🌟 استيراد الداتا من السوق
+  // 🌟 استيراد الداتا من السوق بدون Alert
   const handleImportMarketData = async () => {
     let currentDict = JSON.parse(localStorage.getItem('inv_names_dict') || '{}');
     let successCount = 0;
@@ -122,7 +122,6 @@ export default function Inventory() {
     try {
       for (const [typeName, familyId] of Object.entries(marketMapping)) {
         if (familyId) { 
-          // إنشاء النوع المربوط بالعائلة التي اختارها المستخدم
           const typeRes = await window.api.addInvType(familyId, typeName);
           if (typeRes && typeRes.success && typeRes.id) {
              const items = ALGERIAN_MARKET_DATA[typeName];
@@ -137,12 +136,12 @@ export default function Inventory() {
         localStorage.setItem('inv_names_dict', JSON.stringify(currentDict));
         setInvNamesDict(currentDict);
         await fetchTree();
-        showToast('success', t('common.success'));
+        showToast('success', t('common.success', 'تم الاستيراد بنجاح'));
         setIsMarketModalOpen(false);
         setMarketMapping({});
-} else {
-  showToast('error', t('inventory.selectOneFamilyAtLeast', 'الرجاء تعيين عائلة واحدة على الأقل'));
-}
+      } else {
+        showToast('error', t('inventory.selectOneFamilyAtLeast', 'الرجاء تعيين عائلة واحدة على الأقل'));
+      }
     } catch (error) { console.error(error); }
     finally { setIsLoading(false); }
   };
@@ -168,10 +167,10 @@ export default function Inventory() {
         res = await window.api.addInvType(typeData.familyId, typeData.name);
       } else if (modalMode === 'product') {
         const entries = Object.entries(selectedProductDetails);
-       if (entries.length === 0) {
-  showToast('error', t('inventory.selectOneName'));
-  return;
-}
+        if (entries.length === 0) {
+          showToast('error', t('inventory.selectOneName', 'الرجاء اختيار منتج وتحديد سعره'));
+          return;
+        }
         
         let allSuccess = true;
         for (const [name, details] of entries) {
@@ -188,7 +187,7 @@ export default function Inventory() {
       }
 
       if (res && res.success) {
-        showToast('success', t('common.success'));
+        showToast('success', t('common.success', 'تمت العملية بنجاح'));
         setIsModalOpen(false);
         setEditingProduct(null);
         setEditingCategoryId(null);
@@ -198,7 +197,7 @@ export default function Inventory() {
         setSelectedProductDetails({});
         fetchTree();
       } else {
-        showToast('error', t('common.error'));
+        showToast('error', t('common.error', 'حدث خطأ'));
       }
     } catch (error) { console.error(error); }
   };
@@ -212,14 +211,14 @@ export default function Inventory() {
       else if (itemToDelete.kind === 'product') res = await window.api.deleteInvItem(itemToDelete.id);
 
       if (res && res.success) {
-        showToast('success', t('common.success'));
+        showToast('success', t('common.success', 'تم الحذف'));
         if (itemToDelete.kind === 'family' && selectedFamily === String(itemToDelete.id)) setSelectedFamily('all');
         if (itemToDelete.kind === 'type' && selectedType === String(itemToDelete.id)) setSelectedType('all');
         fetchTree();
         const newSelected = new Set(selectedItems);
         newSelected.delete(itemToDelete.id);
         setSelectedItems(newSelected);
-      } else showToast('error', t('common.error'));
+      } else showToast('error', t('common.error', 'خطأ في الحذف'));
     } catch (error) { console.error(error); } 
     finally { setItemToDelete(null); }
   };
@@ -235,9 +234,9 @@ export default function Inventory() {
         systemQty: Number(qty)
       });
       if (res && res.success) {
-        showToast('success', t('common.success'));
+        showToast('success', t('common.success', 'تم الحفظ'));
         fetchTree();
-      } else showToast('error', t('common.error'));
+      } else showToast('error', t('common.error', 'خطأ'));
     } catch (e) { console.error(e); }
   };
 
@@ -252,7 +251,7 @@ export default function Inventory() {
       if (res && res.success) {
         setActualQuantities({ ...actualQuantities, [item.id]: '' });
         fetchTree();
-        showToast('success', t('inventory.qtyCleared'));
+        showToast('success', t('inventory.qtyCleared', 'تم التفريغ'));
       }
     } catch (e) { console.error(e); }
   };
@@ -305,9 +304,9 @@ export default function Inventory() {
   const handleDownloadWordA4 = () => {
     const productsToPrint = getProductsToPrint();
     if (productsToPrint.length === 0) {
-  showToast('error', t('common.noResults'));
-  return;
-}
+      showToast('error', t('common.noResults', 'لا توجد بيانات للطباعة'));
+      return;
+    }
 
     const midpoint = Math.ceil(productsToPrint.length / 2);
     const leftCol = productsToPrint.slice(0, midpoint);
@@ -327,11 +326,11 @@ export default function Inventory() {
     };
 
     const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '/');
-    const titleStr = t('inventory.wordTitle');
-    const qtyLabel = t('inventory.qty');
-    const pieceLabel = t('inventory.pieces');
-    const prodLabel = t('inventory.product');
-    const priceLabel = t('inventory.price');
+    const titleStr = t('inventory.wordTitle', 'ورقة جرد المخزون');
+    const qtyLabel = t('inventory.qty', 'الكمية');
+    const pieceLabel = t('inventory.pieces', 'حبة/علبة');
+    const prodLabel = t('inventory.product', 'المنتج');
+    const priceLabel = t('inventory.price', 'السعر');
 
     const htmlContent = `
       <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
@@ -391,9 +390,9 @@ export default function Inventory() {
   const handlePrintA7 = () => {
     const productsToPrint = getProductsToPrint();
     if (productsToPrint.length === 0) {
-  showToast('error', t('common.noResults'));
-  return;
-}
+      showToast('error', t('common.noResults', 'لا توجد بيانات'));
+      return;
+    }
 
     let iframe = document.getElementById('silent-print-iframe');
     if (iframe) document.body.removeChild(iframe);
@@ -430,13 +429,13 @@ export default function Inventory() {
       <body>
         <div class="print-wrapper">
           <h2>${currentStoreName}</h2>
-          <div class="subtitle">${t('inventory.quickStock')}<br><span style="font-size: 10px; font-weight: normal;">${new Date().toISOString().split('T')[0].replace(/-/g, '/')}</span></div>
+          <div class="subtitle">${t('inventory.quickStock', 'جرد سريع')}<br><span style="font-size: 10px; font-weight: normal;">${new Date().toISOString().split('T')[0].replace(/-/g, '/')}</span></div>
           <table>
             <thead>
               <tr>
-                <th style="width: 55%;">${t('inventory.product')}</th>
-                <th style="width: 25%; text-align: center;">${t('inventory.pieces')}</th>
-                <th style="width: 20%; text-align: center;">${t('inventory.qty')}</th>
+                <th style="width: 55%;">${t('inventory.product', 'المنتج')}</th>
+                <th style="width: 25%; text-align: center;">${t('inventory.pieces', 'العلبة')}</th>
+                <th style="width: 20%; text-align: center;">${t('inventory.qty', 'الكمية')}</th>
               </tr>
             </thead>
             <tbody>
@@ -471,62 +470,64 @@ export default function Inventory() {
         </div>
       )}
 
-      {/* 🔴 الأزرار العلوية */}
+      {/* الأزرار العلوية */}
       <div className="flex justify-between items-start mb-8 flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            <LayoutList className="text-blue-500" /> {t('sidebar.inventory')}
+            <LayoutList className="text-blue-500" /> {t('sidebar.inventory', 'إدارة وجرد المخزون')}
           </h1>
-          <p className="text-sm text-slate-500 mt-2">{t('inventory.description')}</p>
+          <p className="text-sm text-slate-500 mt-2">{t('inventory.description', 'أنشئ قوائم الجرد واطبعها.')}</p>
         </div>
         
         <div className="flex gap-2 flex-wrap">
           <button onClick={() => { setEditingProduct(null); setModalMode('family'); setIsModalOpen(true); }} className="flex items-center gap-2 bg-slate-800 text-slate-300 hover:text-white px-4 py-2 rounded-lg font-medium border border-slate-700">
-            <Layers size={18} /> + {t('inventory.addFamily')}
+            <Layers size={18} /> + {t('inventory.addFamily', 'عائلة')}
           </button>
           <button onClick={() => { setEditingProduct(null); setModalMode('type'); setIsModalOpen(true); }} className="flex items-center gap-2 bg-slate-800 text-slate-300 hover:text-white px-4 py-2 rounded-lg font-medium border border-slate-700">
-            <Tag size={18} /> + {t('inventory.addType')}
+            <Tag size={18} /> + {t('inventory.addType', 'نوع')}
           </button>
           <button onClick={() => setIsNameDictModalOpen(true)} className="flex items-center gap-2 bg-slate-800 text-slate-300 hover:text-white px-4 py-2 rounded-lg font-medium border border-slate-700">
-            <ListPlus size={18} /> + {t('inventory.addName')}
+            <ListPlus size={18} /> + {t('inventory.addName', 'إسم')}
           </button>
-          {/* 🌟 الزر الجديد للسوق في الصفحة الرئيسية */}
           <button onClick={() => setIsMarketModalOpen(true)} className="flex items-center gap-2 bg-purple-600/20 text-purple-400 hover:bg-purple-600 hover:text-white px-4 py-2 rounded-lg font-bold border border-purple-500/50 transition-colors">
-            <Store size={18} /> {t('inventory.marketDbBtn')}
+            <Store size={18} /> {t('inventory.marketDbBtn', 'قاعدة السوق')}
           </button>
           <button onClick={() => { setEditingProduct(null); setModalMode('product'); setIsModalOpen(true); }} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium shadow-lg shadow-blue-900/20 ml-auto">
-            <Package size={18} /> + {t('inventory.addProduct')}
+            <Package size={18} /> + {t('inventory.addProduct', 'منتج')}
           </button>
         </div>
       </div>
 
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-6 flex flex-wrap gap-4 justify-between items-center shadow-lg">
         <div className="flex gap-3 flex-1 flex-wrap">
+          
+          {/* 🔴 تم إصلاح الفلتر هنا بإضافة bg-slate-900 لكل option لتفادي الشاشة البيضاء */}
           <div className="flex items-center gap-1 bg-slate-950 border border-slate-700 rounded-lg pr-1">
             <select value={selectedFamily} onChange={(e) => { setSelectedFamily(e.target.value); setSelectedType('all'); }} className="bg-transparent px-4 py-2 text-white focus:outline-none min-w-[150px]">
-              <option value="all">{t('inventory.allFamilies')}</option>
-              {treeData.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+              <option value="all" className="bg-slate-900 text-white">{t('inventory.allFamilies', 'جميع العائلات')}</option>
+              {treeData.map(f => <option key={f.id} value={f.id} className="bg-slate-900 text-white">{f.name}</option>)}
             </select>
             {selectedFamily !== 'all' && (
               <div className="flex gap-1 border-s border-slate-700 ps-2 py-1">
                 <button onClick={() => { 
                   const fam = treeData.find(f => String(f.id) === String(selectedFamily));
                   setFamilyName(fam.name); setEditingCategoryId(fam.id); setModalMode('edit-family'); setIsModalOpen(true); 
-                }} className="text-blue-400 hover:text-white transition-colors flex items-center gap-1 text-xs font-bold" title={t('common.edit')}>
+                }} className="text-blue-400 hover:text-white transition-colors flex items-center gap-1 text-xs font-bold" title={t('common.edit', 'تعديل')}>
                   <Edit size={14} />
                 </button>
-                <button onClick={() => setItemToDelete({ kind: 'family', id: selectedFamily })} className="text-red-400 hover:text-white transition-colors flex items-center gap-1 text-xs font-bold ml-2" title={t('common.delete')}>
+                <button onClick={() => setItemToDelete({ kind: 'family', id: selectedFamily })} className="text-red-400 hover:text-white transition-colors flex items-center gap-1 text-xs font-bold ml-2" title={t('common.delete', 'حذف')}>
                   <Trash2 size={14} />
                 </button>
               </div>
             )}
           </div>
 
+          {/* 🔴 إصلاح الفلتر الثاني بإضافة bg-slate-900 */}
           <div className="flex items-center gap-1 bg-slate-950 border border-slate-700 rounded-lg pr-1">
             <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)} className="bg-transparent px-4 py-2 text-white focus:outline-none min-w-[150px]">
-              <option value="all">{t('inventory.allTypes')}</option>
+              <option value="all" className="bg-slate-900 text-white">{t('inventory.allTypes', 'جميع الأنواع')}</option>
               {typesForFilter.map(tOption => (
-                <option key={tOption.id} value={tOption.id}>{tOption.name}</option>
+                <option key={tOption.id} value={tOption.id} className="bg-slate-900 text-white">{tOption.name}</option>
               ))}
             </select>
             {selectedType !== 'all' && (
@@ -534,10 +535,10 @@ export default function Inventory() {
                 <button onClick={() => { 
                   const typ = typesForFilter.find(t => String(t.id) === String(selectedType));
                   setTypeData({ ...typeData, name: typ.name }); setEditingCategoryId(typ.id); setModalMode('edit-type'); setIsModalOpen(true); 
-                }} className="text-blue-400 hover:text-white transition-colors flex items-center gap-1 text-xs font-bold" title={t('common.edit')}>
+                }} className="text-blue-400 hover:text-white transition-colors flex items-center gap-1 text-xs font-bold" title={t('common.edit', 'تعديل')}>
                   <Edit size={14} /> 
                 </button>
-                <button onClick={() => setItemToDelete({ kind: 'type', id: selectedType })} className="text-red-400 hover:text-white transition-colors flex items-center gap-1 text-xs font-bold ml-2" title={t('common.delete')}>
+                <button onClick={() => setItemToDelete({ kind: 'type', id: selectedType })} className="text-red-400 hover:text-white transition-colors flex items-center gap-1 text-xs font-bold ml-2" title={t('common.delete', 'حذف')}>
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -546,21 +547,21 @@ export default function Inventory() {
 
           <div className="relative flex-1 max-w-xs">
             <Search size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <input type="text" placeholder={t('common.search')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className={`w-full bg-slate-950 border border-slate-700 rounded-lg py-2 text-white focus:outline-none focus:border-blue-500 ${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'}`} />
+            <input type="text" placeholder={t('common.search', 'بحث...')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className={`w-full bg-slate-950 border border-slate-700 rounded-lg py-2 text-white focus:outline-none focus:border-blue-500 ${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'}`} />
           </div>
 
-          <button onClick={() => setSortByCategory(!sortByCategory)} className={`flex items-center justify-center p-2 rounded-lg border transition-colors ${sortByCategory ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-950 border-slate-700 text-slate-400 hover:text-white'}`} title={t('inventory.sortByCategory')}>
+          <button onClick={() => setSortByCategory(!sortByCategory)} className={`flex items-center justify-center p-2 rounded-lg border transition-colors ${sortByCategory ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-950 border-slate-700 text-slate-400 hover:text-white'}`} title={t('inventory.sortByCategory', 'ترتيب')}>
             <ArrowUpDown size={18} />
           </button>
         </div>
 
         <div className="flex gap-3 mt-4 lg:mt-0">
           <button onClick={() => setIsDigitalMode(!isDigitalMode)} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-colors ${isDigitalMode ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-emerald-400 border border-emerald-900/50 hover:bg-slate-700'}`}>
-            <ScanLine size={18} /> {isDigitalMode ? t('inventory.cancelDigitalMode') : t('inventory.enterDigitalMode')}
+            <ScanLine size={18} /> {isDigitalMode ? t('inventory.cancelDigitalMode', 'إلغاء') : t('inventory.enterDigitalMode', 'جرد رقمي')}
           </button>
           
           <button onClick={() => setIsPrintModalOpen(true)} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg font-bold shadow-lg relative">
-            <Printer size={18} /> {t('inventory.printSheet')}
+            <Printer size={18} /> {t('inventory.printSheet', 'طباعة')}
             {selectedItems.size > 0 && (
               <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full border-2 border-slate-950">{selectedItems.size}</span>
             )}
@@ -576,23 +577,23 @@ export default function Inventory() {
                 <th className="px-4 py-4 w-10 text-center">
                   <input type="checkbox" checked={displayProducts.length > 0 && selectedItems.size === displayProducts.length} onChange={handleSelectAll} className="w-4 h-4 rounded border-slate-700 cursor-pointer" />
                 </th>
-                <th className="px-6 py-4 text-sm font-medium text-slate-400 text-start">{t('inventory.product')}</th>
-                <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('inventory.category')}</th>
-                <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('inventory.pieces')}</th>
-                <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('inventory.price')}</th>
-                <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('inventory.systemQty')}</th>
+                <th className="px-6 py-4 text-sm font-medium text-slate-400 text-start">{t('inventory.product', 'المنتج')}</th>
+                <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('inventory.category', 'التصنيف')}</th>
+                <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('inventory.pieces', 'العلبة')}</th>
+                <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('inventory.price', 'السعر')}</th>
+                <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('inventory.systemQty', 'النظام')}</th>
                 {isDigitalMode ? (
-                  <th className="px-6 py-4 text-sm font-bold text-emerald-400 text-center">{t('inventory.actualQty')}</th>
+                  <th className="px-6 py-4 text-sm font-bold text-emerald-400 text-center">{t('inventory.actualQty', 'الكمية')}</th>
                 ) : (
-                  <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('common.actions')}</th>
+                  <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('common.actions', 'إجراءات')}</th>
                 )}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan="7" className="text-center py-12 text-slate-500">{t('common.loading')}</td></tr>
+                <tr><td colSpan="7" className="text-center py-12 text-slate-500">{t('common.loading', 'جاري التحميل...')}</td></tr>
               ) : displayProducts.length === 0 ? (
-                <tr><td colSpan="7" className="text-center py-12 text-slate-500">{t('common.noResults')}</td></tr>
+                <tr><td colSpan="7" className="text-center py-12 text-slate-500">{t('common.noResults', 'لا توجد نتائج')}</td></tr>
               ) : (
                 displayProducts.map(item => (
                   <tr key={item.id} className={`border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors ${selectedItems.has(item.id) ? 'bg-blue-900/10' : ''}`}>
@@ -615,22 +616,22 @@ export default function Inventory() {
                           <input type="number" 
                                  value={actualQuantities[item.id] !== undefined ? actualQuantities[item.id] : ''} 
                                  onChange={(e) => setActualQuantities({ ...actualQuantities, [item.id]: e.target.value })}
-                                 placeholder={t('common.enterValue')} 
+                                 placeholder={t('common.enterValue', 'أدخل')} 
                                  className="w-16 bg-slate-950 border border-emerald-900/50 rounded-lg px-1 py-1.5 text-center text-white focus:outline-none focus:border-emerald-500 font-bold" />
                           
                           <button onClick={() => handleSaveSingleDigitalQty(item)} className="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold text-xs flex items-center gap-1 transition-colors">
-                             <Check size={14} /> {t('common.save')}
+                             <Check size={14} /> {t('common.save', 'حفظ')}
                           </button>
 
                           <button onClick={() => handleClearSingleDigitalQty(item)} className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-bold text-xs flex items-center gap-1 transition-colors border border-slate-600">
-                             <Eraser size={14} /> {t('inventory.clearQty')}
+                             <Eraser size={14} /> {t('inventory.clearQty', 'تفريغ')}
                           </button>
                         </div>
                       </td>
                     ) : (
                       <td className="px-6 py-4 text-center flex justify-center gap-2">
-                        <button onClick={() => { setEditingProduct(item); setIsModalOpen(true); }} className="p-2 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" title={t('common.edit')}><Edit size={18} /></button>
-                        <button onClick={() => setItemToDelete({ kind: 'product', id: item.id })} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors" title={t('common.delete')}><Trash2 size={18} /></button>
+                        <button onClick={() => { setEditingProduct(item); setIsModalOpen(true); }} className="p-2 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" title={t('common.edit', 'تعديل')}><Edit size={18} /></button>
+                        <button onClick={() => setItemToDelete({ kind: 'product', id: item.id })} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors" title={t('common.delete', 'حذف')}><Trash2 size={18} /></button>
                       </td>
                     )}
                   </tr>
@@ -641,28 +642,27 @@ export default function Inventory() {
         </div>
       </div>
 
-      {/* 🔴 نافذة الإضافة أو التعديل */}
-      <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setEditingProduct(null); setEditingCategoryId(null); }} title={editingProduct ? t('inventory.editProductTitle') : modalMode === 'edit-family' ? t('inventory.editFamilyTitle') : modalMode === 'edit-type' ? t('inventory.editTypeTitle') : modalMode === 'family' ? t('inventory.addFamilyTitle') : modalMode === 'type' ? t('inventory.addTypeTitle') : t('inventory.addProductTitle')}>
+      <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setEditingProduct(null); setEditingCategoryId(null); }} title={editingProduct ? t('inventory.editProductTitle', 'تعديل') : modalMode === 'edit-family' ? t('inventory.editFamilyTitle', 'تعديل') : modalMode === 'edit-type' ? t('inventory.editTypeTitle', 'تعديل') : modalMode === 'family' ? t('inventory.addFamilyTitle', 'إضافة') : modalMode === 'type' ? t('inventory.addTypeTitle', 'إضافة') : t('inventory.addProductTitle', 'إضافة')}>
         <form onSubmit={handleSubmit} className="p-4 space-y-4" dir={isRTL ? "rtl" : "ltr"}>
           
           {editingProduct ? (
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('common.name')}</label>
+                <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('common.name', 'الاسم')}</label>
                 <input type="text" required value={editingProduct.name} onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('inventory.pieces')}</label>
+                  <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('inventory.pieces', 'العلبة')}</label>
                   <input type="number" min="1" required value={editingProduct.pieces_per_box} onChange={(e) => setEditingProduct({ ...editingProduct, pieces_per_box: e.target.value })} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('inventory.price')}</label>
+                  <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('inventory.price', 'السعر')}</label>
                   <input type="number" min="0" required value={editingProduct.price} onChange={(e) => setEditingProduct({ ...editingProduct, price: e.target.value })} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500" />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('inventory.systemQty')}</label>
+                <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('inventory.systemQty', 'الكمية في النظام')}</label>
                 <input type="number" min="0" required value={editingProduct.system_qty} onChange={(e) => setEditingProduct({ ...editingProduct, system_qty: e.target.value })} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500" />
               </div>
             </div>
@@ -671,7 +671,7 @@ export default function Inventory() {
               {(modalMode === 'type' || modalMode === 'product') && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('inventory.family')}</label>
+                    <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('inventory.family', 'العائلة')}</label>
                     <select required value={modalMode === 'type' ? typeData.familyId : productForm.familyId || ''} 
                             onChange={(e) => {
                               if(modalMode === 'type') setTypeData({...typeData, familyId: e.target.value});
@@ -681,18 +681,18 @@ export default function Inventory() {
                               }
                             }} 
                             className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none">
-                      <option value="" disabled>-- {t('inventory.selectFamily')} --</option>
-                      {treeData.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                      <option value="" disabled className="bg-slate-900">-- {t('inventory.selectFamily')} --</option>
+                      {treeData.map(f => <option key={f.id} value={f.id} className="bg-slate-900 text-white">{f.name}</option>)}
                     </select>
                   </div>
 
                   {modalMode === 'product' && (
                     <div>
-                      <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('inventory.type')}</label>
+                      <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('inventory.type', 'نوع المنتج')}</label>
                       <select required value={productForm.typeId} onChange={(e) => { setProductForm({...productForm, typeId: e.target.value}); setSelectedProductDetails({}); }} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none" disabled={!productForm.familyId}>
-                        <option value="" disabled>-- {t('inventory.selectType')} --</option>
+                        <option value="" disabled className="bg-slate-900">-- {t('inventory.selectType')} --</option>
                         {treeData.find(f => String(f.id) === String(productForm.familyId))?.types.map(t => (
-                          <option key={t.id} value={t.id}>{t.name}</option>
+                          <option key={t.id} value={t.id} className="bg-slate-900 text-white">{t.name}</option>
                         ))}
                       </select>
                     </div>
@@ -702,7 +702,7 @@ export default function Inventory() {
 
               {modalMode === 'product' ? (
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-2 text-start">{t('inventory.selectNamesAndPrices')}</label>
+                  <label className="block text-sm font-medium text-slate-400 mb-2 text-start">{t('inventory.selectNamesAndPrices', 'اختر المنتجات وحدد السعر والعلبة:')}</label>
                   
                   <div className="max-h-60 overflow-y-auto border border-slate-700 rounded-lg p-3 bg-slate-900 space-y-3 text-start">
                     {(invNamesDict[productForm.typeId] || []).map(n => {
@@ -747,13 +747,13 @@ export default function Inventory() {
                           </div>
                         );
                     })}
-                    {(!productForm.typeId) && <div className="text-center text-slate-500 text-sm py-4">{t('inventory.selectTypeFirst')}</div>}
-                    {(productForm.typeId && (invNamesDict[productForm.typeId] || []).length === 0) && <div className="text-center text-slate-500 text-sm py-4">{t('inventory.emptyDict')}</div>}
+                    {(!productForm.typeId) && <div className="text-center text-slate-500 text-sm py-4">{t('inventory.selectTypeFirst', 'يرجى اختيار العائلة والنوع أولاً')}</div>}
+                    {(productForm.typeId && (invNamesDict[productForm.typeId] || []).length === 0) && <div className="text-center text-slate-500 text-sm py-4">{t('inventory.emptyDict', 'القائمة فارغة لهذا النوع، اضغط على زر + إسم لإضافة أسماء')}</div>}
                   </div>
                 </div>
               ) : (
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('common.name')}</label>
+                  <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('common.name', 'الاسم')}</label>
                   <input type="text" required 
                          value={modalMode.includes('family') ? familyName : typeData.name} 
                          onChange={(e) => {
@@ -767,61 +767,61 @@ export default function Inventory() {
           )}
 
           <div className="pt-4 flex justify-end gap-3 mt-4">
-            <button type="button" onClick={() => { setIsModalOpen(false); setEditingProduct(null); setEditingCategoryId(null); }} className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800">{t('common.cancel')}</button>
-            <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">{t('common.save')}</button>
+            <button type="button" onClick={() => { setIsModalOpen(false); setEditingProduct(null); setEditingCategoryId(null); }} className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800">{t('common.cancel', 'إلغاء')}</button>
+            <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">{t('common.save', 'حفظ')}</button>
           </div>
         </form>
       </Modal>
 
-      <Modal isOpen={isNameDictModalOpen} onClose={() => setIsNameDictModalOpen(false)} title={t('inventory.addNameTitle')}>
+      <Modal isOpen={isNameDictModalOpen} onClose={() => setIsNameDictModalOpen(false)} title={t('inventory.addNameTitle', 'إضافة أسماء للقاموس')}>
         <form onSubmit={saveNamesToDict} className="p-4 space-y-4" dir={isRTL ? 'rtl' : 'ltr'}>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('inventory.family')}</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('inventory.family', 'العائلة')}</label>
               <select required value={dictSelection.familyId} onChange={(e) => setDictSelection({ familyId: e.target.value, typeId: '' })} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none">
-                <option value="" disabled>-- {t('inventory.selectFamily')} --</option>
-                {treeData.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                <option value="" disabled className="bg-slate-900 text-slate-400">-- {t('inventory.selectFamily')} --</option>
+                {treeData.map(f => <option key={f.id} value={f.id} className="bg-slate-900 text-white">{f.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('inventory.type')}</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('inventory.type', 'نوع المنتج')}</label>
               <select required value={dictSelection.typeId} onChange={(e) => setDictSelection({...dictSelection, typeId: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none" disabled={!dictSelection.familyId}>
-                <option value="" disabled>-- {t('inventory.selectType')} --</option>
-                {treeData.find(f => String(f.id) === String(dictSelection.familyId))?.types.map(t => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
+                <option value="" disabled className="bg-slate-900 text-slate-400">-- {t('inventory.selectType')} --</option>
+                {treeData.find(f => String(f.id) === String(dictSelection.familyId))?.types.map(tOption => (
+                  <option key={tOption.id} value={tOption.id} className="bg-slate-900 text-white">{tOption.name}</option>
                 ))}
               </select>
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-2 text-start">
-              {t('inventory.namesDictHint')}
+              {t('inventory.namesDictHint', 'أدخل أسماء المنتجات (كل منتج في سطر جديد)')}
             </label>
             <textarea required value={dictInput} onChange={(e) => setDictInput(e.target.value)}
                       className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 min-h-[150px] leading-relaxed" 
                       placeholder={t('inventory.namesPlaceholder')} />
           </div>
           <div className="pt-2 flex justify-end gap-3">
-            <button type="button" onClick={() => setIsNameDictModalOpen(false)} className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800">{t('common.cancel')}</button>
-            <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">{t('common.save')}</button>
+            <button type="button" onClick={() => setIsNameDictModalOpen(false)} className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800">{t('common.cancel', 'إلغاء')}</button>
+            <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">{t('common.save', 'حفظ')}</button>
           </div>
         </form>
       </Modal>
 
-      {/* 🌟 نافذة قاعدة بيانات السوق (الجديدة) */}
-     <Modal isOpen={isMarketModalOpen} onClose={() => setIsMarketModalOpen(false)} title={t('inventory.marketDbTitle', 'استيراد قاعدة بيانات السوق')} maxWidth="max-w-5xl">
+      {/* 🌟 نافذة قاعدة بيانات السوق (الجديدة) محددة العرض عبر maxWidth */}
+      <Modal isOpen={isMarketModalOpen} onClose={() => setIsMarketModalOpen(false)} title={t('inventory.marketDbTitle', 'استيراد قاعدة السوق')} maxWidth="max-w-5xl">
         <div className="p-4" dir={isRTL ? 'rtl' : 'ltr'}>
           <p className="text-slate-400 mb-4 text-sm text-start">
-            {t('inventory.marketDbDesc', 'اختر العائلة المناسبة لكل نوع من الأنواع الجاهزة لكي يتم استيراد منتجاتها تلقائياً. (الأنواع التي تتجاهلها لن يتم استيرادها)')}
+            {t('inventory.marketDbDesc', 'اختر العائلة المناسبة لكل نوع ليتم استيراد منتجاتها تلقائياً. الأنواع المتروكة (تجاهل) لن يتم استيرادها.')}
           </p>
           
           <div className="max-h-[50vh] overflow-y-auto border border-slate-800 rounded-lg bg-slate-900">
             <table className="w-full text-sm text-start text-slate-300">
               <thead className="bg-slate-950/80 border-b border-slate-800 sticky top-0">
                  <tr>
-                   <th className="p-3 text-start">{t('inventory.type')}</th>
+                   <th className="p-3 text-start w-1/4">{t('inventory.type', 'نوع المنتج')}</th>
                    <th className="p-3 text-start w-1/2">{t('inventory.productsList', 'المنتجات')}</th>
-                   <th className="p-3 text-start">{t('inventory.assignToFamily', 'تعيين لعائلة')}</th>
+                   <th className="p-3 text-start w-1/4">{t('inventory.assignToFamily', 'تعيين لعائلة')}</th>
                  </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/50">
@@ -835,8 +835,8 @@ export default function Inventory() {
                              onChange={(e) => setMarketMapping({ ...marketMapping, [type]: e.target.value })}
                              className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-white focus:outline-none focus:border-purple-500 text-xs"
                           >
-                             <option value="">-- {t('common.ignore', 'تجاهل')} --</option>
-                             {treeData.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                             <option value="" className="bg-slate-900 text-slate-400">-- {t('common.ignore', 'تجاهل')} --</option>
+                             {treeData.map(f => <option key={f.id} value={f.id} className="bg-slate-900 text-white">{f.name}</option>)}
                           </select>
                        </td>
                     </tr>
@@ -850,25 +850,25 @@ export default function Inventory() {
                {t('inventory.selectedTypes', 'الأنواع المحددة:')} <strong className="text-purple-400">{Object.values(marketMapping).filter(v => v !== '').length}</strong>
              </span>
              <div className="flex gap-2">
-               <button onClick={() => setIsMarketModalOpen(false)} className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800">{t('common.cancel')}</button>
+               <button onClick={() => setIsMarketModalOpen(false)} className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800">{t('common.cancel', 'إلغاء')}</button>
                <button onClick={handleImportMarketData} disabled={isLoading} className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-bold shadow-lg disabled:opacity-50 flex items-center gap-2">
-                 {isLoading ? t('common.loading') : <><Download size={16}/> {t('common.save')}</>}
+                 {isLoading ? t('common.loading', 'جاري...') : <><Download size={16}/> {t('common.save', 'حفظ')}</>}
                </button>
              </div>
           </div>
         </div>
       </Modal>
 
-      <Modal isOpen={isPrintModalOpen} onClose={() => setIsPrintModalOpen(false)} title={t('inventory.printOptions')}>
+      <Modal isOpen={isPrintModalOpen} onClose={() => setIsPrintModalOpen(false)} title={t('inventory.printOptions', 'خيارات الطباعة')}>
         <div className="p-6 flex flex-col gap-4 text-start" dir={isRTL ? 'rtl' : 'ltr'}>
-          <p className="text-slate-400 mb-4 text-center">{t('inventory.printDesc')}</p>
+          <p className="text-slate-400 mb-4 text-center">{t('inventory.printDesc', 'اختر مقاس الورق المناسب لطباعة القائمة.')}</p>
           
           <button onClick={handleDownloadWordA4} className="w-full flex items-center justify-between p-4 bg-indigo-600/10 hover:bg-indigo-600 border border-indigo-500/50 hover:border-indigo-500 rounded-xl transition-all text-indigo-400 hover:text-white font-bold group">
             <div className="flex items-center gap-4">
               <Download size={24} className="text-indigo-400 group-hover:text-white" />
               <div className="text-start">
-                <div className="text-lg">{t('inventory.printA4')}</div>
-                <div className="text-xs font-normal opacity-80 mt-1">{t('inventory.printA4Desc')}</div>
+                <div className="text-lg">{t('inventory.printA4', 'تحميل ملف Word (A4)')}</div>
+                <div className="text-xs font-normal opacity-80 mt-1">{t('inventory.printA4Desc', 'مستند وورد مقسوم على عمودين لتوفير المساحة')}</div>
               </div>
             </div>
             <FileText size={20} />
@@ -878,8 +878,8 @@ export default function Inventory() {
             <div className="flex items-center gap-4">
               <Printer size={24} className="text-emerald-400 group-hover:text-white" />
               <div className="text-start">
-                <div className="text-lg">{t('inventory.printA7')}</div>
-                <div className="text-xs font-normal opacity-80 mt-1">{t('inventory.printA7Desc')}</div>
+                <div className="text-lg">{t('inventory.printA7', 'ورقة جرد حرارية (80mm)')}</div>
+                <div className="text-xs font-normal opacity-80 mt-1">{t('inventory.printA7Desc', 'جرد سريع للمنطقة المحددة (طابعة الكاشير)')}</div>
               </div>
             </div>
             <Printer size={20} />
@@ -887,7 +887,7 @@ export default function Inventory() {
         </div>
       </Modal>
 
-      <ConfirmAlert isOpen={!!itemToDelete} onClose={() => setItemToDelete(null)} onConfirm={executeDelete} title={t('common.confirmDelete')} message={t('inventory.deleteWarning')} confirmText={t('common.confirm')} cancelText={t('common.cancel')} />
+      <ConfirmAlert isOpen={!!itemToDelete} onClose={() => setItemToDelete(null)} onConfirm={executeDelete} title={t('common.confirmDelete', 'تأكيد الحذف')} message={t('inventory.deleteWarning', 'هل أنت متأكد من الحذف؟')} confirmText={t('common.confirm', 'تأكيد')} cancelText={t('common.cancel', 'إلغاء')} />
     </div>
   );
 }
