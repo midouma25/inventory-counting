@@ -677,7 +677,14 @@
     "clearQty": "Effacer",
     "qtyCleared": "Quantité effacée avec succès",
     "seedBtn": "Charger Marques (Algérie)",
-    "seedSuccess": "Base de données chargée avec succès! 🚀"
+    "seedSuccess": "Base de données chargée avec succès! 🚀",
+    "marketDbBtn": "Base du Marché",
+    "marketDbTitle": "Importer la base de données du marché",
+    "marketDbDesc": "Choisissez la famille appropriée pour chaque type prêt à l'emploi afin d'importer automatiquement ses produits. (Les types ignorés ne seront pas importés)",
+    "productsList": "Produits",
+    "assignToFamily": "Assigner à une famille",
+    "selectedTypes": "Types sélectionnés :",
+    "selectOneFamilyAtLeast": "Veuillez assigner au moins une famille"
   },
 "badge": {
       "printBtn": "Badge Employé",

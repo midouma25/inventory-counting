@@ -1,8 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Printer, FileText, LayoutList, CheckCircle2, AlertCircle, Trash2, Tag, Layers, Package, ScanLine, Download, ArrowUpDown, ListPlus, Edit, Check, Eraser } from 'lucide-react';
+import { Search, Plus, Printer, FileText, LayoutList, CheckCircle2, AlertCircle, Trash2, Tag, Layers, Package, ScanLine, Download, ArrowUpDown, ListPlus, Edit, Check, Eraser, Store } from 'lucide-react';
 import Modal from '../ui/Modal';
 import ConfirmAlert from '../ui/ConfirmAlert';
+
+// 🌟 قاعدة بيانات السوق الجزائري الشاملة
+const ALGERIAN_MARKET_DATA = {
+  "عجائن وسميد (Pâtes & Semoule)": ["ماما Mama", "سيم Sim", "عمر بن عمر", "سفينة Safina", "أكسترا Extra", "الوردة البيضاء", "للا خديجة", "بانزاني Panzani"],
+  "طماطم مصبرة (Tomate Concentrée)": ["الحارة", "إيزيس Isis", "كاب CAB", "صبيا Sobia", "إيزم Izem", "التاج", "جودي Jouda", "سيكام Sicam"],
+  "زيت الطهي (Huile)": ["إيليو Elio", "سيفيتال Cevital", "عافية Afia", "فلوريال Fleurial", "لوسيور Lesieur", "بوجي Puget", "ينار"],
+  "قهوة (Café)": ["بونال Bonal", "فاكتو Facto", "أروما Aroma", "1001", "طابا Taba", "نسكافيه Nescafé", "كارت نوار Carte Noire", "لافازا Lavazza"],
+  "شاي (Thé)": ["الخنشلي", "الصحراء", "الخيمة", "ليبتون Lipton", "توينينغز Twinings", "سلطان Sultan", "القافلة"],
+  "حليب (Lait)": ["كانديا Candia", "صومام Soummam", "الحضنة Hodna", "طاسيلي", "جيبلي", "لوشا Le Chat", "لحظة Loya", "نيدو Nestlé Nido"],
+  "أجبان (Fromage)": ["البقرة الضاحكة La Vache Qui Rit", "كيري Kiri", "رئيس Président", "بربر Berbère", "تارتينو Tartino", "الفنك Le Fennec", "فريكو Frico", "شيدار Cheddar"],
+  "ياغورت (Yaourt)": ["صومام Soummam", "دانون Danone", "أكتيفيا Activia", "دانيت Danette", "أكتيميل Actimel", "الحضنة", "ترافل Trèfle"],
+  "تونة ومعلبات (Thon & Conserves)": ["المنار El Manar", "ماروكا Maruca", "ريغال Régal", "سيدي داود", "إيزابيل Isabel", "ريو ماري Rio Mare"],
+  "عصائر (Jus)": ["رامي Ramy", "رويبة Rouiba", "نڨاوس Ngaous", "إفروي Ifruit", "توجة Toudja", "راني Rani", "تروبيكو Tropico", "جذور"],
+  "مشروبات غازية (Boissons Gazeuses)": ["حمود بوعلام", "سيليكتو Selecto", "سليم Slim", "كوكا كولا Coca-Cola", "بيبسي Pepsi", "سبرايت Sprite", "فانتا Fanta", "ميريندا Mirinda"],
+  "مياه معدنية (Eau Minérale)": ["إفري Ifri", "سعيدة Saida", "قديلة Guedila", "لالة خديجة", "موزاية Mouzaia", "توجة", "مسرغين"],
+  "شوكولاتة (Chocolat)": ["المرجان El Mordjene", "نوتيلا Nutella", "ميلكا Milka", "فيريرو روشيه Ferrero", "كيندر Kinder", "تويكس Twix", "سنيكرز Snickers"],
+  "بسكويت (Biscuits)": ["بيمو Bimo", "بالماري Palmary", "بيفا Bifa", "لو LU", "أوريو Oreo", "برانس Prince", "ماكسون Maxon", "كندر بوينو"],
+  "غسيل الملابس (Lessive)": ["إيزيس Isis", "أومو Omo", "أريال Ariel", "تايد Tide", "لوشا Le Chat", "تاست Test", "أمير Amir", "ماكسيس Maxis"],
+  "جافيل ومنظفات (Javel & Entretien)": ["براف Bref", "فافو Favo", "عادي Adi", "لكروا La Croix", "بينغو Bingo", "أجاكس Ajax", "العملاق"],
+  "غسيل الأواني (Liquide Vaisselle)": ["إيزيس Isis", "بريل Pril", "ماكسيس Maxis", "فيري Fairy"],
+  "شامبو (Shampooing)": ["فينوس Venus", "دوف Dove", "هيد آند شولدرز Head & Shoulders", "بانتين Pantene", "إلسيف Elseve", "كلير Clear"],
+  "صابون (Savon)": ["الكف", "الدزاير", "دوف Dove", "بالموليف Palmolive", "لو بتي مارسيي Le Petit Marseillais", "لوكس Lux"],
+  "معجون أسنان (Dentifrice)": ["سيجنال Signal", "كولجيت Colgate", "سنسوداين Sensodyne", "كرست Crest", "المسواك"],
+  "حفاضات وورق (Couches & Papier)": ["مولفيكس Molfix", "بامبرز Pampers", "كانبيبي Canbebe", "بيبي لوك Baby Look", "لوتوس Lotus"]
+};
 
 export default function Inventory() {
   const { t, i18n } = useTranslation();
@@ -12,37 +37,34 @@ export default function Inventory() {
   const [treeData, setTreeData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // الفلاتر
   const [selectedFamily, setSelectedFamily] = useState('all');
   const [selectedType, setSelectedType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortByCategory, setSortByCategory] = useState(false);
 
-  // التحديد
   const [selectedItems, setSelectedItems] = useState(new Set());
 
-  // النوافذ المنبثقة
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState('product'); // 'family' | 'type' | 'product' | 'edit-family' | 'edit-type'
+  const [modalMode, setModalMode] = useState('product'); 
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   
-  // قاموس الأسماء
   const [isNameDictModalOpen, setIsNameDictModalOpen] = useState(false);
   const [dictSelection, setDictSelection] = useState({ familyId: '', typeId: '' });
   const [dictInput, setDictInput] = useState('');
   const [invNamesDict, setInvNamesDict] = useState({}); 
 
-  // النماذج
+  // 🌟 نافذة قاعدة بيانات السوق
+  const [isMarketModalOpen, setIsMarketModalOpen] = useState(false);
+  const [marketMapping, setMarketMapping] = useState({}); // { "Type Name": "Family_ID" }
+
   const [familyName, setFamilyName] = useState('');
   const [typeData, setTypeData] = useState({ familyId: '', name: '' });
   const [productForm, setProductForm] = useState({ familyId: '', typeId: '' });
   const [selectedProductDetails, setSelectedProductDetails] = useState({}); 
 
-  // التعديل
   const [editingProduct, setEditingProduct] = useState(null);
   const [editingCategoryId, setEditingCategoryId] = useState(null); 
 
-  // الجرد الرقمي
   const [isDigitalMode, setIsDigitalMode] = useState(false);
   const [actualQuantities, setActualQuantities] = useState({});
 
@@ -72,7 +94,10 @@ export default function Inventory() {
 
   const saveNamesToDict = (e) => {
     e.preventDefault();
-    if (!dictSelection.typeId) return alert(t('inventory.selectTypeFirst'));
+    if (!dictSelection.typeId) {
+  showToast('error', t('inventory.selectTypeFirst'));
+  return;
+}
     
     const newNames = dictInput.split('\n').map(n => n.trim()).filter(n => n !== '');
     const currentList = invNamesDict[dictSelection.typeId] || [];
@@ -87,44 +112,39 @@ export default function Inventory() {
     setIsNameDictModalOpen(false);
     showToast('success', t('common.success'));
   };
-  
-  // 🌟 دالة التغذية التلقائية لقاعدة البيانات (السوق الجزائري + المستورد)
-  const loadAlgerianMarketSeed = () => {
-    const seedData = {
-      "عجائن وسميد": ["ماما Mama", "سيم Sim", "عمر بن عمر", "سفينة Safina", "أكسترا Extra", "الوردة البيضاء", "للا خديجة", "بانزاني Panzani", "باريلا Barilla", "ريفوار وكاريه Rivoire & Carret"],
-      "طماطم مصبرة": ["الحارة", "إيزيس Isis", "كاب CAB", "صبيا Sobia", "إيزم Izem", "التاج", "جودي Jouda", "سيكام Sicam", "موتي Mutti", "هاينز Heinz"],
-      "زيت": ["إيليو Elio", "سيفيتال Cevital", "عافية Afia", "فلوريال Fleurial", "لوسيور Lesieur", "بوجي Puget", "ينار", "الزهرة"],
-      "قهوة": ["بونال Bonal", "فاكتو Facto", "أروما Aroma", "1001", "طابا Taba", "نسكافيه Nescafé", "كارت نوار Carte Noire", "لافازا Lavazza", "فاميل Famille"],
-      "شاي": ["الخنشلي", "الصحراء", "الخيمة", "ليبتون Lipton", "توينينغز Twinings", "سلطان Sultan", "القافلة"],
-      "حليب": ["كانديا Candia", "صومام Soummam", "الحضنة Hodna", "طاسيلي", "جيبلي", "لوشا Le Chat", "لحظة Loya", "نيدو Nestlé Nido", "سليا Célia"],
-      "أجبان": ["البقرة الضاحكة La Vache Qui Rit", "كيري Kiri", "رئيس Président", "بربر Berbère", "تارتينو Tartino", "الفنك Le Fennec", "باتيراج Pâturages", "فريكو Frico", "شيدار", "غرويير Gruyère", "كرافت Kraft"],
-      "ياغورت": ["صومام", "دانون Danone", "أكتيفيا Activia", "دانيت Danette", "أكتيميل Actimel", "الحضنة", "ترافل Trèfle", "أويكوس Oikos"],
-      "تونة ومعلبات": ["المنار El Manar", "ماروكا Maruca", "ريغال Régal", "سيدي داود", "إيزابيل Isabel", "ريو ماري Rio Mare", "سوبيقي Saupiquet"],
-      "عصائر": ["رامي Ramy", "رويبة Rouiba", "نڨاوس Ngaous", "إفروي Ifruit", "توجة Toudja", "راني Rani", "تروبيكو Tropico", "كابري سن Capri Sun", "جذور"],
-      "مشروبات غازية": ["حمود بوعلام", "سيليكتو Selecto", "سليم Slim", "كوكا كولا Coca-Cola", "بيبسي Pepsi", "سبرايت Sprite", "فانتا Fanta", "ميريندا Mirinda", "سفن أب 7Up", "شويبس Schweppes", "ريد بول Red Bull", "مونستر Monster"],
-      "مياه معدنية": ["إفري Ifri", "سعيدة Saida", "قديلة Guedila", "لالة خديجة", "موزاية Mouzaia", "توجة", "نسلة بيور لايف Nestlé", "مسرغين"],
-      "شوكولاتة": ["المرجان El Mordjene", "نوتيلا Nutella", "ميلكا Milka", "فيريرو روشيه Ferrero", "كيندر Kinder", "تويكس Twix", "سنيكرز Snickers", "مارس Mars", "ليندت Lindt"],
-      "بسكويت": ["بيمو Bimo", "بالماري Palmary", "بيفا Bifa", "لو LU", "أوريو Oreo", "برانس Prince", "ماكسون Maxon", "تيفاني Tiffany", "كندر بوينو"],
-      "غسيل الملابس": ["إيزيس Isis", "أومو Omo", "أريال Ariel", "تايد Tide", "لوشا Le Chat", "تاست Test", "أمير Amir", "بونكس Bonux", "ماكسيس Maxis"],
-      "جافيل ومنظفات": ["براف Bref", "فافو Favo", "عادي Adi", "لكروا La Croix", "بينغو Bingo", "أجاكس Ajax", "العملاق", "سانيبون Sanytol"],
-      "غسيل الأواني": ["إيزيس Isis", "بريل Pril", "ماكسيس Maxis", "فيري Fairy"],
-      "شامبو": ["فينوس Venus", "دوف Dove", "هيد آند شولدرز Head & Shoulders", "بانتين Pantene", "إلسيف Elseve", "كلير Clear", "كادوم Cadum"],
-      "صابون": ["الكف", "الدزاير", "دوف Dove", "بالموليف Palmolive", "لو بتي مارسيي Le Petit Marseillais", "لوكس Lux", "فا Fa", "لايف بوي Lifebuoy"],
-      "معجون أسنان": ["سيجنال Signal", "كولجيت Colgate", "سنسوداين Sensodyne", "كرست Crest", "المسواك"],
-      "حفاضات وورق": ["مولفيكس Molfix", "بامبرز Pampers", "كانبيبي Canbebe", "بيبي لوك Baby Look", "أوافي Awafy", "كوتكس Cotex", "لوتوس Lotus", "بيبي جوي BabyJoy"]
-    };
 
-    const existingDict = JSON.parse(localStorage.getItem('inv_names_dict') || '{}');
-    
-    Object.keys(seedData).forEach(key => {
-      const existingArray = existingDict[key] || [];
-      const combined = Array.from(new Set([...existingArray, ...seedData[key]]));
-      existingDict[key] = combined;
-    });
+  // 🌟 استيراد الداتا من السوق
+  const handleImportMarketData = async () => {
+    let currentDict = JSON.parse(localStorage.getItem('inv_names_dict') || '{}');
+    let successCount = 0;
 
-    localStorage.setItem('inv_names_dict', JSON.stringify(existingDict));
-    setInvNamesDict(existingDict); 
-    showToast('success', t('inventory.seedSuccess', 'تم شحن قاعدة البيانات بنجاح! 🚀'));
+    setIsLoading(true);
+    try {
+      for (const [typeName, familyId] of Object.entries(marketMapping)) {
+        if (familyId) { 
+          // إنشاء النوع المربوط بالعائلة التي اختارها المستخدم
+          const typeRes = await window.api.addInvType(familyId, typeName);
+          if (typeRes && typeRes.success && typeRes.id) {
+             const items = ALGERIAN_MARKET_DATA[typeName];
+             const existingList = currentDict[typeRes.id] || [];
+             currentDict[typeRes.id] = Array.from(new Set([...existingList, ...items]));
+             successCount++;
+          }
+        }
+      }
+
+      if (successCount > 0) {
+        localStorage.setItem('inv_names_dict', JSON.stringify(currentDict));
+        setInvNamesDict(currentDict);
+        await fetchTree();
+        showToast('success', t('common.success'));
+        setIsMarketModalOpen(false);
+        setMarketMapping({});
+} else {
+  showToast('error', t('inventory.selectOneFamilyAtLeast', 'الرجاء تعيين عائلة واحدة على الأقل'));
+}
+    } catch (error) { console.error(error); }
+    finally { setIsLoading(false); }
   };
 
   const handleSubmit = async (e) => {
@@ -148,7 +168,10 @@ export default function Inventory() {
         res = await window.api.addInvType(typeData.familyId, typeData.name);
       } else if (modalMode === 'product') {
         const entries = Object.entries(selectedProductDetails);
-        if (entries.length === 0) return alert(t('inventory.selectOneName'));
+       if (entries.length === 0) {
+  showToast('error', t('inventory.selectOneName'));
+  return;
+}
         
         let allSuccess = true;
         for (const [name, details] of entries) {
@@ -201,7 +224,6 @@ export default function Inventory() {
     finally { setItemToDelete(null); }
   };
 
-  // 🌟 الجرد الرقمي: حفظ الكمية
   const handleSaveSingleDigitalQty = async (item) => {
     const qty = actualQuantities[item.id];
     if (qty === '' || qty === undefined) return;
@@ -219,7 +241,6 @@ export default function Inventory() {
     } catch (e) { console.error(e); }
   };
 
-  // 🌟 الجرد الرقمي: تفريغ الخانة بالكامل وتصفيرها
   const handleClearSingleDigitalQty = async (item) => {
     try {
       const res = await window.api.updateInvItem(item.id, {
@@ -283,7 +304,10 @@ export default function Inventory() {
 
   const handleDownloadWordA4 = () => {
     const productsToPrint = getProductsToPrint();
-    if (productsToPrint.length === 0) return alert(t('common.noResults'));
+    if (productsToPrint.length === 0) {
+  showToast('error', t('common.noResults'));
+  return;
+}
 
     const midpoint = Math.ceil(productsToPrint.length / 2);
     const leftCol = productsToPrint.slice(0, midpoint);
@@ -366,7 +390,10 @@ export default function Inventory() {
 
   const handlePrintA7 = () => {
     const productsToPrint = getProductsToPrint();
-    if (productsToPrint.length === 0) return alert(t('common.noResults'));
+    if (productsToPrint.length === 0) {
+  showToast('error', t('common.noResults'));
+  return;
+}
 
     let iframe = document.getElementById('silent-print-iframe');
     if (iframe) document.body.removeChild(iframe);
@@ -444,7 +471,7 @@ export default function Inventory() {
         </div>
       )}
 
-      {/* 🔴 الأزرار العلوية بالترجمة */}
+      {/* 🔴 الأزرار العلوية */}
       <div className="flex justify-between items-start mb-8 flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white flex items-center gap-3">
@@ -463,7 +490,11 @@ export default function Inventory() {
           <button onClick={() => setIsNameDictModalOpen(true)} className="flex items-center gap-2 bg-slate-800 text-slate-300 hover:text-white px-4 py-2 rounded-lg font-medium border border-slate-700">
             <ListPlus size={18} /> + {t('inventory.addName')}
           </button>
-          <button onClick={() => { setEditingProduct(null); setModalMode('product'); setIsModalOpen(true); }} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium shadow-lg shadow-blue-900/20">
+          {/* 🌟 الزر الجديد للسوق في الصفحة الرئيسية */}
+          <button onClick={() => setIsMarketModalOpen(true)} className="flex items-center gap-2 bg-purple-600/20 text-purple-400 hover:bg-purple-600 hover:text-white px-4 py-2 rounded-lg font-bold border border-purple-500/50 transition-colors">
+            <Store size={18} /> {t('inventory.marketDbBtn')}
+          </button>
+          <button onClick={() => { setEditingProduct(null); setModalMode('product'); setIsModalOpen(true); }} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium shadow-lg shadow-blue-900/20 ml-auto">
             <Package size={18} /> + {t('inventory.addProduct')}
           </button>
         </div>
@@ -471,7 +502,6 @@ export default function Inventory() {
 
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-6 flex flex-wrap gap-4 justify-between items-center shadow-lg">
         <div className="flex gap-3 flex-1 flex-wrap">
-          
           <div className="flex items-center gap-1 bg-slate-950 border border-slate-700 rounded-lg pr-1">
             <select value={selectedFamily} onChange={(e) => { setSelectedFamily(e.target.value); setSelectedType('all'); }} className="bg-transparent px-4 py-2 text-white focus:outline-none min-w-[150px]">
               <option value="all">{t('inventory.allFamilies')}</option>
@@ -579,7 +609,6 @@ export default function Inventory() {
                     <td className="px-6 py-4 text-center font-bold text-amber-400">{item.price.toLocaleString()}</td>
                     <td className="px-6 py-4 text-center font-bold text-slate-300">{item.system_qty}</td>
                     
-                    {/* 🔴 الجرد الرقمي: إضافة أزرار التأكيد والتفريغ الواضحة */}
                     {isDigitalMode ? (
                       <td className="px-6 py-2 text-center bg-emerald-950/20">
                         <div className="flex items-center justify-center gap-2">
@@ -612,6 +641,7 @@ export default function Inventory() {
         </div>
       </div>
 
+      {/* 🔴 نافذة الإضافة أو التعديل */}
       <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setEditingProduct(null); setEditingCategoryId(null); }} title={editingProduct ? t('inventory.editProductTitle') : modalMode === 'edit-family' ? t('inventory.editFamilyTitle') : modalMode === 'edit-type' ? t('inventory.editTypeTitle') : modalMode === 'family' ? t('inventory.addFamilyTitle') : modalMode === 'type' ? t('inventory.addTypeTitle') : t('inventory.addProductTitle')}>
         <form onSubmit={handleSubmit} className="p-4 space-y-4" dir={isRTL ? "rtl" : "ltr"}>
           
@@ -771,20 +801,62 @@ export default function Inventory() {
                       className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 min-h-[150px] leading-relaxed" 
                       placeholder={t('inventory.namesPlaceholder')} />
           </div>
-          <div className="pt-4 flex justify-between items-center border-t border-slate-800 mt-4">
-            <button 
-              type="button" 
-              onClick={loadAlgerianMarketSeed} 
-              className="text-xs bg-purple-600/20 text-purple-400 hover:bg-purple-600 hover:text-white px-3 py-2 rounded-lg font-bold transition-colors"
-            >
-              🚀 {t('inventory.seedBtn')}
-            </button>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setIsNameDictModalOpen(false)} className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800">{t('common.cancel')}</button>
-              <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">{t('common.save')}</button>
-            </div>
+          <div className="pt-2 flex justify-end gap-3">
+            <button type="button" onClick={() => setIsNameDictModalOpen(false)} className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800">{t('common.cancel')}</button>
+            <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">{t('common.save')}</button>
           </div>
         </form>
+      </Modal>
+
+      {/* 🌟 نافذة قاعدة بيانات السوق (الجديدة) */}
+     <Modal isOpen={isMarketModalOpen} onClose={() => setIsMarketModalOpen(false)} title={t('inventory.marketDbTitle', 'استيراد قاعدة بيانات السوق')} maxWidth="max-w-5xl">
+        <div className="p-4" dir={isRTL ? 'rtl' : 'ltr'}>
+          <p className="text-slate-400 mb-4 text-sm text-start">
+            {t('inventory.marketDbDesc', 'اختر العائلة المناسبة لكل نوع من الأنواع الجاهزة لكي يتم استيراد منتجاتها تلقائياً. (الأنواع التي تتجاهلها لن يتم استيرادها)')}
+          </p>
+          
+          <div className="max-h-[50vh] overflow-y-auto border border-slate-800 rounded-lg bg-slate-900">
+            <table className="w-full text-sm text-start text-slate-300">
+              <thead className="bg-slate-950/80 border-b border-slate-800 sticky top-0">
+                 <tr>
+                   <th className="p-3 text-start">{t('inventory.type')}</th>
+                   <th className="p-3 text-start w-1/2">{t('inventory.productsList', 'المنتجات')}</th>
+                   <th className="p-3 text-start">{t('inventory.assignToFamily', 'تعيين لعائلة')}</th>
+                 </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/50">
+                 {Object.entries(ALGERIAN_MARKET_DATA).map(([type, items]) => (
+                    <tr key={type} className="hover:bg-slate-800/30">
+                       <td className="p-3 font-bold text-white whitespace-nowrap">{type}</td>
+                       <td className="p-3 text-xs text-slate-400 leading-relaxed">{items.join('، ')}</td>
+                       <td className="p-3">
+                          <select 
+                             value={marketMapping[type] || ''}
+                             onChange={(e) => setMarketMapping({ ...marketMapping, [type]: e.target.value })}
+                             className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-white focus:outline-none focus:border-purple-500 text-xs"
+                          >
+                             <option value="">-- {t('common.ignore', 'تجاهل')} --</option>
+                             {treeData.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                          </select>
+                       </td>
+                    </tr>
+                 ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="pt-4 mt-4 border-t border-slate-800 flex justify-between items-center">
+             <span className="text-xs text-slate-500">
+               {t('inventory.selectedTypes', 'الأنواع المحددة:')} <strong className="text-purple-400">{Object.values(marketMapping).filter(v => v !== '').length}</strong>
+             </span>
+             <div className="flex gap-2">
+               <button onClick={() => setIsMarketModalOpen(false)} className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800">{t('common.cancel')}</button>
+               <button onClick={handleImportMarketData} disabled={isLoading} className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-bold shadow-lg disabled:opacity-50 flex items-center gap-2">
+                 {isLoading ? t('common.loading') : <><Download size={16}/> {t('common.save')}</>}
+               </button>
+             </div>
+          </div>
+        </div>
       </Modal>
 
       <Modal isOpen={isPrintModalOpen} onClose={() => setIsPrintModalOpen(false)} title={t('inventory.printOptions')}>

@@ -678,7 +678,14 @@
     "clearQty": "Clear",
     "qtyCleared": "Quantity cleared successfully",
     "seedBtn": "Load Local Brands",
-    "seedSuccess": "Database loaded successfully! 🚀"
+    "seedSuccess": "Database loaded successfully! 🚀",
+    "marketDbBtn": "Market DB",
+    "marketDbTitle": "Import Market Database",
+    "marketDbDesc": "Choose the appropriate family for each ready-made type to automatically import its products. (Ignored types will not be imported)",
+    "productsList": "Products",
+    "assignToFamily": "Assign to Family",
+    "selectedTypes": "Selected Types:",
+    "selectOneFamilyAtLeast": "Please assign at least one family"
   },
 "badge": {
       "printBtn": "Employee Badge",
