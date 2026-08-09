@@ -41,6 +41,7 @@ export default function Suppliers() {
 
   useEffect(() => { fetchSuppliers(); fetchEmployees(); }, []);
 
+  // 🔴 هذه الدالة هي التي ترسل البيانات إلى صفحة PrintPreview التي أصلحناها في الجزء الأول
   const handlePreview = (type, item) => { navigate('/preview', { state: { type, item, supplierName: currentSupplier.name } }); };
 
   const handleSaveSupplier = async (e) => { 

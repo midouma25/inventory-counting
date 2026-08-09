@@ -21,7 +21,7 @@ import StoreMap from './components/pages/StoreMap';
 import PdfImporter from './components/pages/PdfImporter'; 
 import SystemClock from './components/ui/SystemClock'; 
 import ActivationScreen from './components/ActivationScreen';
-
+import Inventory from './components/pages/Inventory';
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   if (!isAuthenticated) return <Navigate to="/login" replace />;
@@ -109,6 +109,7 @@ function App() {
           <Route path="settings" element={<SuperAdminRoute><Settings /></SuperAdminRoute>} /> 
           <Route path="/archive" element={<DailyClosuresArchive />} />
           <Route path="audit-logs" element={<SuperAdminRoute><AuditLogs /></SuperAdminRoute>} />
+          <Route path="inventory" element={<SuperAdminRoute><Inventory /></SuperAdminRoute>} />
           <Route path="store-map" element={<SuperAdminRoute><StoreMap /></SuperAdminRoute>} />
           <Route path="pdf-importer" element={<SuperAdminRoute><PdfImporter /></SuperAdminRoute>} />
           

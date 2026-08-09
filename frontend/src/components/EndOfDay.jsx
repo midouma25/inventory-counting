@@ -106,18 +106,86 @@ export default function EndOfDay() {
     i18n.changeLanguage(nextLang);
   };
 
-  // 2. زر الطباعة المباشرة
-  const handlePrint = async () => {
-    try {
-      if (window.api && window.api.printReceipt) {
-        await window.api.printReceipt();
-      } else {
-        window.print();
-      }
-    } catch (error) {
-      console.error("Print Error:", error);
-      window.print();
-    }
+  // ------------------------------------------------------------------
+  // 2. زر الطباعة المباشرة (تم حل مشكلة تآكل الحواف بإضافة Padding 6mm)
+  // ------------------------------------------------------------------
+  const handlePrint = () => {
+    const printElement = document.getElementById('printable-receipt');
+    if (!printElement) return;
+
+    let iframe = document.getElementById('silent-print-iframe');
+    if (iframe) document.body.removeChild(iframe);
+
+    iframe = document.createElement('iframe');
+    iframe.id = 'silent-print-iframe';
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    // 🔴 تم التعديل هنا فقط: وضعنا padding: 0 6mm لإجبار النص على الدخول للوسط وحماية الحواف
+    doc.write(`
+      <!DOCTYPE html>
+      <html lang="${i18n.language}" dir="${isRTL ? 'rtl' : 'ltr'}">
+      <head>
+        <title>Print</title>
+        <style>
+          @page { margin: 0; }
+          html, body { 
+            margin: 0; 
+            padding: 0;
+            width: 100%;
+            background: #fff; 
+            color: #000; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+          }
+          .print-wrapper {
+            width: 100%;
+            max-width: 72mm; 
+            margin: 0 auto;
+            /* 🔴 السر هنا لحل مشكلة التآكل: هوامش يمين ويسار بـ 6 ملم لدفع النص للداخل */
+            padding: 2mm 6mm; 
+            box-sizing: border-box;
+          }
+          /* --- نسخ الكلاسات الخاصة بك بدقة --- */
+          .receipt-ticket-forced { width: 100%; box-sizing: border-box; }
+          .header-title { text-align: center; font-size: 18px; font-weight: 900; margin: 0 0 2px 0; }
+          .header-subtitle1 { text-align: center; font-size: 11px; margin: 0 0 6px 0; letter-spacing: 1px; }
+          .badge-action { text-align: center; font-size: 15px; font-weight: bold; border: 2px solid #000; padding: 6px; margin: 8px 0; border-radius: 4px; }
+          .receipt-divider { border-top: 1.5px dashed #000; margin: 10px 0; }
+          .flex { display: flex; }
+          .flex-col { flex-direction: column; }
+          .w-full { width: 100%; }
+          .my-2 { margin: 8px 0; }
+          .info-row { display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-bottom: 6px; }
+          .label-field { white-space: nowrap; }
+          .value-field { text-align: ${isRTL ? 'left' : 'right'}; }
+          .amount-box { display: flex; justify-content: space-between; align-items: center; border: 2px solid #000; border-radius: 4px; padding: 8px 6px; margin: 10px 0; }
+          .box-title { font-size: 15px; font-weight: bold; }
+          .box-value { font-size: 18px; font-weight: 900; direction: ltr; }
+          .signatures-area { text-align: center; font-size: 12px; font-weight: bold; margin-top: 15px; }
+          .footer-area { text-align: center; font-size: 11px; margin-top: 10px; font-weight: bold; }
+          .dev-brand { font-size: 12px; font-weight: 900; }
+        </style>
+      </head>
+      <body>
+        <div class="print-wrapper">
+          ${printElement.outerHTML}
+        </div>
+      </body>
+      </html>
+    `);
+    doc.close();
+
+    iframe.contentWindow.focus();
+    setTimeout(() => {
+      iframe.contentWindow.print();
+    }, 500);
   };
 
   // 3. زر حفظ الـ PDF 
@@ -328,7 +396,6 @@ export default function EndOfDay() {
           </div>
         )}
 
-        {/* لوحة تحكم المدير العادية */}
         {!showZReport && (
           <>
             <div className="flex justify-between items-center mb-8">
@@ -475,104 +542,147 @@ export default function EndOfDay() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans relative">
       {renderToast()}
-      
-      {/* ستايل إجباري لضبط أبعاد الطابعة في نافذة الطباعة الافتراضية (Actual Size) */}
-      <style type="text/css" media="print">
-        {`
-          @page { size: 80mm auto; margin: 0; }
-          body { margin: 0; padding: 0; }
-        `}
-      </style>
 
-      {/* 🔴 شاشة الوصل الحراري 80mm - الكود القديم الخاص بك تماماً */}
+      {/* 🔴 النافذة الاحترافية لخيارات الطباعة والمعاينة */}
       {showReceipt && receiptData && !isSuperAdmin && (
-        <div className="fixed inset-0 z-[9999] bg-slate-950/90 flex flex-col items-center justify-center p-4 backdrop-blur-sm overflow-y-auto" dir={isRTL ? "rtl" : "ltr"}>
+        <div className="fixed inset-0 z-[9999] bg-slate-950/95 flex items-center justify-center p-4 backdrop-blur-md" dir={isRTL ? "rtl" : "ltr"}>
           
-          <div id="printable-receipt" className="receipt-ticket-forced mx-auto shadow-2xl bg-white text-black print:shadow-none" dir={isRTL ? "rtl" : "ltr"}>
-            <div className="header-title">GHERBI.AI</div>
-            <div className="header-subtitle">CODE &bull; MULTIMEDIA &bull; ALGO &bull; AI</div>
-            <div className="header-title" style={{ marginTop: '1mm' }}><bdi>{currentStoreName}</bdi></div>
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-5xl flex flex-col md:flex-row overflow-hidden">
             
-            <div className="badge-action">
-              {t('eod.x_report', i18n.language === 'ar' ? 'تقرير الوردية (X-REPORT)' : i18n.language === 'fr' ? 'Rapport de Quart (X-REPORT)' : 'Shift Report (X-REPORT)')}
+            {/* القسم الأيسر: المعاينة الحية للوصل */}
+            <div className="bg-slate-800 p-8 flex justify-center items-center w-full md:w-1/2 border-b md:border-b-0 md:border-l border-slate-700 relative overflow-y-auto max-h-[85vh]">
+              <div className="absolute top-4 left-4 bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-700 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="text-xs font-bold tracking-widest text-slate-300 uppercase">Live Preview</span>
+              </div>
               
-              {/* حل مشكلة التاريخ המقلوب */}
-              <div style={{ fontSize: '10px', marginTop: '2px', fontWeight: 'normal' }} dir="ltr">
-                {getFormattedDate()}
+              {/* 
+                  هنا يوجد كود الوصل الخاص بك كما هو،
+                  وضعناه في حاوية تصغره ليلائم الشاشة بدون المساس بالكود 
+              */}
+              <div style={{ transform: 'scale(0.95)', transformOrigin: 'top center', marginTop: '2rem' }}>
+                <div id="printable-receipt" className="receipt-ticket-forced mx-auto shadow-2xl bg-white text-black print:shadow-none" dir={isRTL ? "rtl" : "ltr"}>
+                  <div className="header-title">GHERBI.AI</div>
+                  <div className="header-subtitle1">CODE &bull; MULTIMEDIA &bull; ALGO &bull; AI</div>
+                  <div className="header-title" style={{ marginTop: '1mm' }}><bdi>{currentStoreName}</bdi></div>
+                  
+                  <div className="badge-action">
+                    {t('eod.x_report', i18n.language === 'ar' ? 'تقرير الوردية (X-REPORT)' : i18n.language === 'fr' ? 'Rapport de Quart (X-REPORT)' : 'Shift Report (X-REPORT)')}
+                    
+                    {/* حل مشكلة التاريخ المقلوب */}
+                    <div style={{ fontSize: '10px', marginTop: '2px', fontWeight: 'normal' }} dir="ltr">
+                      {getFormattedDate()}
+                    </div>
+                  </div>
+                  
+                  <div className="receipt-divider"></div>
+
+                  <div className="flex flex-col w-full my-2">
+                    <div className="info-row">
+                      <span className="label-field">{t('eod.cashierName', i18n.language === 'ar' ? 'الكاشير:' : i18n.language === 'fr' ? 'Caissier:' : 'Cashier:')}</span>
+                      <span className="value-field">{receiptData.cashier}</span>
+                    </div>
+                    <div className="info-row">
+                      <span className="label-field">{t('hr.table.timeIn', i18n.language === 'ar' ? 'الدخول:' : i18n.language === 'fr' ? 'Entrée:' : 'Time In:')}</span>
+                      <span className="value-field" dir="ltr">{new Date(receiptData.startTime).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                    <div className="info-row">
+                      <span className="label-field">{t('eod.time_out', i18n.language === 'ar' ? 'الخروج:' : i18n.language === 'fr' ? 'Sortie:' : 'Time Out:')}</span>
+                      <span className="value-field" dir="ltr">{new Date(receiptData.endTime).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  </div>
+
+                  <div className="receipt-divider"></div>
+
+                  <div className="flex flex-col w-full my-2">
+                    <div className="info-row">
+                      <span className="label-field">{t('eod.opening_balance', i18n.language === 'ar' ? 'الافتتاح:' : i18n.language === 'fr' ? 'Ouverture:' : 'Opening:')}</span>
+                      <span className="value-field" dir="ltr"><bdi>{receiptData.opening.toLocaleString()} {t('currency', 'DA')}</bdi></span>
+                    </div>
+                    <div className="info-row">
+                      <span className="label-field">{t('eod.total_deducted', i18n.language === 'ar' ? 'المسحوبات:' : i18n.language === 'fr' ? 'Déductions:' : 'Deductions:')}</span>
+                      <span className="value-field" dir="ltr"><bdi>{(receiptData.out || 0).toLocaleString()} {t('currency', 'DA')}</bdi></span>
+                    </div>
+                  </div>
+
+                  <div className="amount-box">
+                    <span className="box-title">{t('eod.actual_cash', i18n.language === 'ar' ? 'الدرج الفعلي:' : i18n.language === 'fr' ? 'Tiroir Réel:' : 'Actual Drawer:')}</span>
+                    <span className="box-value" dir="ltr">
+                      <bdi>{(receiptData.actual || 0).toLocaleString()} {t('currency', 'DA')}</bdi>
+                    </span>
+                  </div>
+
+                  <div className="amount-box">
+                    <span className="box-title">{t('eod.today_sales', i18n.language === 'ar' ? 'المبيعات:' : i18n.language === 'fr' ? 'Ventes:' : 'Sales:')}</span>
+                    <span className="box-value" dir="ltr">
+                      <bdi>{(receiptData.sales || 0).toLocaleString()} {t('currency', 'DA')}</bdi>
+                    </span>
+                  </div>
+
+                  <div className="signatures-area" style={{ justifyContent: 'center', marginTop: '8mm' }}>
+                    <span>{t('eod.receipt_footer', i18n.language === 'ar' ? 'احتفظ بالوصل للمراجعة' : i18n.language === 'fr' ? 'Conservez ce reçu' : 'Keep for review')}</span>
+                  </div>
+
+                  <div className="receipt-divider"></div>
+
+                  <div className="footer-area">
+                    <div className="dev-brand">POWERED BY GHERBI.AI</div>
+                  </div>
+                </div>
               </div>
             </div>
-            
-            <div className="receipt-divider"></div>
 
-            <div className="flex flex-col w-full my-2">
-              <div className="info-row">
-                <span className="label-field">{t('eod.cashierName', i18n.language === 'ar' ? 'الكاشير:' : i18n.language === 'fr' ? 'Caissier:' : 'Cashier:')}</span>
-                <span className="value-field">{receiptData.cashier}</span>
+            {/* القسم الأيمن: أزرار التحكم الاحترافية الخاصة بالطباعة */}
+            <div className="p-8 w-full md:w-1/2 flex flex-col justify-center space-y-8 bg-slate-900">
+              <div>
+                <h2 className="text-3xl font-bold text-white mb-2">{t('common.printSettings', i18n.language === 'ar' ? 'إعدادات الطباعة' : 'Print Settings')}</h2>
+                <p className="text-slate-400 text-sm">{i18n.language === 'ar' ? 'النافذة الاحترافية الخاصة بالطباعة' : 'Professional Print Dashboard'}</p>
               </div>
-              <div className="info-row">
-                <span className="label-field">{t('hr.table.timeIn', i18n.language === 'ar' ? 'الدخول:' : i18n.language === 'fr' ? 'Entrée:' : 'Time In:')}</span>
-                <span className="value-field" dir="ltr">{new Date(receiptData.startTime).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span>
+
+              <div className="space-y-4 mt-6">
+                {/* 1. زر تغيير اللغة */}
+                <button onClick={toggleLanguage} className="w-full flex items-center justify-between p-4 bg-slate-950 hover:bg-slate-800 border border-slate-700 rounded-xl transition-all text-white font-bold group">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-slate-800 p-2 rounded-lg group-hover:bg-blue-600 transition-colors">
+                      <Globe size={22} className="text-blue-400 group-hover:text-white" />
+                    </div>
+                    <span className="text-lg">{t('common.language', i18n.language === 'ar' ? 'تغيير لغة الوصل' : 'Change Receipt Language')}</span>
+                  </div>
+                  <span className="text-sm bg-blue-900/30 border border-blue-800 text-blue-300 px-3 py-1 rounded-md uppercase tracking-wider">{i18n.language}</span>
+                </button>
+
+                {/* 2. زر الطباعة المباشرة (النسخة المعزولة 100%) */}
+                <button onClick={handlePrint} className="w-full flex items-center justify-between p-4 bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/50 hover:border-emerald-500 rounded-xl transition-all text-emerald-500 hover:text-white font-bold group">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-emerald-500/20 group-hover:bg-emerald-500 p-2 rounded-lg transition-colors">
+                      <Printer size={22} className="text-emerald-400 group-hover:text-white" />
+                    </div>
+                    <span className="text-lg">{t('common.print', i18n.language === 'ar' ? 'طباعة مباشرة' : 'Direct Print')}</span>
+                  </div>
+                  <span className="text-xs bg-emerald-950 border border-emerald-800 text-emerald-400 px-3 py-1 rounded-md">XPrinter 80mm</span>
+                </button>
+
+                {/* 3. زر حفظ الـ PDF */}
+                <button onClick={handleSavePDF} className="w-full flex items-center justify-between p-4 bg-indigo-600/10 hover:bg-indigo-600 border border-indigo-500/50 hover:border-indigo-500 rounded-xl transition-all text-indigo-400 hover:text-white font-bold group">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-indigo-500/20 group-hover:bg-indigo-500 p-2 rounded-lg transition-colors">
+                      <Download size={22} className="text-indigo-400 group-hover:text-white" />
+                    </div>
+                    <span className="text-lg">{t('common.save', i18n.language === 'ar' ? 'حفظ' : 'Save PDF')}</span>
+                  </div>
+                  <span className="text-xs bg-indigo-950 border border-indigo-800 text-indigo-400 px-3 py-1 rounded-md">Digital Copy</span>
+                </button>
               </div>
-              <div className="info-row">
-                <span className="label-field">{t('eod.time_out', i18n.language === 'ar' ? 'الخروج:' : i18n.language === 'fr' ? 'Sortie:' : 'Time Out:')}</span>
-                <span className="value-field" dir="ltr">{new Date(receiptData.endTime).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span>
+
+              <div className="pt-8 mt-auto">
+                {/* 4. زر الإغلاق */}
+                <button onClick={handleCloseReceipt} className="w-full flex items-center justify-center gap-2 p-4 bg-red-950/30 hover:bg-red-600 text-red-500 hover:text-white border border-red-900/50 hover:border-red-500 rounded-xl transition-all font-bold text-lg">
+                  <X size={24} /> <span>{t('common.close', i18n.language === 'ar' ? 'إغلاق' : 'Close')}</span>
+                </button>
               </div>
             </div>
 
-            <div className="receipt-divider"></div>
-
-            <div className="flex flex-col w-full my-2">
-              <div className="info-row">
-                <span className="label-field">{t('eod.opening_balance', i18n.language === 'ar' ? 'الافتتاح:' : i18n.language === 'fr' ? 'Ouverture:' : 'Opening:')}</span>
-                <span className="value-field" dir="ltr"><bdi>{receiptData.opening.toLocaleString()} {t('currency', 'DA')}</bdi></span>
-              </div>
-              <div className="info-row">
-                <span className="label-field">{t('eod.total_deducted', i18n.language === 'ar' ? 'المسحوبات:' : i18n.language === 'fr' ? 'Déductions:' : 'Deductions:')}</span>
-                <span className="value-field" dir="ltr"><bdi>{(receiptData.out || 0).toLocaleString()} {t('currency', 'DA')}</bdi></span>
-              </div>
-            </div>
-
-            <div className="amount-box">
-              <span className="box-title">{t('eod.actual_cash', i18n.language === 'ar' ? 'الدرج الفعلي:' : i18n.language === 'fr' ? 'Tiroir Réel:' : 'Actual Drawer:')}</span>
-              <span className="box-value" dir="ltr">
-                <bdi>{(receiptData.actual || 0).toLocaleString()} {t('currency', 'DA')}</bdi>
-              </span>
-            </div>
-
-            <div className="amount-box">
-              <span className="box-title">{t('eod.today_sales', i18n.language === 'ar' ? 'المبيعات:' : i18n.language === 'fr' ? 'Ventes:' : 'Sales:')}</span>
-              <span className="box-value" dir="ltr">
-                <bdi>{(receiptData.sales || 0).toLocaleString()} {t('currency', 'DA')}</bdi>
-              </span>
-            </div>
-
-            <div className="signatures-area" style={{ justifyContent: 'center', marginTop: '8mm' }}>
-              <span>{t('eod.receipt_footer', i18n.language === 'ar' ? 'احتفظ بالوصل للمراجعة' : i18n.language === 'fr' ? 'Conservez ce reçu' : 'Keep for review')}</span>
-            </div>
-
-            <div className="receipt-divider"></div>
-
-            <div className="footer-area">
-              <div className="dev-brand">POWERED BY GHERBI.AI</div>
-            </div>
           </div>
-
-          {/* 🔴 الأزرار الأربعة */}
-          <div className="grid grid-cols-2 gap-2 w-full max-w-xs mt-6 no-print">
-            <button onClick={toggleLanguage} className="col-span-2 bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors border border-slate-700">
-              <Globe size={18} /> {t('common.language', 'تغيير لغة الوصل')}
-            </button>
-            <button onClick={handlePrint} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors">
-              <Printer size={18} /> {t('common.print', 'طباعة')}
-            </button>
-            <button onClick={handleSavePDF} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors">
-              <Download size={18} /> {t('common.save', 'حفظ PDF')}
-            </button>
-            <button onClick={handleCloseReceipt} className="col-span-2 bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-lg shadow-red-900/20">
-              <X size={18} /> {t('common.close', 'إغلاق ومتابعة')}
-            </button>
-          </div>
-
         </div>
       )}
 
@@ -629,7 +739,7 @@ export default function EndOfDay() {
                     </button>
                     <span className="text-sm font-bold text-slate-300 flex items-center gap-2">
                       <Printer size={16} className={autoPrintEnabled ? "text-blue-400" : "text-slate-500"} />
-                      {t('eod.auto_print', i18n.language === 'ar' ? 'طباعة وحفظ الوصل تلقائياً' : 'Auto Print & Save')}
+                      {t('eod.auto_print', i18n.language === 'ar' ? 'الطباعة والحفظ التلقائي' : 'Auto Print & Save')}
                     </span>
                   </div>
                 </div>

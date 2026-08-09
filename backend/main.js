@@ -15,7 +15,8 @@ const {
   openShift, getActiveShift, closeShift, getShiftSummary,dbPath,
   getUsers, addUser, deleteUser, updateEmployee, deleteEmployee ,logAudit , getAuditLogs, backupDatabase, getShelfProducts,
   generateExcelBackup, updateSupplier, deleteSupplier, updateAdvance, deleteAdvance, getAllShiftsSummary , getDailyClosures, getArchivedZReport,updateAttendanceRecord,getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, closeBusinessDay, getSuppliersList, saveInvoiceDebt, saveMapLayout, getMapLayout, getStoreLayouts, saveStoreLayout, deleteStoreLayout, activateStoreLayout
-  , deleteReceipt, deletePayment, updateReceipt, updatePayment, importSuppliersFromExcel, deleteShelfProduct, updateShelfProduct, setWindowsTime,saveReceiptPdf, printReceipt
+  , deleteReceipt, deletePayment, updateReceipt, updatePayment, importSuppliersFromExcel, deleteShelfProduct, updateShelfProduct, setWindowsTime,saveReceiptPdf, printReceipt,
+  getInventoryTree, addInvFamily, deleteInvFamily, addInvType, deleteInvType, addInvItem, updateInvItem, deleteInvItem, updateInvFamily, updateInvType
 } = require('./database');
 
 // 👇 استدعاء آمن للمكتبة ليتوافق مع جميع إصدارات Electron و Node.js
@@ -199,7 +200,15 @@ ipcMain.handle("save-receipt-pdf", async (event) => {
       return { success: false, error: error.message };
     }
   });
-  
+  // --- مسارات نظام الجرد (Inventory) ---
+  ipcMain.handle('get-inventory-tree', () => getInventoryTree());
+  ipcMain.handle('add-inv-family', (event, name) => addInvFamily(name));
+  ipcMain.handle('delete-inv-family', (event, id) => deleteInvFamily(id));
+  ipcMain.handle('add-inv-type', (event, familyId, name) => addInvType(familyId, name));
+  ipcMain.handle('delete-inv-type', (event, id) => deleteInvType(id));
+  ipcMain.handle('add-inv-item', (event, data) => addInvItem(data));
+  ipcMain.handle('update-inv-item', (event, id, data) => updateInvItem(id, data));
+  ipcMain.handle('delete-inv-item', (event, id) => deleteInvItem(id));
   ipcMain.handle('get-supplier-details', (event, id) => getSupplierDetails(id));
   ipcMain.handle('add-receipt', (event, data) => {
     try { return { success: true, id: addReceipt(data) }; } 
@@ -247,7 +256,8 @@ ipcMain.handle("save-receipt-pdf", async (event) => {
 
 });
   
-
+  ipcMain.handle('update-inv-family', (event, id, name) => updateInvFamily(id, name));
+  ipcMain.handle('update-inv-type', (event, id, name) => updateInvType(id, name));
   // --- مسارات الخريطة والمخزون الذكي ---
   ipcMain.handle('get-store-map-data', () => getStoreMapData());
   ipcMain.handle('process-pdf-inventory', (event, data) => processPdfInventoryEntry(data.shelfId, data.barcode, data.cleanName, data.dirtyName, data.quantity));

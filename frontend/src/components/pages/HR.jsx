@@ -159,16 +159,66 @@ const HR = () => {
     }
   };
 
-  const handleExecutePrint = async () => {
-    try {
-      if (window.api && window.api.printReceipt) {
-        await window.api.printReceipt();
-      } else {
-        window.print();
-      }
-    } catch (error) {
-      showToast('error', t('common.error', 'خطأ في الطباعة'));
-    }
+  // ------------------------------------------------------------------
+  // 🔴 2. دالة الطباعة المباشرة لبطاقة الموظف (التقنية المعزولة - Padding 6mm)
+  // ------------------------------------------------------------------
+  const handleExecutePrint = () => {
+    const printElement = document.getElementById('printable-badge');
+    if (!printElement) return;
+
+    let iframe = document.getElementById('silent-print-iframe');
+    if (iframe) document.body.removeChild(iframe);
+
+    iframe = document.createElement('iframe');
+    iframe.id = 'silent-print-iframe';
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html lang="${i18n.language}" dir="${isRTL ? 'rtl' : 'ltr'}">
+      <head>
+        <title>Print Badge</title>
+        <style>
+          @page { margin: 0; }
+          html, body { 
+            margin: 0; 
+            padding: 0;
+            width: 100%;
+            background: #fff; 
+            color: #000; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+          }
+          .print-wrapper {
+            width: 100%;
+            max-width: 72mm; 
+            margin: 0 auto;
+            padding: 4mm 6mm; /* الحماية من الحواف */
+            box-sizing: border-box;
+          }
+          .receipt-ticket-forced { width: 100%; box-sizing: border-box; }
+        </style>
+      </head>
+      <body>
+        <div class="print-wrapper">
+          ${printElement.outerHTML}
+        </div>
+      </body>
+      </html>
+    `);
+    doc.close();
+
+    iframe.contentWindow.focus();
+    setTimeout(() => {
+      iframe.contentWindow.print();
+    }, 500);
   };
 
   const handleDownloadPDF = async () => {

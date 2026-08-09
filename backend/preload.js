@@ -86,5 +86,15 @@ setWindowsTime: (datetimeStr) => ipcRenderer.invoke('set-windows-time', datetime
 checkActivation: () => ipcRenderer.invoke('check-activation'),
   getHardwareId: () => ipcRenderer.invoke('get-hardware-id'),
   activateApp: (key) => ipcRenderer.invoke('activate-app', key),
-  
+  // --- دوال نظام الجرد (Inventory) ---
+  getInventoryTree: () => ipcRenderer.invoke('get-inventory-tree'),
+  addInvFamily: (name) => ipcRenderer.invoke('add-inv-family', name),
+  deleteInvFamily: (id) => ipcRenderer.invoke('delete-inv-family', id),
+  addInvType: (familyId, name) => ipcRenderer.invoke('add-inv-type', familyId, name),
+  deleteInvType: (id) => ipcRenderer.invoke('delete-inv-type', id),
+  addInvItem: (data) => ipcRenderer.invoke('add-inv-item', data),
+  updateInvItem: (id, data) => ipcRenderer.invoke('update-inv-item', id, data),
+  deleteInvItem: (id) => ipcRenderer.invoke('delete-inv-item', id),
+  updateInvFamily: (id, name) => ipcRenderer.invoke('update-inv-family', id, name),
+  updateInvType: (id, name) => ipcRenderer.invoke('update-inv-type', id, name),
 });

@@ -1,7 +1,7 @@
 {
   "name": "pos-manager",
   "version": "1.0.0",
-  "description": "Offline Supermarket Management System",
+  "description": "Offline Management System",
   "author": "Cherif <midouma25@gmail.com>",
   "main": "main.js",
   "scripts": {

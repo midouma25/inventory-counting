@@ -51,6 +51,12 @@ function initDatabase() {
     db.prepare(`CREATE TABLE IF NOT EXISTS shelf_products (id INTEGER PRIMARY KEY AUTOINCREMENT, shelf_id TEXT NOT NULL, barcode TEXT NOT NULL, quantity REAL DEFAULT 0, expiry_date TEXT, FOREIGN KEY (barcode) REFERENCES mapped_products(barcode))`).run();
     
     db.prepare(`CREATE TABLE IF NOT EXISTS store_layouts (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, is_active INTEGER DEFAULT 0, grid_rows INTEGER DEFAULT 10, grid_cols INTEGER DEFAULT 14, items_json TEXT)`).run();
+    
+
+    // 🔴 جداول نظام الجرد (Inventory System)
+    db.prepare(`CREATE TABLE IF NOT EXISTS inv_families (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE)`).run();
+    db.prepare(`CREATE TABLE IF NOT EXISTS inv_types (id INTEGER PRIMARY KEY AUTOINCREMENT, family_id INTEGER NOT NULL, name TEXT NOT NULL, FOREIGN KEY (family_id) REFERENCES inv_families(id) ON DELETE CASCADE)`).run();
+    db.prepare(`CREATE TABLE IF NOT EXISTS inv_items (id INTEGER PRIMARY KEY AUTOINCREMENT, type_id INTEGER NOT NULL, name TEXT NOT NULL, pieces_per_box INTEGER DEFAULT 1, price REAL DEFAULT 0, system_qty REAL DEFAULT 0, FOREIGN KEY (type_id) REFERENCES inv_types(id) ON DELETE CASCADE)`).run();
 
     // 🔴 2. الترحيل الذكي: نتحقق إذا كان الجدول القديم مربوطاً، فنقوم بفك ارتباطه ونسخ بياناته
     try {
@@ -259,6 +265,90 @@ function deleteStoreLayout(id) {
   } catch (error) { return { success: false, error: error.message }; }
 }
 
+
+
+// ==========================================
+// 🔴 دوال نظام الجرد (Inventory System)
+// ==========================================
+
+function getInventoryTree() {
+  try {
+    const families = db.prepare("SELECT * FROM inv_families ORDER BY id DESC").all();
+    const types = db.prepare("SELECT * FROM inv_types ORDER BY id DESC").all();
+    const items = db.prepare("SELECT * FROM inv_items ORDER BY id DESC").all();
+
+    const tree = families.map(f => {
+      const fTypes = types.filter(t => t.family_id === f.id).map(t => {
+        const tItems = items.filter(i => i.type_id === t.id);
+        return { ...t, items: tItems };
+      });
+      return { ...f, types: fTypes };
+    });
+    return { success: true, data: tree };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+function addInvFamily(name) {
+  try {
+    const info = db.prepare("INSERT INTO inv_families (name) VALUES (?)").run(name);
+    logAudit('Admin', 'ADD_INV_FAMILY', JSON.stringify({ name }));
+    return { success: true, id: info.lastInsertRowid };
+  } catch (error) { return { success: false, error: error.message }; }
+}
+
+function deleteInvFamily(id) {
+  try {
+    const types = db.prepare("SELECT id FROM inv_types WHERE family_id = ?").all(id);
+    types.forEach(t => db.prepare("DELETE FROM inv_items WHERE type_id = ?").run(t.id));
+    db.prepare("DELETE FROM inv_types WHERE family_id = ?").run(id);
+    db.prepare("DELETE FROM inv_families WHERE id = ?").run(id);
+    logAudit('Admin', 'DELETE_INV_FAMILY', JSON.stringify({ id }));
+    return { success: true };
+  } catch (error) { return { success: false, error: error.message }; }
+}
+
+function addInvType(familyId, name) {
+  try {
+    const info = db.prepare("INSERT INTO inv_types (family_id, name) VALUES (?, ?)").run(familyId, name);
+    logAudit('Admin', 'ADD_INV_TYPE', JSON.stringify({ familyId, name }));
+    return { success: true, id: info.lastInsertRowid };
+  } catch (error) { return { success: false, error: error.message }; }
+}
+
+function deleteInvType(id) {
+  try {
+    db.prepare("DELETE FROM inv_items WHERE type_id = ?").run(id);
+    db.prepare("DELETE FROM inv_types WHERE id = ?").run(id);
+    logAudit('Admin', 'DELETE_INV_TYPE', JSON.stringify({ id }));
+    return { success: true };
+  } catch (error) { return { success: false, error: error.message }; }
+}
+
+function addInvItem(data) {
+  try {
+    const info = db.prepare("INSERT INTO inv_items (type_id, name, pieces_per_box, price, system_qty) VALUES (?, ?, ?, ?, ?)").run(data.typeId, data.name, data.piecesPerBox || 1, data.price || 0, data.systemQty || 0);
+    logAudit('Admin', 'ADD_INV_ITEM', JSON.stringify({ name: data.name }));
+    return { success: true, id: info.lastInsertRowid };
+  } catch (error) { return { success: false, error: error.message }; }
+}
+
+function updateInvItem(id, data) {
+  try {
+    db.prepare("UPDATE inv_items SET name = ?, pieces_per_box = ?, price = ?, system_qty = ? WHERE id = ?").run(data.name, data.piecesPerBox, data.price, data.systemQty, id);
+    logAudit('Admin', 'UPDATE_INV_ITEM', JSON.stringify({ id, name: data.name }));
+    return { success: true };
+  } catch (error) { return { success: false, error: error.message }; }
+}
+
+function deleteInvItem(id) {
+  try {
+    db.prepare("DELETE FROM inv_items WHERE id = ?").run(id);
+    logAudit('Admin', 'DELETE_INV_ITEM', JSON.stringify({ id }));
+    return { success: true };
+  } catch (error) { return { success: false, error: error.message }; }
+}
 
 
 function activateStoreLayout(id) {
@@ -828,7 +918,19 @@ function enrichExtractedItems(items) {
     return items;
   }
 }
+function updateInvFamily(id, name) {
+  try {
+    db.prepare("UPDATE inv_families SET name = ? WHERE id = ?").run(name, id);
+    return { success: true };
+  } catch (error) { return { success: false, error: error.message }; }
+}
 
+function updateInvType(id, name) {
+  try {
+    db.prepare("UPDATE inv_types SET name = ? WHERE id = ?").run(name, id);
+    return { success: true };
+  } catch (error) { return { success: false, error: error.message }; }
+}
 
 module.exports = {
   initDatabase, verifyLogin, getSuppliers, addSupplier, getEmployees, addEmployee, 
@@ -840,5 +942,7 @@ module.exports = {
   openShift, getActiveShift, closeShift, getShiftSummary,
   getUsers, addUser, deleteUser,dbPath,
   updateEmployee, deleteEmployee, logAudit, getAuditLogs, generateExcelBackup, backupDatabase, importSuppliersFromExcel, deleteSupplier, updateSupplier , deleteReceipt, deletePayment, updateAdvance, deleteAdvance, 
-  getAllShiftsSummary, closeBusinessDay, getDailyClosures, getArchivedZReport, updateAttendanceRecord, getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, saveMapLayout, getMapLayout,getStoreLayouts, saveStoreLayout, deleteStoreLayout, activateStoreLayout, getShelfProducts, deleteShelfProduct, updateShelfProduct
+  getAllShiftsSummary, closeBusinessDay, getDailyClosures, getArchivedZReport, updateAttendanceRecord, getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, saveMapLayout, getMapLayout,getStoreLayouts, saveStoreLayout, deleteStoreLayout, activateStoreLayout, getShelfProducts, deleteShelfProduct, updateShelfProduct,
+  getInventoryTree, addInvFamily, deleteInvFamily, addInvType, deleteInvType, addInvItem, updateInvItem, deleteInvItem , updateInvFamily, updateInvType
+
 };
