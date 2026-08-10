@@ -385,41 +385,58 @@
       "رواتب": "Salaires"
     }
   },
-  "payroll": {
-    "title": "Paie",
-    "subtitle": "Gérer les salaires et avances",
+"payroll": {
+    "title": "Salaires du Personnel",
+    "subtitle": "Gérer et calculer les salaires et les déductions",
     "tabs": {
-      "calculator": "Calculatrice",
-      "advances": "Avances",
-      "salaries": "Historique"
+      "calculator": "Calculatrice de Salaire",
+      "advances": "Registre des Avances",
+      "salaries": "Archives des Salaires"
     },
-    "exportReportWord": "Exporter le rapport (Word)",
     "selectEmployee": "Sélectionner un employé",
     "hourlyRate": "Taux horaire",
-    "overlap": "Calcul impossible ! Un salaire a déjà été payé pour cet employé sur une période superposée (du {{start}} au {{end}}).",
+    "calcSalary": "Calculer le salaire",
+    "emptyStateDesc": "Entrez les détails de l'employé et cliquez sur 'Calculer le salaire'",
     "period": "Période",
-    "totalHours": "Heures totales",
+    "totalHours": "Total des Heures",
     "grossSalary": "Salaire Brut",
     "deductions": "Déductions / Avances",
-    "netSalary": "Salaire Net",
-    "payslip": "Fiche de paie",
-    "comprehensiveReport": "Rapport détaillé de paie",
-    "totalEmployees": "Total Employés",
-    "rolloverNote": "Report de dette ({{start}} à {{end}})",
-    "expenseNote": "Salaire: {{name}} ({{start}} - {{end}})",
-    "accountantSig": "Signature de l'employé",
-    "calculateBtn": "Calculer le salaire",
-    "from": "De",
-    "to": "À",
-    "emptyState": "Saisissez les détails de l'employé et cliquez sur 'Calculer' pour voir les résultats",
-    "payAndSave": "Payer & Sauvegarder",
-    "addAdvance": "Ajouter une avance",
-    "exportWord": "Exporter la paie (Word)",
-    "exportPayslipWord": "Exporter Word",
-    "advanceStatus": {
-      "pending": "Non payé",
-      "paid": "Déduit"
+    "netSalary": "Net à Payer",
+    "payAndSave": "Payer et Enregistrer",
+    "addAdvance": "Ajouter Avance",
+    "date": "Date",
+    "amount": "Montant",
+    "fundSource": "Source des fonds",
+    "caisseAdmin": "Caisse Admin (Principale)",
+    "caisseCashier": "Caisse Caissier: {{name}}",
+    "note": "Note",
+    "advanceNotePlaceholder": "Raison de l'avance...",
+    "saveAdvance": "Enregistrer Avance",
+    "statusPending": "Non Payé",
+    "statusPaid": "Déduit",
+    "editAdvance": "Modifier Avance",
+    "newAdvance": "Nouvelle Avance",
+    "exportReportWord": "Exporter le rapport",
+    "printA4": "Télécharger Word Détaillé (A4)",
+    "printA4Desc": "Document Word complet avec les détails pour les archives de l'entreprise.",
+    "printA7": "Ticket Thermique (80mm)",
+    "printA7Desc": "Ticket rapide et lisible imprimé instantanément sur l'imprimante de caisse.",
+    "payslip": "Fiche de Paie",
+    "comprehensiveReport": "Rapport Global des Salaires",
+    "totalEmployees": "Total Payé",
+    "confirmPayTitle": "Confirmer le paiement",
+    "confirmPayMessage": "Le salaire net est négatif. Les dettes seront reportées comme une nouvelle avance pour le mois prochain. Continuer ?",
+    "confirmPayStandard": "Un montant de {{amount}} sera déduit de la caisse. Confirmez-vous le paiement ?",
+    "confirmPayBtn": "Oui, Payer",
+    "cancelAdvanceTitle": "Annuler l'avance",
+    "cancelAdvanceMessage": "Voulez-vous vraiment annuler cette avance ? Le montant sera remboursé à la caisse.",
+    "cancelAdvanceBtn": "Oui, Supprimer",
+    "errors": {
+      "overlap": "Impossible ! Un salaire a déjà été payé ({{start}} à {{end}})"
     },
+    "rolloverNote": "Report des dettes ({{start}} à {{end}})",
+    "expenseNote": "Salaire : {{name}} ({{start}} à {{end}})"
+  },
     "modal": {
       "addAdvance": "Enregistrer une avance",
       "editAdvance": "Modifier l'avance",
@@ -450,8 +467,7 @@
     },
     "errors": {
       "advanceNotFound": "Avance introuvable."
-    }
-  },
+    },
   "agenda": {
     "title": "Agenda",
     "subtitle": "Gérer le calendrier et les paiements",

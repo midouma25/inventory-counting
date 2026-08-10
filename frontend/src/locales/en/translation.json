@@ -386,41 +386,58 @@
       "رواتب": "Payroll"
     }
   },
-  "payroll": {
-    "title": "Payroll",
-    "subtitle": "Manage staff salaries and advances",
+"payroll": {
+    "title": "Staff Payroll",
+    "subtitle": "Manage and calculate salaries and deductions",
     "tabs": {
-      "calculator": "Calculator",
-      "advances": "Advances",
-      "salaries": "Salaries History"
+      "calculator": "Salary Calculator",
+      "advances": "Advances Log",
+      "salaries": "Salaries Archive"
     },
-    "exportReportWord": "Export Report (Word)",
     "selectEmployee": "Select Employee",
-    "overlap": "Cannot calculate! A salary was already paid for this employee in an overlapping period (from {{start}} to {{end}}).",
     "hourlyRate": "Hourly Rate",
+    "calcSalary": "Calculate Salary",
+    "emptyStateDesc": "Enter employee details and click 'Calculate Salary' to view results",
     "period": "Period",
     "totalHours": "Total Hours",
     "grossSalary": "Gross Salary",
-    "deductions": "Advances / Deductions",
+    "deductions": "Deductions / Advances",
     "netSalary": "Net Salary",
-    "payslip": "Payslip",
-    "comprehensiveReport": "Comprehensive Payroll Report",
-    "totalEmployees": "Total Employees",
-    "rolloverNote": "Debt rollover from {{start}} to {{end}}",
-    "expenseNote": "Salary: {{name}} ({{start}} to {{end}})",
-    "accountantSig": "Employee Signature",
-    "calculateBtn": "Calculate Salary",
-    "from": "From",
-    "to": "To",
-    "emptyState": "Enter employee details and click 'Calculate Salary' to see results",
-    "payAndSave": "Pay & Save",
+    "payAndSave": "Pay and Save",
     "addAdvance": "Add Advance",
-    "exportWord": "Export Payroll (Word)",
-    "exportPayslipWord": "Export Word",
-    "advanceStatus": {
-      "pending": "Unpaid",
-      "paid": "Deducted"
+    "date": "Date",
+    "amount": "Amount",
+    "fundSource": "Fund Source",
+    "caisseAdmin": "Admin Fund (Main)",
+    "caisseCashier": "Cashier Fund: {{name}}",
+    "note": "Note",
+    "advanceNotePlaceholder": "Reason for advance...",
+    "saveAdvance": "Save Advance",
+    "statusPending": "Unpaid",
+    "statusPaid": "Deducted",
+    "editAdvance": "Edit Advance",
+    "newAdvance": "Record Employee Advance",
+    "exportReportWord": "Export Report",
+    "printA4": "Download Detailed Word (A4)",
+    "printA4Desc": "Comprehensive Word document with details for company archives.",
+    "printA7": "Thermal Print Ticket (80mm)",
+    "printA7Desc": "Fast and readable paper ticket printed instantly from the cashier printer.",
+    "payslip": "Employee Payslip",
+    "comprehensiveReport": "Total Salaries Report",
+    "totalEmployees": "Total Paid",
+    "confirmPayTitle": "Confirm Payment",
+    "confirmPayMessage": "Net salary is negative. Remaining debts will be rolled over as a new advance for next month. Continue?",
+    "confirmPayStandard": "An amount of {{amount}} will be deducted from the fund. Do you confirm payment?",
+    "confirmPayBtn": "Yes, Pay",
+    "cancelAdvanceTitle": "Cancel Advance",
+    "cancelAdvanceMessage": "Are you sure you want to cancel this advance? The amount will be refunded to the fund.",
+    "cancelAdvanceBtn": "Yes, Delete",
+    "errors": {
+      "overlap": "Cannot calculate! A salary was already paid ({{start}} to {{end}})"
     },
+    "rolloverNote": "Rollover debt ({{start}} to {{end}})",
+    "expenseNote": "Salary: {{name}} ({{start}} to {{end}})"
+  },
     "modal": {
       "addAdvance": "Record Advance",
       "editAdvance": "Edit Advance",
@@ -451,8 +468,7 @@
     },
     "errors": {
       "advanceNotFound": "Advance record not found."
-    }
-  },
+    },
   "agenda": {
     "title": "Agenda & Tasks",
     "subtitle": "Manage schedule and due payments",

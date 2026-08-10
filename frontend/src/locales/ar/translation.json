@@ -388,7 +388,7 @@
       "رواتب": "رواتب العمال"
     }
   },
-  "payroll": {
+"payroll": {
     "title": "رواتب العمال",
     "subtitle": "إدارة وحساب الرواتب والخصومات",
     "tabs": {
@@ -396,33 +396,50 @@
       "advances": "سجل السلفيات",
       "salaries": "أرشيف الرواتب"
     },
-    "exportReportWord": "استخراج الراتب الكلي",
     "selectEmployee": "اختر الموظف",
     "hourlyRate": "سعر الساعة",
+    "calcSalary": "حساب الراتب",
+    "emptyStateDesc": "أدخل بيانات الموظف واضغط على حساب الراتب لظهور النتيجة",
     "period": "الفترة",
-    "overlap": "لا يمكن الحساب! لقد تم دفع راتب لهذا الموظف في فترة متداخلة (من {{start}} إلى {{end}}).",
     "totalHours": "إجمالي الساعات",
     "grossSalary": "الراتب الإجمالي",
-    "deductions": "الخصومات (سلف)",
+    "deductions": "الخصومات / السلف",
     "netSalary": "الصافي للدفع",
-    "payslip": "كشف راتب موظف",
-    "comprehensiveReport": "سجل الرواتب والحضور المفصل",
-    "totalEmployees": "إجمالي الموظفين",
-    "rolloverNote": "ترحيل ديون سلفيات ({{start}} إلى {{end}})",
-    "expenseNote": "راتب: {{name}} ({{start}} إلى {{end}})",
-    "accountantSig": "توقيع المستلم",
-    "calculateBtn": "حساب الراتب",
-    "from": "من",
-    "to": "إلى",
-    "emptyState": "أدخل بيانات الموظف واضغط على 'حساب الراتب' لظهور النتيجة",
     "payAndSave": "دفع الراتب وحفظ",
     "addAdvance": "إضافة سلفة",
-    "exportWord": "استخراج سجل الرواتب (Word)",
-    "exportPayslipWord": "استخراج كملف Word",
-    "advanceStatus": {
-      "pending": "غير مسددة",
-      "paid": "تم الخصم"
+    "date": "التاريخ",
+    "amount": "المبلغ",
+    "fundSource": "مصدر الأموال",
+    "caisseAdmin": "صندوق المدير (الرئيسي)",
+    "caisseCashier": "صندوق الكاشير: {{name}}",
+    "note": "ملاحظة",
+    "advanceNotePlaceholder": "سبب السلفة...",
+    "saveAdvance": "حفظ السلفة",
+    "statusPending": "غير مسددة",
+    "statusPaid": "تم الخصم",
+    "editAdvance": "تعديل السلفة",
+    "newAdvance": "تسجيل سلفة موظف",
+    "exportReportWord": "استخراج سجل الرواتب",
+    "printA4": "تحميل كشف مفصل Word (A4)",
+    "printA4Desc": "مستند وورد شامل يحتوي على التفاصيل لحفظه في أرشيف الشركة.",
+    "printA7": "وصل طباعة حرارية (80mm)",
+    "printA7Desc": "وصل ورقي سريع ومقروء يُطبع فوراً من طابعة الكاشير.",
+    "payslip": "كشف راتب موظف",
+    "comprehensiveReport": "سجل الرواتب الكلي",
+    "totalEmployees": "الإجمالي المدفوع",
+    "confirmPayTitle": "تأكيد دفع الراتب",
+    "confirmPayMessage": "الراتب الصافي بالسالب. سيتم ترحيل الديون المتبقية كسلفة جديدة للشهر القادم. هل تود الاستمرار؟",
+    "confirmPayStandard": "سيتم صرف مبلغ {{amount}} من الصندوق. هل تود تأكيد الدفع؟",
+    "confirmPayBtn": "نعم، تأكيد الدفع",
+    "cancelAdvanceTitle": "إلغاء السلفة",
+    "cancelAdvanceMessage": "هل أنت متأكد من إلغاء وحذف هذه السلفة؟ سيتم إرجاع المبلغ للصندوق الذي خُصمت منه.",
+    "cancelAdvanceBtn": "نعم، حذف السلفة",
+    "errors": {
+      "overlap": "لا يمكن الحساب! لقد تم دفع راتب مسبقاً ({{start}} إلى {{end}})"
     },
+    "rolloverNote": "ترحيل ديون سلفيات ({{start}} إلى {{end}})",
+    "expenseNote": "راتب: {{name}} ({{start}} إلى {{end}})"
+  },
     "modal": {
       "addAdvance": "تسجيل سلفة موظف",
       "editAdvance": "تعديل السلفة",
@@ -453,8 +470,8 @@
     },
     "errors": {
       "advanceNotFound": "سجل السلفة غير موجود."
-    }
-  },
+    },
+  
   "agenda": {
     "title": "الأجندة والمهام",
     "subtitle": "إدارة المواعيد، التوريدات، والمدفوعات المجدولة",

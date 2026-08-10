@@ -40,8 +40,9 @@ export default function Payroll() {
   const [advanceToDelete, setAdvanceToDelete] = useState(null);
   const [confirmModalData, setConfirmModalData] = useState(null);
 
-  // 🌟 حالة نافذة الطباعة
+  // 🌟 حالة نافذة الطباعة ونوع الطباعة (فردي أم كلي)
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [printMode, setPrintMode] = useState('single'); // 'single' أو 'all'
 
   const [toast, setToast] = useState(null);
   const showToast = (type, message) => {
@@ -248,13 +249,12 @@ export default function Payroll() {
           <tr>
             <td style="border: none; border-top: 2px solid #000; width: 40%; font-weight: bold;">${t('zreport.manager_sig', 'توقيع الإدارة / الختم')}</td>
             <td style="border: none; width: 20%;"></td>
-            <td style="border: none; border-top: 2px solid #000; width: 40%; font-weight: bold;">${t('payroll.accountantSig', 'توقيع المستلم')}</td>
+            <td style="border: none; border-top: 2px solid #000; width: 40%; font-weight: bold;">${t('print.employeeSignature', 'توقيع المستلم')}</td>
           </tr>
         </table>
       `;
     } 
     else {
-      // الكود الخاص بالطباعة الجماعية
       html += `
         <table>
           <thead>
@@ -332,6 +332,7 @@ export default function Payroll() {
     document.body.removeChild(link);
     
     showToast('success', t('common.success', 'تم استخراج التقرير بنجاح!'));
+    setIsPrintModalOpen(false); 
   };
 
   const handleExportSingleToWord = () => {
@@ -349,10 +350,9 @@ export default function Payroll() {
        daily_logs: payrollResult.dailyLogs || [] 
     }];
     exportSalariesToWord(singleData, true);
-    setIsPrintModalOpen(false);
   };
 
-  // 🌟 دالة طباعة كشف الراتب الحراري (80mm / A7) 🌟
+  // 🌟 دالة طباعة كشف الراتب الحراري الفردي (اللون الأسود القوي فقط)
   const handlePrintA7Payslip = () => {
     if (!payrollResult) return;
     
@@ -385,24 +385,24 @@ export default function Payroll() {
           @page { margin: 0; }
           html, body { margin: 0; padding: 0; width: 72mm; background: #fff; color: #000; font-family: sans-serif; }
           .print-wrapper { width: 100%; padding: 2mm 5mm; box-sizing: border-box; }
-          h2 { text-align: center; font-size: 18px; margin: 0 0 5px 0; font-weight: 900; }
-          .subtitle { text-align: center; font-size: 13px; margin-bottom: 12px; border-bottom: 2px dashed #000; padding-bottom: 6px; font-weight: bold;}
-          .info-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin-bottom: 4px; border-bottom: 1px dashed #ccc; padding-bottom: 2px; }
-          table { width: 100%; border-collapse: collapse; font-size: 12px; font-weight: bold; margin-bottom: 10px; margin-top: 10px; }
-          td { padding: 4px 0; border-bottom: 1px dashed #eee; text-align: ${isRTL ? 'right' : 'left'}; }
-          .amount-box { display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 8px 0; margin-top: 15px; background: #f9f9f9; }
-          .amount-box .box-title { font-size: 15px; font-weight: bold; padding: 0 5px; }
-          .amount-box .box-value { font-size: 18px; font-weight: 900; padding: 0 5px; }
-          .signatures { display: flex; justify-content: space-between; margin-top: 25px; font-size: 11px; font-weight: bold; }
-          .footer-brand { text-align: center; margin-top: 20px; font-size: 11px; font-weight: 900; border-top: 1px dashed #000; padding-top: 8px; }
+          h2 { text-align: center; font-size: 18px; margin: 0 0 5px 0; font-weight: 900; color: #000; }
+          .subtitle { text-align: center; font-size: 13px; margin-bottom: 12px; border-bottom: 2px dashed #000; padding-bottom: 6px; font-weight: bold; color: #000; }
+          .info-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin-bottom: 4px; border-bottom: 1px dashed #000; padding-bottom: 2px; color: #000; }
+          table { width: 100%; border-collapse: collapse; font-size: 12px; font-weight: bold; margin-bottom: 10px; margin-top: 10px; color: #000; }
+          td { padding: 4px 0; border-bottom: 1px dashed #000; text-align: ${isRTL ? 'right' : 'left'}; color: #000; }
+          .amount-box { display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 8px 0; margin-top: 15px; color: #000; }
+          .amount-box .box-title { font-size: 15px; font-weight: bold; padding: 0 5px; color: #000; }
+          .amount-box .box-value { font-size: 18px; font-weight: 900; padding: 0 5px; color: #000; }
+          .signatures { display: flex; justify-content: space-between; margin-top: 25px; font-size: 11px; font-weight: bold; color: #000; }
+          .footer-brand { text-align: center; margin-top: 20px; font-size: 11px; font-weight: 900; border-top: 1px dashed #000; padding-top: 8px; color: #000; }
         </style>
       </head>
       <body>
         <div class="print-wrapper">
           <h2>${currentStoreName}</h2>
-          <div class="subtitle">${t('print.payslipTitle', 'كشف راتب موظف')}</div>
+          <div class="subtitle">${t('payroll.payslip', 'كشف راتب موظف')}</div>
           
-          <div style="text-align: center; font-size: 10px; margin-bottom: 10px; color: #555;">
+          <div style="text-align: center; font-size: 11px; font-weight: bold; margin-bottom: 10px; color: #000;">
              ${t('zreport.date', 'التاريخ')}: ${printDate}
           </div>
 
@@ -429,8 +429,8 @@ export default function Payroll() {
               <td style="text-align: ${isRTL ? 'left' : 'right'};" dir="ltr">${formatMoney(payrollResult.grossSalary)} ${curr}</td>
             </tr>
             <tr>
-              <td style="color: #ef4444;">${t('payroll.deductions', 'الخصومات (السلف)')}:</td>
-              <td style="text-align: ${isRTL ? 'left' : 'right'}; color: #ef4444;" dir="ltr">-${formatMoney(payrollResult.totalAdvances)} ${curr}</td>
+              <td style="font-weight: bold;">${t('payroll.deductions', 'الخصومات (السلف)')}:</td>
+              <td style="text-align: ${isRTL ? 'left' : 'right'}; font-weight: bold;" dir="ltr">-${formatMoney(payrollResult.totalAdvances)} ${curr}</td>
             </tr>
           </table>
 
@@ -442,6 +442,104 @@ export default function Payroll() {
           <div class="signatures">
             <div style="text-align: ${isRTL ? 'right' : 'left'}">${t('print.employeeSignature', 'توقيع المستلم')}<br><br>................</div>
             <div style="text-align: ${isRTL ? 'left' : 'right'}">${t('zreport.manager_sig', 'الإدارة')}<br><br>................</div>
+          </div>
+
+          <div class="footer-brand">POWERED BY GHERBI.AI</div>
+        </div>
+      </body>
+      </html>
+    `);
+    doc.close();
+
+    iframe.contentWindow.focus();
+    setTimeout(() => { 
+      iframe.contentWindow.print(); 
+      setIsPrintModalOpen(false); 
+    }, 500);
+  };
+
+  // 🌟 دالة طباعة الأرشيف الكلي في ورقة حرارية طويلة (80mm)
+  const handlePrintA7AllSalaries = () => {
+    if (!salaries || salaries.length === 0) {
+      showToast('error', t('common.noResults', 'لا توجد بيانات للطباعة'));
+      return;
+    }
+
+    const curr = t('currency', 'د.ج');
+    const printDate = new Date().toISOString().split('T')[0];
+
+    let iframe = document.getElementById('silent-print-iframe');
+    if (iframe) document.body.removeChild(iframe);
+    
+    iframe = document.createElement('iframe');
+    iframe.id = 'silent-print-iframe';
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+
+    let rowsHtml = '';
+    let grandTotal = 0;
+
+    salaries.forEach((s) => {
+      grandTotal += Number(s.net_salary);
+      rowsHtml += `
+        <div style="border-bottom: 1px dashed #000; padding: 6px 0; margin-bottom: 4px; color: #000;">
+          <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:14px; margin-bottom:4px;">
+            <span>${s.employee_name || s.name}</span>
+            <span dir="ltr">${formatMoney(s.net_salary)} ${curr}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:11px; font-weight:bold;">
+            <span>${t('payroll.totalHours', 'الساعات')}: ${formatHours(s.total_hours)}</span>
+            <span dir="ltr">${s.start_date.substring(5)} / ${s.end_date.substring(5)}</span>
+          </div>
+        </div>
+      `;
+    });
+
+    doc.write(`
+      <!DOCTYPE html>
+      <html lang="${i18n.language}" dir="${isRTL ? 'rtl' : 'ltr'}">
+      <head>
+        <title>All Salaries Thermal Print</title>
+        <style>
+          @page { margin: 0; }
+          html, body { margin: 0; padding: 0; width: 72mm; background: #fff; color: #000; font-family: sans-serif; }
+          .print-wrapper { width: 100%; padding: 2mm 5mm; box-sizing: border-box; }
+          h2 { text-align: center; font-size: 18px; margin: 0 0 5px 0; font-weight: 900; color: #000; }
+          .subtitle { text-align: center; font-size: 13px; margin-bottom: 12px; border-bottom: 2px dashed #000; padding-bottom: 6px; font-weight: bold; color: #000; }
+          .amount-box { display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 8px 0; margin-top: 15px; color: #000; }
+          .amount-box .box-title { font-size: 13px; font-weight: bold; padding: 0 5px; color: #000; }
+          .amount-box .box-value { font-size: 16px; font-weight: 900; padding: 0 5px; color: #000; }
+          .footer-brand { text-align: center; margin-top: 20px; font-size: 11px; font-weight: 900; border-top: 1px dashed #000; padding-top: 8px; color: #000; }
+        </style>
+      </head>
+      <body>
+        <div class="print-wrapper">
+          <h2>${currentStoreName}</h2>
+          <div class="subtitle">${t('payroll.comprehensiveReport', 'سجل الرواتب الكلي')}</div>
+          
+          <div style="text-align: center; font-size: 11px; font-weight: bold; margin-bottom: 10px; color: #000;">
+             ${t('zreport.date', 'التاريخ')}: ${printDate}
+          </div>
+
+          <div style="margin-top: 10px;">
+            ${rowsHtml}
+          </div>
+
+          <div class="amount-box">
+            <span class="box-title">${t('payroll.totalEmployees', 'الإجمالي المدفوع')}:</span>
+            <span class="box-value" dir="ltr">${formatMoney(grandTotal)} ${curr}</span>
+          </div>
+
+          <div style="text-align: center; margin-top: 25px; font-size: 12px; font-weight: bold; color: #000;">
+            ${t('zreport.manager_sig', 'توقيع الإدارة / الختم')}<br><br>...........................
           </div>
 
           <div class="footer-brand">POWERED BY GHERBI.AI</div>
@@ -531,8 +629,7 @@ export default function Payroll() {
                     <h2 className="text-2xl font-bold text-white">{employees.find(e => e.id === Number(selectedEmployee))?.name}</h2>
                     <p className="text-slate-400 text-sm mt-1">{t('payroll.period', 'الفترة')} <bdi dir="ltr">{startDate}</bdi> - <bdi dir="ltr">{endDate}</bdi></p>
                   </div>
-                  {/* 🔴 تم تغيير زر الوورد ليصبح زر خيارات الطباعة العريض */}
-                  <button onClick={() => setIsPrintModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-lg" title={t('inventory.printOptions', 'خيارات الطباعة')}>
+                  <button onClick={() => { setPrintMode('single'); setIsPrintModalOpen(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-lg" title={t('inventory.printOptions', 'خيارات الطباعة')}>
                     <Printer size={18} /> {t('inventory.printOptions', 'خيارات الطباعة')}
                   </button>
                 </div>
@@ -624,8 +721,8 @@ export default function Payroll() {
           <div className="p-4 border-b border-slate-800 bg-slate-950/30 flex justify-between items-center">
             <h3 className="font-bold text-white flex items-center gap-2"><FileText size={18} className="text-blue-400" /> {t('payroll.tabs.salaries', 'أرشيف الرواتب')}</h3>
             
-            <button onClick={() => exportSalariesToWord(salaries)} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
-              <Download size={18} /> {t('payroll.exportReportWord', 'استخراج سجل الرواتب (Word)')}
+            <button onClick={() => { setPrintMode('all'); setIsPrintModalOpen(true); }} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+              <Download size={18} /> {t('payroll.exportReportWord', 'استخراج سجل الرواتب')}
             </button>
           </div>
           <div className="overflow-x-auto">
@@ -707,28 +804,38 @@ export default function Payroll() {
         </form>
       </Modal>
 
-      {/* 🔴 النافذة العريضة لخيارات الطباعة */}
       <Modal isOpen={isPrintModalOpen} onClose={() => setIsPrintModalOpen(false)} title={t('inventory.printOptions', 'خيارات الطباعة')}>
         <div className="p-6 flex flex-col gap-4 text-start" dir={isRTL ? 'rtl' : 'ltr'}>
-          <p className="text-slate-400 mb-4 text-center">{t('inventory.printDesc', 'اختر مقاس الورق المناسب لطباعة كشف الراتب.')}</p>
+          <p className="text-slate-400 mb-4 text-center">{t('inventory.printDesc', 'اختر مقاس الورق المناسب للطباعة.')}</p>
           
-          <button onClick={handleExportSingleToWord} className="w-full flex items-center justify-between p-4 bg-indigo-600/10 hover:bg-indigo-600 border border-indigo-500/50 hover:border-indigo-500 rounded-xl transition-all text-indigo-400 hover:text-white font-bold group">
+          <button 
+            onClick={() => {
+              printMode === 'single' ? handleExportSingleToWord() : exportSalariesToWord(salaries); 
+              setIsPrintModalOpen(false); 
+            }} 
+            className="w-full flex items-center justify-between p-4 bg-indigo-600/10 hover:bg-indigo-600 border border-indigo-500/50 hover:border-indigo-500 rounded-xl transition-all text-indigo-400 hover:text-white font-bold group"
+          >
             <div className="flex items-center gap-4">
               <Download size={24} className="text-indigo-400 group-hover:text-white" />
               <div className="text-start">
                 <div className="text-lg">{t('payroll.printA4', 'تحميل كشف مفصل Word (A4)')}</div>
-                <div className="text-xs font-normal opacity-80 mt-1">{t('payroll.printA4Desc', 'مستند وورد شامل يحتوي على تفاصيل الحضور اليومية لحفظه في أرشيف الشركة.')}</div>
+                <div className="text-xs font-normal opacity-80 mt-1">{t('payroll.printA4Desc', 'مستند وورد شامل يحتوي على التفاصيل لحفظه في أرشيف الشركة.')}</div>
               </div>
             </div>
             <FileText size={20} />
           </button>
 
-          <button onClick={handlePrintA7Payslip} className="w-full flex items-center justify-between p-4 bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/50 hover:border-emerald-500 rounded-xl transition-all text-emerald-500 hover:text-white font-bold group">
+          <button 
+            onClick={() => {
+              printMode === 'single' ? handlePrintA7Payslip() : handlePrintA7AllSalaries();
+            }} 
+            className="w-full flex items-center justify-between p-4 bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/50 hover:border-emerald-500 rounded-xl transition-all text-emerald-500 hover:text-white font-bold group"
+          >
             <div className="flex items-center gap-4">
               <Printer size={24} className="text-emerald-400 group-hover:text-white" />
               <div className="text-start">
-                <div className="text-lg">{t('payroll.printA7', 'وصل راتب حراري سريع (80mm)')}</div>
-                <div className="text-xs font-normal opacity-80 mt-1">{t('payroll.printA7Desc', 'وصل راتب صغير وسريع للعامل يُطبع فوراً من طابعة الكاشير.')}</div>
+                <div className="text-lg">{t('payroll.printA7', 'وصل طباعة حرارية (80mm)')}</div>
+                <div className="text-xs font-normal opacity-80 mt-1">{t('payroll.printA7Desc', 'وصل ورقي سريع ومقروء يُطبع فوراً من طابعة الكاشير.')}</div>
               </div>
             </div>
             <Printer size={20} />
