@@ -16,13 +16,18 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth = 'ma
 
   return (
     <div 
-      // 🌟 خلفية معتمة وزجاجية مع ميزة الإغلاق عند الضغط خارج النافذة
+      // 🌟 خلفية معتمة وزجاجية
       className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200"
-      onClick={onClose} 
+      
+      // 🔴 الحل السحري: نتحقق أن الضغطة بدأت فعلاً على الخلفية وليس سحباً من الداخل
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
     >
-      {/* 🌟 حاوية النافذة الرئيسية (تمنع الإغلاق عند الضغط بداخلها) */}
+      {/* 🌟 حاوية النافذة الرئيسية (تم إزالة onClick القديم من هنا لأنه لم يعد ضرورياً) */}
       <div 
-        onClick={(e) => e.stopPropagation()} 
         className={`bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl w-full ${maxWidth} flex flex-col overflow-hidden max-h-[90vh] animate-in zoom-in-95 slide-in-from-bottom-4 duration-300`}
       >
         

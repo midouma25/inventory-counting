@@ -696,5 +696,16 @@
       "downloadPDF": "Télécharger PDF",
       "idCard": "CARTE D'IDENTITÉ EMPLOYÉ",
       "scanInstruction": "Veuillez scanner ce code-barres à l'entrée et à la sortie."
-    }
+    },
+    "notif": {
+    "title": "Notifications",
+    "markAllRead": "Tout marquer comme lu",
+    "noNotifs": "Aucune notification",
+    "agendaTitle": "Tâche d'Agenda",
+    "agendaDesc": "Vous avez une tâche à faire : {{title}}",
+    "debtTitle": "Dettes Fournisseurs",
+    "debtDesc": "Le fournisseur {{name}} a une dette de {{debt}} DA",
+    "thursdayTitle": "Jour de Paie ⚠️",
+    "thursdayDesc": "C'est jeudi, jour de paie. N'oubliez pas de clôturer les caisses et de régler les comptes du personnel."
+  }
 }

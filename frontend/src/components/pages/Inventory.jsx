@@ -1,38 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Printer, FileText, LayoutList, CheckCircle2, AlertCircle, Trash2, Tag, Layers, Package, ScanLine, Download, ArrowUpDown, ListPlus, Edit, Check, Eraser, Store } from 'lucide-react';
+import { Search, Plus, Printer, FileText, LayoutList, CheckCircle2, AlertCircle, Trash2, Tag, Layers, Package, ScanLine, Download, ArrowUpDown, ListPlus, Edit, Check, Eraser, Store, X } from 'lucide-react';
 import Modal from '../ui/Modal';
 import ConfirmAlert from '../ui/ConfirmAlert';
 
-// 🌟 قاعدة بيانات السوق الجزائري الشاملة
+// 🌟 قاعدة بيانات السوق الجزائري (ديناميكية حسب اللغة)
 const ALGERIAN_MARKET_DATA = {
-  "عجائن وسميد (Pâtes & Semoule)": ["ماما Mama", "سيم Sim", "عمر بن عمر", "سفينة Safina", "أكسترا Extra", "الوردة البيضاء", "للا خديجة", "بانزاني Panzani"],
-  "طماطم مصبرة (Tomate Concentrée)": ["الحارة", "إيزيس Isis", "كاب CAB", "صبيا Sobia", "إيزم Izem", "التاج", "جودي Jouda", "سيكام Sicam"],
-  "زيت الطهي (Huile)": ["إيليو Elio", "سيفيتال Cevital", "عافية Afia", "فلوريال Fleurial", "لوسيور Lesieur", "بوجي Puget", "ينار"],
-  "قهوة (Café)": ["بونال Bonal", "فاكتو Facto", "أروما Aroma", "1001", "طابا Taba", "نسكافيه Nescafé", "كارت نوار Carte Noire", "لافازا Lavazza"],
-  "شاي (Thé)": ["الخنشلي", "الصحراء", "الخيمة", "ليبتون Lipton", "توينينغز Twinings", "سلطان Sultan", "القافلة"],
-  "حليب (Lait)": ["كانديا Candia", "صومام Soummam", "الحضنة Hodna", "طاسيلي", "جيبلي", "لوشا Le Chat", "لحظة Loya", "نيدو Nestlé Nido"],
-  "أجبان (Fromage)": ["البقرة الضاحكة La Vache Qui Rit", "كيري Kiri", "رئيس Président", "بربر Berbère", "تارتينو Tartino", "الفنك Le Fennec", "فريكو Frico", "شيدار Cheddar"],
-  "ياغورت (Yaourt)": ["صومام Soummam", "دانون Danone", "أكتيفيا Activia", "دانيت Danette", "أكتيميل Actimel", "الحضنة", "ترافل Trèfle"],
-  "تونة ومعلبات (Thon & Conserves)": ["المنار El Manar", "ماروكا Maruca", "ريغال Régal", "سيدي داود", "إيزابيل Isabel", "ريو ماري Rio Mare"],
-  "عصائر (Jus)": ["رامي Ramy", "رويبة Rouiba", "نڨاوس Ngaous", "إفروي Ifruit", "توجة Toudja", "راني Rani", "تروبيكو Tropico", "جذور"],
-  "مشروبات غازية (Boissons Gazeuses)": ["حمود بوعلام", "سيليكتو Selecto", "سليم Slim", "كوكا كولا Coca-Cola", "بيبسي Pepsi", "سبرايت Sprite", "فانتا Fanta", "ميريندا Mirinda"],
-  "مياه معدنية (Eau Minérale)": ["إفري Ifri", "سعيدة Saida", "قديلة Guedila", "لالة خديجة", "موزاية Mouzaia", "توجة", "مسرغين"],
-  "شوكولاتة (Chocolat)": ["المرجان El Mordjene", "نوتيلا Nutella", "ميلكا Milka", "فيريرو روشيه Ferrero", "كيندر Kinder", "تويكس Twix", "سنيكرز Snickers"],
-  "بسكويت (Biscuits)": ["بيمو Bimo", "بالماري Palmary", "بيفا Bifa", "لو LU", "أوريو Oreo", "برانس Prince", "ماكسون Maxon", "كندر بوينو"],
-  "غسيل الملابس (Lessive)": ["إيزيس Isis", "أومو Omo", "أريال Ariel", "تايد Tide", "لوشا Le Chat", "تاست Test", "أمير Amir", "ماكسيس Maxis"],
-  "جافيل ومنظفات (Javel & Entretien)": ["براف Bref", "فافو Favo", "عادي Adi", "لكروا La Croix", "بينغو Bingo", "أجاكس Ajax", "العملاق"],
-  "غسيل الأواني (Liquide Vaisselle)": ["إيزيس Isis", "بريل Pril", "ماكسيس Maxis", "فيري Fairy"],
-  "شامبو (Shampooing)": ["فينوس Venus", "دوف Dove", "هيد آند شولدرز Head & Shoulders", "بانتين Pantene", "إلسيف Elseve", "كلير Clear"],
-  "صابون (Savon)": ["الكف", "الدزاير", "دوف Dove", "بالموليف Palmolive", "لو بتي مارسيي Le Petit Marseillais", "لوكس Lux"],
-  "معجون أسنان (Dentifrice)": ["سيجنال Signal", "كولجيت Colgate", "سنسوداين Sensodyne", "كرست Crest", "المسواك"],
-  "حفاضات وورق (Couches & Papier)": ["مولفيكس Molfix", "بامبرز Pampers", "كانبيبي Canbebe", "بيبي لوك Baby Look", "لوتوس Lotus"]
+  pasta: { ar: "عجائن وسميد", fr: "Pâtes & Semoule", en: "Pasta & Semolina", items: ["ماما Mama", "سيم Sim", "عمر بن عمر", "سفينة Safina", "أكسترا Extra", "الوردة البيضاء", "للا خديجة", "بانزاني Panzani"] },
+  tomato: { ar: "طماطم مصبرة", fr: "Tomate Concentrée", en: "Tomato Paste", items: ["الحارة", "إيزيس Isis", "كاب CAB", "صبيا Sobia", "إيزم Izem", "التاج", "جودي Jouda", "سيكام Sicam"] },
+  oil: { ar: "زيت الطهي", fr: "Huile de Table", en: "Cooking Oil", items: ["إيليو Elio", "سيفيتال Cevital", "عافية Afia", "فلوريال Fleurial", "لوسيور Lesieur", "بوجي Puget", "ينار"] },
+  coffee: { ar: "قهوة", fr: "Café", en: "Coffee", items: ["بونال Bonal", "فاكتو Facto", "أروما Aroma", "1001", "طابا Taba", "نسكافيه Nescafé", "كارت نوار Carte Noire", "لافازا Lavazza"] },
+  tea: { ar: "شاي", fr: "Thé", en: "Tea", items: ["الخنشلي", "الصحراء", "الخيمة", "ليبتون Lipton", "توينينغز Twinings", "سلطان Sultan", "القافلة"] },
+  milk: { ar: "حليب", fr: "Lait", en: "Milk", items: ["كانديا Candia", "صومام Soummam", "الحضنة Hodna", "طاسيلي", "جيبلي", "لوشا Le Chat", "لحظة Loya", "نيدو Nestlé Nido"] },
+  cheese: { ar: "أجبان", fr: "Fromage", en: "Cheese", items: ["البقرة الضاحكة La Vache Qui Rit", "كيري Kiri", "رئيس Président", "بربر Berbère", "تارتينو Tartino", "الفنك Le Fennec", "فريكو Frico", "شيدار Cheddar"] },
+  yogurt: { ar: "ياغورت", fr: "Yaourt", en: "Yogurt", items: ["صومام Soummam", "دانون Danone", "أكتيفيا Activia", "دانيت Danette", "أكتيميل Actimel", "الحضنة", "ترافل Trèfle"] },
+  tuna: { ar: "تونة ومعلبات", fr: "Thon & Conserves", en: "Tuna & Canned Food", items: ["المنار El Manar", "ماروكا Maruca", "ريغال Régal", "سيدي داود", "إيزابيل Isabel", "ريو ماري Rio Mare"] },
+  juice: { ar: "عصائر", fr: "Jus", en: "Juice", items: ["رامي Ramy", "رويبة Rouiba", "نڨاوس Ngaous", "إفروي Ifruit", "توجة Toudja", "راني Rani", "تروبيكو Tropico", "جذور"] },
+  soda: { ar: "مشروبات غازية", fr: "Boissons Gazeuses", en: "Soda & Soft Drinks", items: ["حمود بوعلام", "سيليكتو Selecto", "سليم Slim", "كوكا كولا Coca-Cola", "بيبسي Pepsi", "سبرايت Sprite", "فانتا Fanta", "ميريندا Mirinda"] },
+  water: { ar: "مياه معدنية", fr: "Eau Minérale", en: "Mineral Water", items: ["إفري Ifri", "سعيدة Saida", "قديلة Guedila", "لالة خديجة", "موزاية Mouzaia", "توجة", "مسرغين"] },
+  choco: { ar: "شوكولاتة", fr: "Chocolat", en: "Chocolate", items: ["المرجان El Mordjene", "نوتيلا Nutella", "ميلكا Milka", "فيريرو روشيه Ferrero", "كيندر Kinder", "تويكس Twix", "سنيكرز Snickers"] },
+  biscuits: { ar: "بسكويت", fr: "Biscuits", en: "Biscuits", items: ["بيمو Bimo", "بالماري Palmary", "بيفا Bifa", "لو LU", "أوريو Oreo", "برانس Prince", "ماكسون Maxon", "كندر بوينو"] },
+  laundry: { ar: "غسيل الملابس", fr: "Lessive", en: "Laundry Detergent", items: ["إيزيس Isis", "أومو Omo", "أريال Ariel", "تايد Tide", "لوشا Le Chat", "تاست Test", "أمير Amir", "ماكسيس Maxis"] },
+  cleaners: { ar: "جافيل ومنظفات", fr: "Javel & Entretien", en: "Bleach & Cleaners", items: ["براف Bref", "فافو Favo", "عادي Adi", "لكروا La Croix", "بينغو Bingo", "أجاكس Ajax", "العملاق"] },
+  dishwash: { ar: "غسيل الأواني", fr: "Liquide Vaisselle", en: "Dishwashing Liquid", items: ["إيزيس Isis", "بريل Pril", "ماكسيس Maxis", "فيري Fairy"] },
+  shampoo: { ar: "شامبو", fr: "Shampooing", en: "Shampoo", items: ["فينوس Venus", "دوف Dove", "هيد آند شولدرز Head & Shoulders", "بانتين Pantene", "إلسيف Elseve", "كلير Clear"] },
+  soap: { ar: "صابون", fr: "Savon", en: "Soap", items: ["الكف", "الدزاير", "دوف Dove", "بالموليف Palmolive", "لو بتي مارسيي Le Petit Marseillais", "لوكس Lux"] },
+  toothpaste: { ar: "معجون أسنان", fr: "Dentifrice", en: "Toothpaste", items: ["سيجنال Signal", "كولجيت Colgate", "سنسوداين Sensodyne", "كرست Crest", "المسواك"] },
+  diapers: { ar: "حفاضات وورق", fr: "Couches & Papier", en: "Diapers & Paper", items: ["مولفيكس Molfix", "بامبرز Pampers", "كانبيبي Canbebe", "بيبي لوك Baby Look", "لوتوس Lotus"] }
 };
 
 export default function Inventory() {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.dir() === 'rtl';
   const currentStoreName = localStorage.getItem('storeName') || 'GHERBI.AI';
+  
+  // 🌟 استخراج اللغة الحالية لتطبيقها على القاموس
+  const currentLang = i18n.language.startsWith('ar') ? 'ar' : i18n.language.startsWith('fr') ? 'fr' : 'en';
 
   const [treeData, setTreeData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,7 +56,6 @@ export default function Inventory() {
   const [dictInput, setDictInput] = useState('');
   const [invNamesDict, setInvNamesDict] = useState({}); 
 
-  // 🌟 نافذة قاعدة بيانات السوق
   const [isMarketModalOpen, setIsMarketModalOpen] = useState(false);
   const [marketMapping, setMarketMapping] = useState({}); 
 
@@ -64,6 +66,9 @@ export default function Inventory() {
 
   const [editingProduct, setEditingProduct] = useState(null);
   const [editingCategoryId, setEditingCategoryId] = useState(null); 
+
+  const [editingDictName, setEditingDictName] = useState(null); 
+  const [newDictNameValue, setNewDictNameValue] = useState(''); 
 
   const [isDigitalMode, setIsDigitalMode] = useState(false);
   const [actualQuantities, setActualQuantities] = useState({});
@@ -113,18 +118,66 @@ export default function Inventory() {
     showToast('success', t('common.success', 'تم الحفظ بنجاح'));
   };
 
-  // 🌟 استيراد الداتا من السوق بدون Alert
+  const handleDeleteDictName = (e, nameToDelete) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const currentList = invNamesDict[productForm.typeId] || [];
+    const updatedList = currentList.filter(n => n !== nameToDelete);
+    
+    const newDict = { ...invNamesDict, [productForm.typeId]: updatedList };
+    localStorage.setItem('inv_names_dict', JSON.stringify(newDict));
+    setInvNamesDict(newDict);
+
+    if (selectedProductDetails[nameToDelete]) {
+      const copy = { ...selectedProductDetails };
+      delete copy[nameToDelete];
+      setSelectedProductDetails(copy);
+    }
+    showToast('success', t('inventory.nameDeleted', 'تم حذف الاسم من القائمة'));
+  };
+
+  const handleSaveEditDictName = (e, oldName) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const finalNewName = newDictNameValue.trim();
+    if(!finalNewName) return;
+
+    const currentList = invNamesDict[productForm.typeId] || [];
+    const updatedList = currentList.map(n => n === oldName ? finalNewName : n);
+    
+    const newDict = { ...invNamesDict, [productForm.typeId]: updatedList };
+    localStorage.setItem('inv_names_dict', JSON.stringify(newDict));
+    setInvNamesDict(newDict);
+
+    if (selectedProductDetails[oldName]) {
+      const copy = { ...selectedProductDetails };
+      copy[finalNewName] = copy[oldName];
+      delete copy[oldName];
+      setSelectedProductDetails(copy);
+    }
+
+    setEditingDictName(null);
+    setNewDictNameValue('');
+    showToast('success', t('inventory.nameUpdated', 'تم تعديل الاسم بنجاح'));
+  };
+
+  // 🌟 تعديل استيراد الداتا لتعتمد على اللغة المختارة
   const handleImportMarketData = async () => {
     let currentDict = JSON.parse(localStorage.getItem('inv_names_dict') || '{}');
     let successCount = 0;
 
     setIsLoading(true);
     try {
-      for (const [typeName, familyId] of Object.entries(marketMapping)) {
+      for (const [typeKey, familyId] of Object.entries(marketMapping)) {
         if (familyId) { 
-          const typeRes = await window.api.addInvType(familyId, typeName);
+          // إنشاء الاسم بناءً على اللغة الحالية للمستخدم
+          const localizedTypeName = ALGERIAN_MARKET_DATA[typeKey][currentLang];
+          
+          const typeRes = await window.api.addInvType(familyId, localizedTypeName);
           if (typeRes && typeRes.success && typeRes.id) {
-             const items = ALGERIAN_MARKET_DATA[typeName];
+             const items = ALGERIAN_MARKET_DATA[typeKey].items;
              const existingList = currentDict[typeRes.id] || [];
              currentDict[typeRes.id] = Array.from(new Set([...existingList, ...items]));
              successCount++;
@@ -211,7 +264,7 @@ export default function Inventory() {
       else if (itemToDelete.kind === 'product') res = await window.api.deleteInvItem(itemToDelete.id);
 
       if (res && res.success) {
-        showToast('success', t('common.success', 'تم الحذف'));
+        showToast('success', t('common.success', 'تم الحذف بنجاح'));
         if (itemToDelete.kind === 'family' && selectedFamily === String(itemToDelete.id)) setSelectedFamily('all');
         if (itemToDelete.kind === 'type' && selectedType === String(itemToDelete.id)) setSelectedType('all');
         fetchTree();
@@ -390,7 +443,7 @@ export default function Inventory() {
   const handlePrintA7 = () => {
     const productsToPrint = getProductsToPrint();
     if (productsToPrint.length === 0) {
-      showToast('error', t('common.noResults', 'لا توجد بيانات'));
+      showToast('error', t('common.noResults', 'لا توجد بيانات للطباعة'));
       return;
     }
 
@@ -501,7 +554,6 @@ export default function Inventory() {
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-6 flex flex-wrap gap-4 justify-between items-center shadow-lg">
         <div className="flex gap-3 flex-1 flex-wrap">
           
-          {/* 🔴 تم إصلاح الفلتر هنا بإضافة bg-slate-900 لكل option لتفادي الشاشة البيضاء */}
           <div className="flex items-center gap-1 bg-slate-950 border border-slate-700 rounded-lg pr-1">
             <select value={selectedFamily} onChange={(e) => { setSelectedFamily(e.target.value); setSelectedType('all'); }} className="bg-transparent px-4 py-2 text-white focus:outline-none min-w-[150px]">
               <option value="all" className="bg-slate-900 text-white">{t('inventory.allFamilies', 'جميع العائلات')}</option>
@@ -522,7 +574,6 @@ export default function Inventory() {
             )}
           </div>
 
-          {/* 🔴 إصلاح الفلتر الثاني بإضافة bg-slate-900 */}
           <div className="flex items-center gap-1 bg-slate-950 border border-slate-700 rounded-lg pr-1">
             <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)} className="bg-transparent px-4 py-2 text-white focus:outline-none min-w-[150px]">
               <option value="all" className="bg-slate-900 text-white">{t('inventory.allTypes', 'جميع الأنواع')}</option>
@@ -557,11 +608,11 @@ export default function Inventory() {
 
         <div className="flex gap-3 mt-4 lg:mt-0">
           <button onClick={() => setIsDigitalMode(!isDigitalMode)} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-colors ${isDigitalMode ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-emerald-400 border border-emerald-900/50 hover:bg-slate-700'}`}>
-            <ScanLine size={18} /> {isDigitalMode ? t('inventory.cancelDigitalMode', 'إلغاء') : t('inventory.enterDigitalMode', 'جرد رقمي')}
+            <ScanLine size={18} /> {isDigitalMode ? t('inventory.cancelDigitalMode', 'إلغاء الجرد الرقمي') : t('inventory.enterDigitalMode', 'إدخال جرد رقمي')}
           </button>
           
           <button onClick={() => setIsPrintModalOpen(true)} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg font-bold shadow-lg relative">
-            <Printer size={18} /> {t('inventory.printSheet', 'طباعة')}
+            <Printer size={18} /> {t('inventory.printSheet', 'طباعة ورقة جرد')}
             {selectedItems.size > 0 && (
               <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full border-2 border-slate-950">{selectedItems.size}</span>
             )}
@@ -642,7 +693,7 @@ export default function Inventory() {
         </div>
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setEditingProduct(null); setEditingCategoryId(null); }} title={editingProduct ? t('inventory.editProductTitle', 'تعديل') : modalMode === 'edit-family' ? t('inventory.editFamilyTitle', 'تعديل') : modalMode === 'edit-type' ? t('inventory.editTypeTitle', 'تعديل') : modalMode === 'family' ? t('inventory.addFamilyTitle', 'إضافة') : modalMode === 'type' ? t('inventory.addTypeTitle', 'إضافة') : t('inventory.addProductTitle', 'إضافة')}>
+      <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setEditingProduct(null); setEditingCategoryId(null); setEditingDictName(null); setNewDictNameValue(''); }} title={editingProduct ? t('inventory.editProductTitle', 'تعديل منتج') : modalMode === 'edit-family' ? t('inventory.editFamilyTitle', 'تعديل عائلة') : modalMode === 'edit-type' ? t('inventory.editTypeTitle', 'تعديل نوع') : modalMode === 'family' ? t('inventory.addFamilyTitle', 'إضافة عائلة') : modalMode === 'type' ? t('inventory.addTypeTitle', 'إضافة نوع') : t('inventory.addProductTitle', 'إضافة منتج')}>
         <form onSubmit={handleSubmit} className="p-4 space-y-4" dir={isRTL ? "rtl" : "ltr"}>
           
           {editingProduct ? (
@@ -678,10 +729,11 @@ export default function Inventory() {
                               else {
                                 setProductForm({...productForm, familyId: e.target.value, typeId: ''});
                                 setSelectedProductDetails({});
+                                setEditingDictName(null);
                               }
                             }} 
                             className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none">
-                      <option value="" disabled className="bg-slate-900">-- {t('inventory.selectFamily')} --</option>
+                      <option value="" disabled className="bg-slate-900">-- {t('inventory.selectFamily', 'اختر العائلة')} --</option>
                       {treeData.map(f => <option key={f.id} value={f.id} className="bg-slate-900 text-white">{f.name}</option>)}
                     </select>
                   </div>
@@ -689,8 +741,8 @@ export default function Inventory() {
                   {modalMode === 'product' && (
                     <div>
                       <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('inventory.type', 'نوع المنتج')}</label>
-                      <select required value={productForm.typeId} onChange={(e) => { setProductForm({...productForm, typeId: e.target.value}); setSelectedProductDetails({}); }} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none" disabled={!productForm.familyId}>
-                        <option value="" disabled className="bg-slate-900">-- {t('inventory.selectType')} --</option>
+                      <select required value={productForm.typeId} onChange={(e) => { setProductForm({...productForm, typeId: e.target.value}); setSelectedProductDetails({}); setEditingDictName(null); }} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none" disabled={!productForm.familyId}>
+                        <option value="" disabled className="bg-slate-900">-- {t('inventory.selectType', 'اختر النوع')} --</option>
                         {treeData.find(f => String(f.id) === String(productForm.familyId))?.types.map(t => (
                           <option key={t.id} value={t.id} className="bg-slate-900 text-white">{t.name}</option>
                         ))}
@@ -702,45 +754,80 @@ export default function Inventory() {
 
               {modalMode === 'product' ? (
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-2 text-start">{t('inventory.selectNamesAndPrices', 'اختر المنتجات وحدد السعر والعلبة:')}</label>
+                  <label className="block text-sm font-medium text-slate-400 mb-2 text-start">{t('inventory.selectNamesAndPrices', 'اختر المنتجات وحدد السعر والعلبة لكل واحد:')}</label>
                   
                   <div className="max-h-60 overflow-y-auto border border-slate-700 rounded-lg p-3 bg-slate-900 space-y-3 text-start">
                     {(invNamesDict[productForm.typeId] || []).map(n => {
                         const isChecked = selectedProductDetails[n] !== undefined;
+                        const isEditingThis = editingDictName === n;
+
                         return (
                           <div key={n} className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-slate-950 p-2.5 rounded-lg border border-slate-800">
-                            <label className="flex items-center gap-2 text-white cursor-pointer select-none">
-                                <input type="checkbox" checked={isChecked} onChange={() => {
-                                  if (isChecked) {
-                                    const copy = { ...selectedProductDetails };
-                                    delete copy[n];
-                                    setSelectedProductDetails(copy);
-                                  } else {
-                                    setSelectedProductDetails({ ...selectedProductDetails, [n]: { price: 0, pieces: 1 } });
-                                  }
-                                }} className="w-4 h-4 rounded border-slate-600 cursor-pointer" /> 
-                                <span className="text-sm font-bold">{n}</span>
-                            </label>
+                            
+                            {/* 🌟 واجهة تعديل الاسم داخلياً (Inline Edit) */}
+                            {isEditingThis ? (
+                              <div className="flex items-center gap-2 w-full">
+                                <input 
+                                  type="text" 
+                                  autoFocus
+                                  value={newDictNameValue} 
+                                  onChange={(e) => setNewDictNameValue(e.target.value)} 
+                                  className="w-full bg-slate-900 border border-blue-500 rounded px-2 py-1.5 text-white text-sm focus:outline-none" 
+                                />
+                                <button type="button" onClick={(e) => handleSaveEditDictName(e, n)} className="text-emerald-400 p-1.5 bg-emerald-400/10 hover:bg-emerald-400 hover:text-white transition-colors rounded">
+                                  <Check size={16}/>
+                                </button>
+                                <button type="button" onClick={() => setEditingDictName(null)} className="text-slate-400 p-1.5 bg-slate-800 hover:bg-slate-700 hover:text-white transition-colors rounded">
+                                  <X size={16}/>
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-between w-full md:w-auto flex-1">
+                                <label className="flex items-center gap-2 text-white cursor-pointer select-none">
+                                    <input type="checkbox" checked={isChecked} onChange={() => {
+                                      if (isChecked) {
+                                        const copy = { ...selectedProductDetails };
+                                        delete copy[n];
+                                        setSelectedProductDetails(copy);
+                                      } else {
+                                        setSelectedProductDetails({ ...selectedProductDetails, [n]: { price: 0, pieces: 1 } });
+                                      }
+                                    }} className="w-4 h-4 rounded border-slate-600 cursor-pointer" /> 
+                                    <span className="text-sm font-bold truncate max-w-[150px] sm:max-w-xs">{n}</span>
+                                </label>
+                                
+                                {/* 🌟 أزرار التعديل والحذف لاسم القاموس */}
+                                <div className="flex items-center gap-1 ms-2">
+                                  <button type="button" onClick={(e) => { e.stopPropagation(); setEditingDictName(n); setNewDictNameValue(n); }} className="text-blue-400 hover:bg-blue-400/10 p-1.5 rounded transition-colors" title={t('common.edit', 'تعديل')}>
+                                    <Edit size={14}/>
+                                  </button>
+                                  <button type="button" onClick={(e) => handleDeleteDictName(e, n)} className="text-red-400 hover:bg-red-400/10 p-1.5 rounded transition-colors" title={t('common.delete', 'حذف')}>
+                                    <Trash2 size={14}/>
+                                  </button>
+                                </div>
+                              </div>
+                            )}
 
-                            {isChecked && (
-                                <div className="flex items-center gap-2 w-full md:w-auto">
+                            {/* الحقول الخاصة بالسعر والعلبة */}
+                            {isChecked && !isEditingThis && (
+                                <div className="flex items-center gap-2 w-full md:w-auto mt-2 md:mt-0 border-t border-slate-800 pt-2 md:pt-0 md:border-t-0 md:border-s md:ps-3">
                                   <div>
-                                    <span className="text-[10px] text-slate-400 block">{t('inventory.price')}</span>
+                                    <span className="text-[10px] text-slate-400 block">{t('inventory.price', 'السعر')}</span>
                                     <input type="number" min="0" value={selectedProductDetails[n].price} onChange={(e) => {
                                         setSelectedProductDetails({
                                           ...selectedProductDetails,
                                           [n]: { ...selectedProductDetails[n], price: e.target.value }
                                         });
-                                    }} placeholder={t('inventory.price')} className="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-sm" />
+                                    }} placeholder={t('inventory.price', 'السعر')} className="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-blue-500" />
                                   </div>
                                   <div>
-                                    <span className="text-[10px] text-slate-400 block">{t('inventory.pieces')}</span>
+                                    <span className="text-[10px] text-slate-400 block">{t('inventory.pieces', 'العلبة')}</span>
                                     <input type="number" min="1" value={selectedProductDetails[n].pieces} onChange={(e) => {
                                         setSelectedProductDetails({
                                           ...selectedProductDetails,
                                           [n]: { ...selectedProductDetails[n], pieces: e.target.value }
                                         });
-                                    }} placeholder={t('inventory.pieces')} className="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-sm" />
+                                    }} placeholder={t('inventory.pieces', 'العلبة')} className="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-blue-500" />
                                   </div>
                                 </div>
                             )}
@@ -767,7 +854,7 @@ export default function Inventory() {
           )}
 
           <div className="pt-4 flex justify-end gap-3 mt-4">
-            <button type="button" onClick={() => { setIsModalOpen(false); setEditingProduct(null); setEditingCategoryId(null); }} className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800">{t('common.cancel', 'إلغاء')}</button>
+            <button type="button" onClick={() => { setIsModalOpen(false); setEditingProduct(null); setEditingCategoryId(null); setEditingDictName(null); setNewDictNameValue(''); }} className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800">{t('common.cancel', 'إلغاء')}</button>
             <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">{t('common.save', 'حفظ')}</button>
           </div>
         </form>
@@ -779,14 +866,14 @@ export default function Inventory() {
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('inventory.family', 'العائلة')}</label>
               <select required value={dictSelection.familyId} onChange={(e) => setDictSelection({ familyId: e.target.value, typeId: '' })} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none">
-                <option value="" disabled className="bg-slate-900 text-slate-400">-- {t('inventory.selectFamily')} --</option>
+                <option value="" disabled className="bg-slate-900 text-slate-400">-- {t('inventory.selectFamily', 'اختر العائلة')} --</option>
                 {treeData.map(f => <option key={f.id} value={f.id} className="bg-slate-900 text-white">{f.name}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('inventory.type', 'نوع المنتج')}</label>
               <select required value={dictSelection.typeId} onChange={(e) => setDictSelection({...dictSelection, typeId: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none" disabled={!dictSelection.familyId}>
-                <option value="" disabled className="bg-slate-900 text-slate-400">-- {t('inventory.selectType')} --</option>
+                <option value="" disabled className="bg-slate-900 text-slate-400">-- {t('inventory.selectType', 'اختر النوع')} --</option>
                 {treeData.find(f => String(f.id) === String(dictSelection.familyId))?.types.map(tOption => (
                   <option key={tOption.id} value={tOption.id} className="bg-slate-900 text-white">{tOption.name}</option>
                 ))}
@@ -799,7 +886,7 @@ export default function Inventory() {
             </label>
             <textarea required value={dictInput} onChange={(e) => setDictInput(e.target.value)}
                       className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 min-h-[150px] leading-relaxed" 
-                      placeholder={t('inventory.namesPlaceholder')} />
+                      placeholder={t('inventory.namesPlaceholder', 'البراف\nفافو\nعادي\n...')} />
           </div>
           <div className="pt-2 flex justify-end gap-3">
             <button type="button" onClick={() => setIsNameDictModalOpen(false)} className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800">{t('common.cancel', 'إلغاء')}</button>
@@ -808,7 +895,6 @@ export default function Inventory() {
         </form>
       </Modal>
 
-      {/* 🌟 نافذة قاعدة بيانات السوق (الجديدة) محددة العرض عبر maxWidth */}
       <Modal isOpen={isMarketModalOpen} onClose={() => setIsMarketModalOpen(false)} title={t('inventory.marketDbTitle', 'استيراد قاعدة السوق')} maxWidth="max-w-5xl">
         <div className="p-4" dir={isRTL ? 'rtl' : 'ltr'}>
           <p className="text-slate-400 mb-4 text-sm text-start">
@@ -825,14 +911,14 @@ export default function Inventory() {
                  </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/50">
-                 {Object.entries(ALGERIAN_MARKET_DATA).map(([type, items]) => (
-                    <tr key={type} className="hover:bg-slate-800/30">
-                       <td className="p-3 font-bold text-white whitespace-nowrap">{type}</td>
-                       <td className="p-3 text-xs text-slate-400 leading-relaxed">{items.join('، ')}</td>
+                 {Object.entries(ALGERIAN_MARKET_DATA).map(([typeKey, data]) => (
+                    <tr key={typeKey} className="hover:bg-slate-800/30">
+                       <td className="p-3 font-bold text-white whitespace-nowrap">{data[currentLang]}</td>
+                       <td className="p-3 text-xs text-slate-400 leading-relaxed">{data.items.join('، ')}</td>
                        <td className="p-3">
                           <select 
-                             value={marketMapping[type] || ''}
-                             onChange={(e) => setMarketMapping({ ...marketMapping, [type]: e.target.value })}
+                             value={marketMapping[typeKey] || ''}
+                             onChange={(e) => setMarketMapping({ ...marketMapping, [typeKey]: e.target.value })}
                              className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-white focus:outline-none focus:border-purple-500 text-xs"
                           >
                              <option value="" className="bg-slate-900 text-slate-400">-- {t('common.ignore', 'تجاهل')} --</option>

@@ -43,45 +43,69 @@ export default function Dashboard() {
     }).replace(',', ' -');
   };
 
+  // 🔴 تم تحديث هذه الدالة لتشمل سجلات الجرد وتدعم 3 لغات تلقائياً
   const renderAuditDetails = (log) => {
     try {
-      const p = JSON.parse(log.details);
+      const p = JSON.parse(log.details || '{}');
       switch(log.action) {
-        case 'LOGIN': return `تسجيل دخول (${p.role})`;
-        case 'ADD_EXPENSE': return `إضافة مصروف: ${p.desc} (${p.amount})`;
-        case 'UPDATE_EXPENSE': return `تعديل مصروف: ${p.desc} (${p.amount})`;
-        case 'DELETE_EXPENSE': return `حذف مصروف: ${p.desc} (${p.amount})`;
-        case 'CLOSE_DAY': return `إغلاق وتأكيد اليومية. المبيعات: ${p.sales}`;
-        case 'CLOSE_SHIFT': return `إغلاق وردية كاشير. المبيعات: ${p.sales}`;
-        case 'OPEN_SHIFT': return `فتح وردية جديدة بفوندوكاس: ${p.opening}`;
-        case 'ADD_EMPLOYEE': return `إضافة موظف جديد: ${p.name}`;
-        case 'UPDATE_EMPLOYEE': return `تعديل بيانات الموظف: ${p.name}`;
-        case 'DELETE_EMPLOYEE': return `حذف/تعطيل الموظف: ${p.name}`;
-        case 'ADD_USER': return `إنشاء حساب نظام: ${p.username}`;
-        case 'DELETE_USER': return `حذف حساب: ${p.username}`;
-        case 'PAY_SALARY': return `صرف راتب موظف بقيمة: ${p.amount}`;
-        case 'ADD_SUPPLIER': return `إضافة مورد جديد: ${p.name}`;
-        case 'UPDATE_SUPPLIER': return `تعديل بيانات المورد: ${p.name}`;
-        case 'DELETE_SUPPLIER': return `حذف بيانات المورد`;
-        case 'ADD_RECEIPT': return `استلام فاتورة/سلعة بقيمة: ${p.amount}`;
-        case 'UPDATE_RECEIPT': return `تعديل فاتورة مورد إلى: ${p.amount}`;
-        case 'DELETE_RECEIPT': return `حذف فاتورة مورد`;
-        case 'ADD_PAYMENT': return `تسديد دفعة لمورد بقيمة: ${p.amount}`;
-        case 'UPDATE_PAYMENT': return `تعديل تسديد مورد إلى: ${p.amount}`;
-        case 'DELETE_PAYMENT': return `حذف تسديد مورد`;
-        case 'ADD_ADVANCE': return `تقديم سلفة بقيمة: ${p.amount}`;
-        case 'UPDATE_ADVANCE': return `تعديل سلفة إلى: ${p.amount}`;
-        case 'DELETE_ADVANCE': return `إلغاء سلفة مالية`;
-        case 'ADD_TASK': return `إضافة مهمة للأجندة: ${p.title}`;
-        case 'UPDATE_TASK_STATUS': return `تغيير حالة مهمة إلى: ${p.status}`;
-        case 'DELETE_TASK': return `حذف مهمة من الأجندة`;
-        case 'RESCHEDULE_TASK': return `تأجيل مهمة إلى تاريخ: ${p.newDate}`;
-        case 'CHECK_IN': return `تسجيل حضور الساعة: ${p.time}`;
-        case 'CHECK_OUT': return `تسجيل انصراف الساعة: ${p.time}`;
-        case 'UPDATE_ATTENDANCE': return `تعديل وقت حضور/انصراف الموظف`;
-        default: return t(`audit.details.${log.action}`, p) || JSON.stringify(p);
+        case 'LOGIN': return t('audit.login', { role: p.role, defaultValue: `تسجيل دخول للنظام (${p.role})` });
+        
+        // المصاريف
+        case 'ADD_EXPENSE': return t('audit.addExpense', { desc: p.desc, amount: p.amount, defaultValue: `إضافة مصروف: ${p.desc} (${p.amount} د.ج)` });
+        case 'UPDATE_EXPENSE': return t('audit.updateExpense', { desc: p.desc, amount: p.amount, defaultValue: `تعديل مصروف: ${p.desc} (${p.amount} د.ج)` });
+        case 'DELETE_EXPENSE': return t('audit.deleteExpense', { desc: p.desc, amount: p.amount, defaultValue: `حذف مصروف: ${p.desc} (${p.amount} د.ج)` });
+        
+        // الصندوق والورديات
+        case 'CLOSE_DAY': return t('audit.closeDay', { sales: p.sales, defaultValue: `إغلاق وتأكيد يومية المتجر. المبيعات: ${p.sales} د.ج` });
+        case 'CLOSE_SHIFT': return t('audit.closeShift', { sales: p.sales, defaultValue: `إغلاق وردية كاشير. المبيعات: ${p.sales} د.ج` });
+        case 'OPEN_SHIFT': return t('audit.openShift', { opening: p.opening, defaultValue: `فتح وردية جديدة بفوندوكاس: ${p.opening} د.ج` });
+        
+        // الموظفين والمستخدمين
+        case 'ADD_EMPLOYEE': return t('audit.addEmployee', { name: p.name, role: p.role, defaultValue: `إضافة موظف جديد: ${p.name} (${p.role})` });
+        case 'UPDATE_EMPLOYEE': return t('audit.updateEmployee', { name: p.name, defaultValue: `تعديل بيانات الموظف: ${p.name}` });
+        case 'DELETE_EMPLOYEE': return t('audit.deleteEmployee', { name: p.name, defaultValue: `حذف/تعطيل الموظف: ${p.name}` });
+        case 'ADD_USER': return t('audit.addUser', { username: p.username, role: p.role, defaultValue: `إنشاء حساب للنظام: ${p.username} (${p.role})` });
+        case 'DELETE_USER': return t('audit.deleteUser', { username: p.username, defaultValue: `حذف حساب: ${p.username}` });
+        case 'PAY_SALARY': return t('audit.paySalary', { amount: p.amount, defaultValue: `صرف راتب موظف بقيمة: ${p.amount} د.ج` });
+        
+        // الموردين والفواتير
+        case 'ADD_SUPPLIER': return t('audit.addSupplier', { name: p.name, debt: p.debt, defaultValue: `إضافة مورد جديد: ${p.name} (دين أولي: ${p.debt})` });
+        case 'UPDATE_SUPPLIER': return t('audit.updateSupplier', { name: p.name, defaultValue: `تعديل بيانات المورد: ${p.name}` });
+        case 'DELETE_SUPPLIER': return t('audit.deleteSupplier', { id: p.id, defaultValue: `حذف بيانات المورد (ID: ${p.id})` });
+        case 'ADD_RECEIPT': return t('audit.addReceipt', { amount: p.amount, defaultValue: `استلام فاتورة/سلعة بقيمة: ${p.amount} د.ج` });
+        case 'UPDATE_RECEIPT': return t('audit.updateReceipt', { amount: p.amount, defaultValue: `تعديل فاتورة مورد إلى: ${p.amount} د.ج` });
+        case 'DELETE_RECEIPT': return t('audit.deleteReceipt', { id: p.id, defaultValue: `حذف فاتورة مورد (ID: ${p.id})` });
+        case 'ADD_PAYMENT': return t('audit.addPayment', { amount: p.amount, defaultValue: `تسديد دفعة لمورد بقيمة: ${p.amount} د.ج` });
+        case 'UPDATE_PAYMENT': return t('audit.updatePayment', { amount: p.amount, defaultValue: `تعديل تسديد مورد إلى: ${p.amount} د.ج` });
+        case 'DELETE_PAYMENT': return t('audit.deletePayment', { id: p.id, defaultValue: `حذف تسديد مورد (ID: ${p.id})` });
+        
+        // الأجندة والمهام
+        case 'ADD_TASK': return t('audit.addTask', { title: p.title, defaultValue: `إضافة مهمة للأجندة: ${p.title}` });
+        case 'UPDATE_TASK_STATUS': return t('audit.updateTaskStatus', { status: p.status, defaultValue: `تغيير حالة مهمة إلى: ${p.status}` });
+        case 'DELETE_TASK': return t('audit.deleteTask', { id: p.id, defaultValue: `حذف مهمة من الأجندة (ID: ${p.id})` });
+        case 'RESCHEDULE_TASK': return t('audit.rescheduleTask', { date: p.newDate, defaultValue: `تأجيل مهمة إلى تاريخ: ${p.newDate}` });
+        
+        // الحضور والانصراف
+        case 'CHECK_IN': return t('audit.checkIn', { time: p.time, defaultValue: `تسجيل حضور الساعة: ${p.time}` });
+        case 'CHECK_OUT': return t('audit.checkOut', { time: p.time, defaultValue: `تسجيل انصراف الساعة: ${p.time}` });
+        case 'UPDATE_ATTENDANCE': return t('audit.updateAttendance', { defaultValue: `تعديل وقت حضور/انصراف الموظف` });
+
+        // 🟢 إدارة المخزون والجرد (Inventory) التي كانت تسبب المشكلة
+        case 'ADD_INV_FAMILY': return t('audit.addInvFamily', { name: p.name, defaultValue: `إضافة عائلة مخزون جديدة: ${p.name || 'غير محدد'}` });
+        case 'UPDATE_INV_FAMILY': return t('audit.updateInvFamily', { name: p.name, defaultValue: `تعديل عائلة مخزون: ${p.name || ''}` });
+        case 'DELETE_INV_FAMILY': return t('audit.deleteInvFamily', { id: p.id, defaultValue: `حذف عائلة مخزون بالمعرف: ${p.id || ''}` });
+        
+        case 'ADD_INV_TYPE': return t('audit.addInvType', { name: p.name, defaultValue: `إضافة نوع منتج جديد: ${p.name || 'غير محدد'}` });
+        case 'UPDATE_INV_TYPE': return t('audit.updateInvType', { name: p.name, defaultValue: `تعديل نوع منتج: ${p.name || ''}` });
+        case 'DELETE_INV_TYPE': return t('audit.deleteInvType', { id: p.id, defaultValue: `حذف نوع منتج بالمعرف: ${p.id || ''}` });
+        
+        case 'ADD_INV_ITEM': return t('audit.addInvItem', { name: p.name, defaultValue: `إضافة منتج جديد للمخزون: ${p.name || 'غير محدد'}` });
+        case 'UPDATE_INV_ITEM': return t('audit.updateInvItem', { name: p.name, defaultValue: `تعديل بيانات/كمية منتج: ${p.name || ''}` });
+        case 'DELETE_INV_ITEM': return t('audit.deleteInvItem', { id: p.id, defaultValue: `حذف منتج من المخزون بالمعرف: ${p.id || ''}` });
+
+        default: return t(`audit.details.${log.action}`, p, { defaultValue: JSON.stringify(p) });
       }
-    } catch (e) { return log.details; }
+    } catch (e) { return log.details || log.action; }
   };
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -269,11 +293,10 @@ export default function Dashboard() {
                     <p className="text-sm font-medium text-slate-300">{renderAuditDetails(log)}</p>
                     <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
                       <span className="text-blue-400 font-bold">{log.username}</span> 
-                      {/* 🔴 استخدام دالة التاريخ الجديدة هنا */}
                       • <span dir="ltr" className="font-mono text-slate-400">{formatDateTime(log.created_at)}</span>
                     </p>
                   </div>
-                  <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded">
+                  <span className="text-[10px] font-bold bg-slate-800 text-slate-400 px-2 py-1 rounded">
                     {log.action}
                   </span>
                 </div>

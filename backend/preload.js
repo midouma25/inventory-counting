@@ -97,4 +97,5 @@ checkActivation: () => ipcRenderer.invoke('check-activation'),
   deleteInvItem: (id) => ipcRenderer.invoke('delete-inv-item', id),
   updateInvFamily: (id, name) => ipcRenderer.invoke('update-inv-family', id, name),
   updateInvType: (id, name) => ipcRenderer.invoke('update-inv-type', id, name),
+  getSystemNotifications: () => ipcRenderer.invoke('get-system-notifications'),
 });

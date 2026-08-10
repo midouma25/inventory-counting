@@ -932,6 +932,57 @@ function updateInvType(id, name) {
   } catch (error) { return { success: false, error: error.message }; }
 }
 
+// 🌟 دالة توليد الإشعارات الذكية
+function getSystemNotifications() {
+  try {
+    const notifications = [];
+
+    // 1. مهام الأجندة المستحقة (التي موعدها اليوم أو قبل اليوم وما زالت معلقة)
+    const todayStr = new Date().toISOString().split('T')[0];
+    const pendingTasks = db.prepare("SELECT id, title, task_date FROM agenda_tasks WHERE status = 'pending' AND task_date <= ? LIMIT 10").all(todayStr);
+    
+    for (const task of pendingTasks) {
+      notifications.push({
+        id: `task_${task.id}`,
+        type: 'info',
+        titleKey: 'notif.agendaTitle',
+        descKey: 'notif.agendaDesc',
+        payload: { title: task.title },
+        time: task.task_date
+      });
+    }
+
+    // 2. ديون الموردين (نجلب الموردين الذين يدينون للمحل بمبالغ لتذكير المدير)
+    const indebtedSuppliers = db.prepare("SELECT id, name, total_debt FROM suppliers WHERE total_debt > 0 ORDER BY total_debt DESC LIMIT 10").all();
+    for (const sup of indebtedSuppliers) {
+      notifications.push({
+        id: `debt_${sup.id}`,
+        type: 'warning',
+        titleKey: 'notif.debtTitle',
+        descKey: 'notif.debtDesc',
+        payload: { name: sup.name, debt: sup.total_debt.toLocaleString() },
+        time: 'عاجل'
+      });
+    }
+
+    // 3. تنبيه يوم الرواتب وغلق الورديات (يوم الخميس ابتداءً من 9 ليلاً)
+    const now = new Date();
+    if (now.getDay() === 4 && now.getHours() >= 21) { // 4 تعني الخميس، 21 تعني 9 مساءً
+      notifications.push({
+        id: `thursday_${todayStr}`,
+        type: 'warning',
+        titleKey: 'notif.thursdayTitle',
+        descKey: 'notif.thursdayDesc',
+        payload: {},
+        time: 'الآن'
+      });
+    }
+
+    return { success: true, data: notifications };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
 module.exports = {
   initDatabase, verifyLogin, getSuppliers, addSupplier, getEmployees, addEmployee, 
   handlePinEntry, getExpenses, addExpense, deleteExpense, updateExpense, getTodayAttendance,
@@ -943,6 +994,6 @@ module.exports = {
   getUsers, addUser, deleteUser,dbPath,
   updateEmployee, deleteEmployee, logAudit, getAuditLogs, generateExcelBackup, backupDatabase, importSuppliersFromExcel, deleteSupplier, updateSupplier , deleteReceipt, deletePayment, updateAdvance, deleteAdvance, 
   getAllShiftsSummary, closeBusinessDay, getDailyClosures, getArchivedZReport, updateAttendanceRecord, getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, saveMapLayout, getMapLayout,getStoreLayouts, saveStoreLayout, deleteStoreLayout, activateStoreLayout, getShelfProducts, deleteShelfProduct, updateShelfProduct,
-  getInventoryTree, addInvFamily, deleteInvFamily, addInvType, deleteInvType, addInvItem, updateInvItem, deleteInvItem , updateInvFamily, updateInvType
+  getInventoryTree, addInvFamily, deleteInvFamily, addInvType, deleteInvType, addInvItem, updateInvItem, deleteInvItem , updateInvFamily, updateInvType , getSystemNotifications
 
 };

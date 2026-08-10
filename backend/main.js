@@ -16,7 +16,7 @@ const {
   getUsers, addUser, deleteUser, updateEmployee, deleteEmployee ,logAudit , getAuditLogs, backupDatabase, getShelfProducts,
   generateExcelBackup, updateSupplier, deleteSupplier, updateAdvance, deleteAdvance, getAllShiftsSummary , getDailyClosures, getArchivedZReport,updateAttendanceRecord,getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, closeBusinessDay, getSuppliersList, saveInvoiceDebt, saveMapLayout, getMapLayout, getStoreLayouts, saveStoreLayout, deleteStoreLayout, activateStoreLayout
   , deleteReceipt, deletePayment, updateReceipt, updatePayment, importSuppliersFromExcel, deleteShelfProduct, updateShelfProduct, setWindowsTime,saveReceiptPdf, printReceipt,
-  getInventoryTree, addInvFamily, deleteInvFamily, addInvType, deleteInvType, addInvItem, updateInvItem, deleteInvItem, updateInvFamily, updateInvType
+  getInventoryTree, addInvFamily, deleteInvFamily, addInvType, deleteInvType, addInvItem, updateInvItem, deleteInvItem, updateInvFamily, updateInvType , getSystemNotifications
 } = require('./database');
 
 // 👇 استدعاء آمن للمكتبة ليتوافق مع جميع إصدارات Electron و Node.js
@@ -290,7 +290,7 @@ ipcMain.handle("save-receipt-pdf", async (event) => {
   ipcMain.handle('delete-store-layout', (event, id) => db.deleteStoreLayout(id));
   ipcMain.handle('activate-store-layout', (event, id) => db.activateStoreLayout(id));
   // 🌟 مسارات استيراد الفواتير الذكية (PDF) 🌟
-  
+  ipcMain.handle('get-system-notifications', () => db.getSystemNotifications());
   // 1. جلب قائمة الموردين للنافذة المنسدلة
   ipcMain.handle('get-suppliers-list', async () => {
     try {

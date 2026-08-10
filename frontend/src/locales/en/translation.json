@@ -697,5 +697,16 @@
       "downloadPDF": "Download PDF",
       "idCard": "EMPLOYEE ID CARD",
       "scanInstruction": "Please scan this barcode upon entry and exit."
-    }
+    },
+    "notif": {
+    "title": "Notifications",
+    "markAllRead": "Mark all as read",
+    "noNotifs": "No new notifications",
+    "agendaTitle": "Agenda Task",
+    "agendaDesc": "You have a due task: {{title}}",
+    "debtTitle": "Supplier Debts",
+    "debtDesc": "Supplier {{name}} has a debt of {{debt}} DA",
+    "thursdayTitle": "Payroll Day Alert ⚠️",
+    "thursdayDesc": "Today is Thursday (Payroll day). Please don't forget to close shifts and settle staff accounts."
+  }
   }
