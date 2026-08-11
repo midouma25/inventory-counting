@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain , Notification, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain , Notification, dialog, globalShortcut } = require('electron');
 const db = require('./database'); 
 const path = require('path');
 const fs = require('fs');
@@ -16,7 +16,7 @@ const {
   getUsers, addUser, deleteUser, updateEmployee, deleteEmployee ,logAudit , getAuditLogs, backupDatabase, getShelfProducts,
   generateExcelBackup, updateSupplier, deleteSupplier, updateAdvance, deleteAdvance, getAllShiftsSummary , getDailyClosures, getArchivedZReport,updateAttendanceRecord,getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, closeBusinessDay, getSuppliersList, saveInvoiceDebt, saveMapLayout, getMapLayout, getStoreLayouts, saveStoreLayout, deleteStoreLayout, activateStoreLayout
   , deleteReceipt, deletePayment, updateReceipt, updatePayment, importSuppliersFromExcel, deleteShelfProduct, updateShelfProduct, setWindowsTime,saveReceiptPdf, printReceipt,
-  getInventoryTree, addInvFamily, deleteInvFamily, addInvType, deleteInvType, addInvItem, updateInvItem, deleteInvItem, updateInvFamily, updateInvType , getSystemNotifications
+  getInventoryTree, addInvFamily, deleteInvFamily, addInvType, deleteInvType, addInvItem, updateInvItem, deleteInvItem, updateInvFamily, updateInvType , getSystemNotifications, resetDatabase , replaceDatabase, getArchivedShiftsArchive
 } = require('./database');
 
 // 👇 استدعاء آمن للمكتبة ليتوافق مع جميع إصدارات Electron و Node.js
@@ -26,7 +26,7 @@ const { exec } = require('child_process');
 
 const express = require('express');
 const cors = require('cors');
-
+ipcMain.handle('reset-database', () => db.resetDatabase());
 ipcMain.handle('delete-shelf-product', (e, id) => db.deleteShelfProduct(id));
 ipcMain.handle('update-shelf-product', (e, id, name, qty) => db.updateShelfProduct(id, name, qty));
 function createWindow() {
@@ -80,6 +80,18 @@ function createWindow() {
       }
       win.show(); 
     }, 3000); 
+  });
+  // 🌟 تسجيل الاختصار العالمي (Global Shortcut)
+  globalShortcut.register('CommandOrControl+Shift+A', () => {
+    if (win) {
+      if (win.isMinimized()) win.restore();
+      win.focus(); // إجبار النافذة على القفز للأمام
+      win.webContents.send('trigger-attendance-shortcut'); // إرسال الإشارة للواجهة الأمامية
+    }
+  });
+
+  win.on('closed', () => {
+    globalShortcut.unregisterAll(); // تنظيف الاختصارات عند الإغلاق
   });
 }
 // 👇===== الكود السحري لتوحيد وتصحيح التوقيت المحلي لجميع صفحات البرنامج =====👇
@@ -417,6 +429,7 @@ app.whenReady().then(() => {
 });
 
 ipcMain.handle('backup-database', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
   try {
     const defaultName = `POS_Backup_${new Date().toISOString().split('T')[0]}`;
     
@@ -448,49 +461,51 @@ ipcMain.handle('backup-database', async (event) => {
 
 // 2. استعادة البيانات
 // 2. استعادة البيانات
-  ipcMain.handle('restore-database', async () => {
-    
-    // 🔴 لقد قمنا بحذف تعريف dbPath من هنا، لأنه سيستخدم المسار القادم من database.js مباشرة!
-    
-    // فتح نافذة للمستخدم لاختيار ملف النسخة الاحتياطية
-    const { canceled, filePaths } = await dialog.showOpenDialog({
-      title: 'اختيار ملف النسخة الاحتياطية (Select Backup File)',
-      properties: ['openFile'],
-      filters: [
-        { name: 'Database Files', extensions: ['db', 'sqlite', 'sqlite3'] },
-        { name: 'All Files', extensions: ['*'] }
-      ]
-    });
-
-    if (canceled || filePaths.length === 0) return { success: false, canceled: true };
-
-    try {
-      const sourcePath = filePaths[0];
-      
-      const buffer = Buffer.alloc(16);
-      const fd = fs.openSync(sourcePath, 'r');
-      fs.readSync(fd, buffer, 0, 16, 0);
-      fs.closeSync(fd);
-      
-      const header = buffer.toString('utf8');
-      if (!header.startsWith('SQLite format 3')) {
-        return { success: false, error: 'invalid_format' }; 
-      }
-
-      // 🔴 هنا سيقوم بنسخ الملف المختار واستبداله بالمسار الأصلي المعرف في database.js
-      fs.copyFileSync(sourcePath, dbPath);
-      
-      app.relaunch();
-      app.exit(0);
-      
-      return { success: true };
-    } catch (error) {
-      console.error('Restore Error:', error);
-      return { success: false, error: error.message };
-    }
+ipcMain.handle('restore-database', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  
+  const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+    title: 'اختيار ملف النسخة الاحتياطية (Select Backup File)',
+    properties: ['openFile'],
+    filters: [
+      { name: 'Database Files', extensions: ['db', 'sqlite', 'sqlite3'] },
+      { name: 'All Files', extensions: ['*'] }
+    ]
   });
 
-  
+  if (canceled || filePaths.length === 0) return { success: false, canceled: true };
+
+  try {
+    const sourcePath = filePaths[0];
+    
+    // التحقق من صحة الملف قبل إغلاق قاعدة البيانات
+    const buffer = Buffer.alloc(16);
+    const fd = fs.openSync(sourcePath, 'r');
+    fs.readSync(fd, buffer, 0, 16, 0);
+    fs.closeSync(fd);
+    
+    const header = buffer.toString('utf8');
+    if (!header.startsWith('SQLite format 3')) {
+      return { success: false, error: 'invalid_format' }; 
+    }
+
+    // 🔴 استدعاء دالة الاستبدال الآمنة
+    const res = db.replaceDatabase(sourcePath);
+    if (!res.success) {
+      return { success: false, error: res.error };
+    }
+    
+    // 🔴 إعادة تشغيل التطبيق بالكامل بعد نجاح الاستبدال
+    app.relaunch();
+    app.exit(0);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Restore Error:', error);
+    return { success: false, error: error.message };
+  }
+});
+  ipcMain.handle('get-archived-shifts-archive', async () => db.getArchivedShiftsArchive());
 ipcMain.handle('import-suppliers-excel', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
       title: 'استيراد ديون الموردين من ملفات إكسيل',

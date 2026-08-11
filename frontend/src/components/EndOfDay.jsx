@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Play, Lock, Calculator, Banknote, AlertCircle, Clock, CheckCircle2, RotateCcw, User, LineChart, Printer, X, Download, Globe } from 'lucide-react';
+import { Play, Lock, Calculator, Banknote, AlertCircle, Clock, CheckCircle2, RotateCcw, User, LineChart, Printer, X, Download, Globe, FileText, Archive } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 import Modal from './ui/Modal'; 
 import html2canvas from 'html2canvas'; 
@@ -12,10 +12,11 @@ export default function EndOfDay() {
   
   const user = useAuthStore(state => state.user);
   const isSuperAdmin = user?.role === 'superadmin';
-  const cashierName = isSuperAdmin ? t('common.superAdmin', i18n.language === 'ar' ? 'المدير العام' : 'Super Admin') : (user?.username || 'Cashier');
+  const cashierName = isSuperAdmin ? t('common.superAdmin', 'المدير العام') : (user?.username || 'Cashier');
 
-  // قراءة اسم المحل
   const currentStoreName = localStorage.getItem('storeName') || 'GHERBI.AI';
+
+  const [adminTab, setAdminTab] = useState('live');
 
   const [activeShift, setActiveShift] = useState(null);
   const [openingBalanceInput, setOpeningBalanceInput] = useState('');
@@ -26,16 +27,18 @@ export default function EndOfDay() {
   
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(true);
 
-  // حالات خاصة بالكاشير (وصل 80mm)
   const [showReceipt, setShowReceipt] = useState(false);
   const [receiptData, setReceiptData] = useState(null);
   
-  // حالات خاصة بالمدير (تقرير A4)
   const [isCloseDayModalOpen, setIsCloseDayModalOpen] = useState(false);
-  const [showZReport, setShowZReport] = useState(false); 
+  const [showZReportPrintModal, setShowZReportPrintModal] = useState(false); 
   const [zReportData, setZReportData] = useState(null);
   const [allShifts, setAllShifts] = useState([]);
   const [grandTotals, setGrandTotals] = useState({ opening: 0, actual: 0, sales: 0 });
+
+  const [archivedShifts, setArchivedShifts] = useState([]);
+  const [selectedArchivedShift, setSelectedArchivedShift] = useState(null);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   
   const [isLoading, setIsLoading] = useState(true);
   const [toast, setToast] = useState(null);
@@ -48,11 +51,19 @@ export default function EndOfDay() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      if (isSuperAdmin && window.api && window.api.getAllShiftsSummary) {
-        const res = await window.api.getAllShiftsSummary();
-        if (res.success) {
-          setAllShifts(res.data.shifts);
-          setGrandTotals(res.data.grandTotals);
+      if (isSuperAdmin && window.api) {
+        if (window.api.getAllShiftsSummary) {
+          const res = await window.api.getAllShiftsSummary();
+          if (res.success) {
+            setAllShifts(res.data.shifts);
+            setGrandTotals(res.data.grandTotals);
+          }
+        }
+        if (window.api.getArchivedShiftsArchive) {
+          const archiveRes = await window.api.getArchivedShiftsArchive();
+          if (archiveRes.success) {
+            setArchivedShifts(archiveRes.data);
+          }
         }
       } else if (window.api && window.api.getActiveShift) {
         const shift = await window.api.getActiveShift(cashierName);
@@ -95,20 +106,12 @@ export default function EndOfDay() {
   const currentOpeningBalance = activeShift ? activeShift.opening_balance : 0;
   const todaySales = (actualAmount === '' || actualAmount === 0) ? 0 : (Number(actualAmount) + totalOut) - Number(currentOpeningBalance);
   
-  // ------------------------------------------------------------------
-  // الأزرار الأربعة
-  // ------------------------------------------------------------------
-  
-  // 1. زر تغيير اللغة
   const toggleLanguage = () => {
     const langs = ['ar', 'fr', 'en'];
     const nextLang = langs[(langs.indexOf(i18n.language) + 1) % langs.length];
     i18n.changeLanguage(nextLang);
   };
 
-  // ------------------------------------------------------------------
-  // 2. زر الطباعة المباشرة (تم حل مشكلة تآكل الحواف بإضافة Padding 6mm)
-  // ------------------------------------------------------------------
   const handlePrint = () => {
     const printElement = document.getElementById('printable-receipt');
     if (!printElement) return;
@@ -128,7 +131,6 @@ export default function EndOfDay() {
 
     const doc = iframe.contentWindow.document;
     doc.open();
-    // 🔴 تم التعديل هنا فقط: وضعنا padding: 0 6mm لإجبار النص على الدخول للوسط وحماية الحواف
     doc.write(`
       <!DOCTYPE html>
       <html lang="${i18n.language}" dir="${isRTL ? 'rtl' : 'ltr'}">
@@ -136,41 +138,26 @@ export default function EndOfDay() {
         <title>Print</title>
         <style>
           @page { margin: 0; }
-          html, body { 
-            margin: 0; 
-            padding: 0;
-            width: 100%;
-            background: #fff; 
-            color: #000; 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-          }
-          .print-wrapper {
-            width: 100%;
-            max-width: 72mm; 
-            margin: 0 auto;
-            /* 🔴 السر هنا لحل مشكلة التآكل: هوامش يمين ويسار بـ 6 ملم لدفع النص للداخل */
-            padding: 2mm 6mm; 
-            box-sizing: border-box;
-          }
-          /* --- نسخ الكلاسات الخاصة بك بدقة --- */
-          .receipt-ticket-forced { width: 100%; box-sizing: border-box; }
-          .header-title { text-align: center; font-size: 18px; font-weight: 900; margin: 0 0 2px 0; }
-          .header-subtitle1 { text-align: center; font-size: 11px; margin: 0 0 6px 0; letter-spacing: 1px; }
-          .badge-action { text-align: center; font-size: 15px; font-weight: bold; border: 2px solid #000; padding: 6px; margin: 8px 0; border-radius: 4px; }
+          html, body { margin: 0; padding: 0; width: 100%; background: #fff; color: #000; font-family: sans-serif; }
+          .print-wrapper { width: 100%; max-width: 72mm; margin: 0 auto; padding: 2mm 6mm; box-sizing: border-box; }
+          .receipt-ticket-forced { width: 100%; box-sizing: border-box; color: #000; }
+          .header-title { text-align: center; font-size: 18px; font-weight: 900; margin: 0 0 2px 0; color: #000; }
+          .header-subtitle1 { text-align: center; font-size: 11px; margin: 0 0 6px 0; font-weight: bold; color: #000; }
+          .badge-action { text-align: center; font-size: 15px; font-weight: bold; border: 2px solid #000; padding: 6px; margin: 8px 0; border-radius: 4px; color: #000; }
           .receipt-divider { border-top: 1.5px dashed #000; margin: 10px 0; }
           .flex { display: flex; }
           .flex-col { flex-direction: column; }
           .w-full { width: 100%; }
           .my-2 { margin: 8px 0; }
-          .info-row { display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-bottom: 6px; }
+          .info-row { display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-bottom: 6px; color: #000; border-bottom: 1px dashed #000; padding-bottom: 3px; }
           .label-field { white-space: nowrap; }
           .value-field { text-align: ${isRTL ? 'left' : 'right'}; }
-          .amount-box { display: flex; justify-content: space-between; align-items: center; border: 2px solid #000; border-radius: 4px; padding: 8px 6px; margin: 10px 0; }
+          .amount-box { display: flex; justify-content: space-between; align-items: center; border: 2px solid #000; border-radius: 4px; padding: 8px 6px; margin: 10px 0; color: #000; }
           .box-title { font-size: 15px; font-weight: bold; }
           .box-value { font-size: 18px; font-weight: 900; direction: ltr; }
-          .signatures-area { text-align: center; font-size: 12px; font-weight: bold; margin-top: 15px; }
-          .footer-area { text-align: center; font-size: 11px; margin-top: 10px; font-weight: bold; }
-          .dev-brand { font-size: 12px; font-weight: 900; }
+          .signatures-area { text-align: center; font-size: 12px; font-weight: bold; margin-top: 15px; color: #000; }
+          .footer-area { text-align: center; font-size: 11px; margin-top: 10px; font-weight: bold; color: #000; }
+          .dev-brand { font-size: 12px; font-weight: 900; color: #000; }
         </style>
       </head>
       <body>
@@ -181,48 +168,403 @@ export default function EndOfDay() {
       </html>
     `);
     doc.close();
-
     iframe.contentWindow.focus();
-    setTimeout(() => {
-      iframe.contentWindow.print();
-    }, 500);
+    setTimeout(() => { iframe.contentWindow.print(); }, 500);
   };
 
-  // 3. زر حفظ الـ PDF 
   const handleSavePDF = async () => {
     const element = document.getElementById('printable-receipt');
     if (!element) return;
-    
     try {
       element.classList.remove('shadow-2xl');
-      const canvas = await html2canvas(element, { 
-        scale: 3, 
-        useCORS: true,
-        backgroundColor: '#ffffff'
-      });
-      
+      const canvas = await html2canvas(element, { scale: 3, useCORS: true, backgroundColor: '#ffffff' });
       const imgData = canvas.toDataURL('image/png');
       const pdfWidth = 80;
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: [pdfWidth, pdfHeight]
-      });
-
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [pdfWidth, pdfHeight] });
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
       pdf.save(`Shift_Receipt_${cashierName}_${new Date().toISOString().split('T')[0]}.pdf`);
       element.classList.add('shadow-2xl');
-      
-      showToast('success', t('common.success', i18n.language === 'ar' ? 'تم الحفظ بنجاح' : 'Saved successfully'));
+      showToast('success', t('common.success', 'Saved successfully'));
     } catch (error) {
-      console.error("PDF Generation Error: ", error);
+      console.error(error);
       showToast('error', t('common.error'));
     }
   };
 
-  // 4. الإغلاق
+  // =========================================================
+  // 🌟 دوال طباعة الوردية الفردية من الأرشيف
+  // =========================================================
+  const exportShiftToWordA4 = (shift) => {
+    const dir = isRTL ? 'rtl' : 'ltr';
+    const alignStart = isRTL ? 'right' : 'left';
+    const curr = t('currency', 'د.ج');
+    const timeIn = new Date(shift.start_time).toLocaleString(i18n.language);
+    const timeOut = shift.end_time ? new Date(shift.end_time).toLocaleString(i18n.language) : '-';
+
+    let html = `
+    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+    <head>
+      <meta charset="utf-8">
+      <title>${t('eod.shiftReportTitle', 'تقرير وردية كاشير')}</title>
+      <style>
+        body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; direction: ${dir}; color: #000; }
+        h2 { text-align: center; color: #1e293b; margin-bottom: 5px; font-size: 22px; text-transform: uppercase; }
+        h3 { text-align: center; color: #475569; margin-top: 0; font-size: 13px; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid #334155; padding: 10px; text-align: center; font-size: 12px; }
+        th { background-color: #e2e8f0; font-weight: bold; color: #0f172a; }
+        .footer-note { text-align: center; font-size: 10px; color: #64748b; margin-top: 40px; font-weight: bold; }
+      </style>
+    </head>
+    <body>
+      <h2>${currentStoreName}</h2>
+      <h3>${t('eod.shiftReportDetail', {
+        name: shift.cashier_name,
+        defaultValue: `تقرير تفصيلي لوردية الكاشير (${shift.cashier_name})`
+      })}</h3>
+      
+      <p style="text-align: ${alignStart}; font-size: 13px; font-weight: bold;">
+        <b>${t('eod.cashierName', 'الكاشير:')}</b> ${shift.cashier_name} <br/>
+        <b>${t('hr.table.timeIn', 'وقت الفتح:')}</b> <span dir="ltr">${timeIn}</span> <br/>
+        <b>${t('eod.time_out', 'وقت الإغلاق:')}</b> <span dir="ltr">${timeOut}</span>
+      </p>
+
+      <table>
+        <tr>
+          <th>${t('eod.opening_balance', 'صندوق الافتتاح')}</th>
+          <th>${t('eod.total_deducted', 'إجمالي المسحوبات (صرف/سلف)')}</th>
+          <th>${t('eod.today_sales', 'المبيعات المحسوبة')}</th>
+          <th>${t('eod.actual_cash', 'الدرج الفعلي')}</th>
+        </tr>
+        <tr>
+          <td dir="ltr"><b>${Number(shift.opening_balance).toLocaleString()} ${curr}</b></td>
+          <td dir="ltr" style="color: red; font-weight: bold;">- ${Number(shift.totalOut || 0).toLocaleString()} ${curr}</td>
+          <td dir="ltr" style="font-weight: bold;">${Number(shift.calculatedSales || 0).toLocaleString()} ${curr}</td>
+          <td dir="ltr" style="font-weight: bold; background-color: #f1f5f9; font-size: 14px;">${Number(shift.actual_cash || 0).toLocaleString()} ${curr}</td>
+        </tr>
+      </table>
+
+      <table style="border: none; margin-top: 60px;">
+        <tr>
+          <td style="border: none; border-top: 2px solid #000; width: 40%; font-weight: bold;">${t('zreport.manager_sig', 'توقيع الإدارة')}</td>
+          <td style="border: none; width: 20%;"></td>
+          <td style="border: none; border-top: 2px solid #000; width: 40%; font-weight: bold;">${t('zreport.cashier_sig', 'توقيع الكاشير')}</td>
+        </tr>
+      </table>
+      <div class="footer-note">POWERED BY GHERBI.AI</div>
+    </body>
+    </html>
+    `;
+
+    const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Shift_${shift.cashier_name}_${new Date(shift.start_time).toISOString().split('T')[0]}.doc`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setIsPrintModalOpen(false);
+  };
+
+  const printShiftA7Thermal = (shift) => {
+    const curr = t('currency', 'د.ج');
+    const timeIn = new Date(shift.start_time).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' });
+    const timeOut = shift.end_time ? new Date(shift.end_time).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' }) : '-';
+
+    let iframe = document.getElementById('silent-print-iframe');
+    if (iframe) document.body.removeChild(iframe);
+    
+    iframe = document.createElement('iframe');
+    iframe.id = 'silent-print-iframe';
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html lang="${i18n.language}" dir="${isRTL ? 'rtl' : 'ltr'}">
+      <head>
+        <title>Shift Thermal Print</title>
+        <style>
+          @page { margin: 0; }
+          html, body { margin: 0; padding: 0; width: 72mm; background: #fff; color: #000; font-family: sans-serif; }
+          .print-wrapper { width: 100%; padding: 2mm 5mm; box-sizing: border-box; }
+          h2 { text-align: center; font-size: 18px; margin: 0 0 5px 0; font-weight: 900; color: #000; }
+          .subtitle { text-align: center; font-size: 13px; margin-bottom: 12px; border-bottom: 2px dashed #000; padding-bottom: 6px; font-weight: bold; color: #000; }
+          .info-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin-bottom: 4px; border-bottom: 1px dashed #000; padding-bottom: 2px; color: #000; }
+          table { width: 100%; border-collapse: collapse; font-size: 12px; font-weight: bold; margin-bottom: 10px; margin-top: 10px; color: #000; }
+          td { padding: 4px 0; border-bottom: 1px dashed #000; text-align: ${isRTL ? 'right' : 'left'}; color: #000; }
+          .amount-box { display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 8px 0; margin-top: 15px; color: #000; }
+          .amount-box .box-title { font-size: 15px; font-weight: bold; padding: 0 5px; color: #000; }
+          .amount-box .box-value { font-size: 18px; font-weight: 900; padding: 0 5px; color: #000; }
+          .footer-brand { text-align: center; margin-top: 20px; font-size: 11px; font-weight: 900; border-top: 1px dashed #000; padding-top: 8px; color: #000; }
+        </style>
+      </head>
+      <body>
+        <div class="print-wrapper">
+          <h2>${currentStoreName}</h2>
+          <div class="subtitle">${t('eod.shiftArchiveSubtitle', 'أرشيف وردية كاشير')}</div>
+          
+          <div class="info-row">
+            <span>${t('eod.cashierName', 'الكاشير:')}</span>
+            <span>${shift.cashier_name}</span>
+          </div>
+          <div class="info-row">
+            <span>${t('hr.table.timeIn', 'وقت الدخول:')}</span>
+            <span dir="ltr">${timeIn}</span>
+          </div>
+          <div class="info-row">
+            <span>${t('eod.time_out', 'وقت الخروج:')}</span>
+            <span dir="ltr">${timeOut}</span>
+          </div>
+
+          <table>
+            <tr>
+              <td>${t('eod.opening_balance', 'صندوق الافتتاح:')}</td>
+              <td style="text-align: ${isRTL ? 'left' : 'right'};" dir="ltr">${Number(shift.opening_balance).toLocaleString()} ${curr}</td>
+            </tr>
+            <tr>
+              <td>${t('eod.total_deducted', 'المسحوبات (مصاريف/سلف):')}</td>
+              <td style="text-align: ${isRTL ? 'left' : 'right'};" dir="ltr">-${Number(shift.totalOut || 0).toLocaleString()} ${curr}</td>
+            </tr>
+            <tr>
+              <td>${t('eod.today_sales', 'المبيعات المحسوبة:')}</td>
+              <td style="text-align: ${isRTL ? 'left' : 'right'};" dir="ltr">${Number(shift.calculatedSales || 0).toLocaleString()} ${curr}</td>
+            </tr>
+          </table>
+
+          <div class="amount-box">
+            <span class="box-title">${t('eod.actual_cash', 'الدرج الفعلي:')}</span>
+            <span class="box-value" dir="ltr">${Number(shift.actual_cash || 0).toLocaleString()} ${curr}</span>
+          </div>
+
+          <div class="footer-brand">POWERED BY GHERBI.AI</div>
+        </div>
+      </body>
+      </html>
+    `);
+    doc.close();
+    iframe.contentWindow.focus();
+    setTimeout(() => { 
+      iframe.contentWindow.print(); 
+      setIsPrintModalOpen(false); 
+    }, 500);
+  };
+
+  // =========================================================
+  // 🌟 دوال طباعة التقرير الختامي Z-REPORT
+  // =========================================================
+  const handleDownloadZReportWordA4 = () => {
+    if (!zReportData) return;
+    const dir = isRTL ? 'rtl' : 'ltr';
+    const alignStart = isRTL ? 'right' : 'left';
+    const curr = t('currency', 'د.ج');
+    const dateStr = new Date(zReportData.date).toLocaleString(i18n.language);
+
+    let html = `
+    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+    <head>
+      <meta charset="utf-8">
+      <title>${t('zreport.title', 'التقرير الختامي (Z-REPORT)')}</title>
+      <style>
+        body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; direction: ${dir}; color: #000; }
+        h2 { text-align: center; color: #1e293b; margin-bottom: 5px; font-size: 24px; text-transform: uppercase; }
+        h3 { text-align: center; color: #475569; margin-top: 0; font-size: 14px; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+        .summary-box { width: 100%; margin-bottom: 20px; border-collapse: collapse; }
+        .summary-box td { border: 1px solid #000; padding: 10px; text-align: center; }
+        .summary-title { font-size: 12px; color: #475569; display: block; margin-bottom: 4px; }
+        .summary-val { font-size: 18px; font-weight: bold; }
+        .main-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px; }
+        .main-table th, .main-table td { border: 1px solid #000; padding: 6px; text-align: center; }
+        .main-table th { background-color: #e2e8f0; font-weight: bold; }
+        .footer-note { text-align: center; font-size: 10px; color: #64748b; margin-top: 40px; font-weight: bold; }
+      </style>
+    </head>
+    <body>
+      <h2>${currentStoreName}</h2>
+      <h3>${t('zreport.title', 'التقرير الختامي (Z-REPORT)')}</h3>
+      
+      <p style="text-align: ${alignStart}; font-size: 12px; font-weight: bold;">
+        ${t('zreport.date', 'التاريخ:')} <span dir="ltr">${dateStr}</span> <br/>
+        ${t('zreport.closed_by', 'تم الإغلاق بواسطة:')} ${zReportData.adminName}
+      </p>
+
+      <table class="summary-box">
+        <tr>
+          <td><span class="summary-title">${t('zreport.opening', 'إجمالي الافتتاح')}</span><span class="summary-val" dir="ltr">${Number(zReportData.totals.opening).toLocaleString()} ${curr}</span></td>
+          <td style="background-color: #f8fafc;"><span class="summary-title">${t('zreport.net_sales', 'صافي المبيعات')}</span><span class="summary-val" dir="ltr">${Number(zReportData.totals.sales).toLocaleString()} ${curr}</span></td>
+          <td style="background-color: #000; color: #fff;"><span class="summary-title" style="color:#cbd5e1;">${t('zreport.actual_cash', 'إجمالي الصندوق الفعلي')}</span><span class="summary-val" dir="ltr">${Number(zReportData.totals.actual).toLocaleString()} ${curr}</span></td>
+        </tr>
+      </table>
+
+      <h4 style="margin-bottom: 5px;">${t('zreport.shifts_details', 'تفاصيل الورديات')}</h4>
+    `;
+
+    if (zReportData.shifts.length === 0) {
+      html += `<p style="text-align: center; color: #64748b;">${t('common.noResults', 'لا توجد بيانات')}</p>`;
+    } else {
+      html += `
+        <table class="main-table">
+          <thead>
+            <tr>
+              <th>${t('zreport.cashier', 'الكاشير')}</th>
+              <th>${t('zreport.time_in', 'الدخول')}</th>
+              <th>${t('zreport.time_out', 'الخروج')}</th>
+              <th>${t('zreport.opening', 'الافتتاح')}</th>
+              <th>${t('zreport.deductions', 'المسحوبات')}</th>
+              <th>${t('zreport.sales', 'المبيعات')}</th>
+              <th>${t('zreport.actual_drawer', 'الدرج الفعلي')}</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      zReportData.shifts.forEach(s => {
+        const timeIn = new Date(s.start_time).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' });
+        const timeOut = s.end_time ? new Date(s.end_time).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' }) : t('zreport.not_closed', 'لم تُغلق');
+        html += `
+          <tr>
+            <td style="font-weight: bold;">${s.cashier_name}</td>
+            <td dir="ltr">${timeIn}</td>
+            <td dir="ltr">${timeOut}</td>
+            <td dir="ltr">${Number(s.opening_balance).toLocaleString()}</td>
+            <td dir="ltr">${Number(s.totalOut || 0).toLocaleString()}</td>
+            <td dir="ltr" style="font-weight: bold;">${Number(s.calculatedSales || 0).toLocaleString()}</td>
+            <td dir="ltr" style="font-weight: bold; background-color: #f1f5f9;">${Number(s.actual_cash || 0).toLocaleString()}</td>
+          </tr>
+        `;
+      });
+      html += `</tbody></table>`;
+    }
+
+    html += `
+      <table style="width: 100%; margin-top: 40px; border: none;">
+        <tr>
+          <td style="border: none; text-align: center; border-top: 1px solid #000; width: 40%;"><b>${t('zreport.manager_sig', 'توقيع الإدارة')}</b></td>
+          <td style="border: none; width: 20%;"></td>
+          <td style="border: none; text-align: center; border-top: 1px solid #000; width: 40%;"><b>${t('zreport.company_seal', 'ختم المحل')}</b></td>
+        </tr>
+      </table>
+      <div class="footer-note">POWERED BY GHERBI.AI</div>
+    </body>
+    </html>
+    `;
+
+    const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `ZReport_${new Date(zReportData.date).toISOString().split('T')[0]}.doc`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setShowZReportPrintModal(false);
+  };
+
+  const handlePrintZReportA7Thermal = () => {
+    if (!zReportData) return;
+    const curr = t('currency', 'د.ج');
+    const dateStr = new Date(zReportData.date).toLocaleString(i18n.language);
+
+    let iframe = document.getElementById('silent-print-iframe');
+    if (iframe) document.body.removeChild(iframe);
+    
+    iframe = document.createElement('iframe');
+    iframe.id = 'silent-print-iframe';
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+
+    let shiftsHtml = '';
+    zReportData.shifts.forEach(s => {
+      shiftsHtml += `
+        <div style="border-bottom: 1px dashed #000; padding: 6px 0; margin-bottom: 4px;">
+          <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:14px;">
+            <span>${s.cashier_name}</span>
+            <span dir="ltr">${Number(s.actual_cash || 0).toLocaleString()} ${curr}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:11px; margin-top:2px;">
+            <span>${t('eod.salesLabel', 'المبيعات:')} <span dir="ltr">${Number(s.calculatedSales || 0).toLocaleString()}</span></span>
+            <span>${t('eod.drawLabel', 'السحب:')} <span dir="ltr">${Number(s.totalOut || 0).toLocaleString()}</span></span>
+          </div>
+        </div>
+      `;
+    });
+
+    doc.write(`
+      <!DOCTYPE html>
+      <html lang="${i18n.language}" dir="${isRTL ? 'rtl' : 'ltr'}">
+      <head>
+        <title>Z-Report Thermal</title>
+        <style>
+          @page { margin: 0; }
+          html, body { margin: 0; padding: 0; width: 72mm; background: #fff; color: #000; font-family: sans-serif; }
+          .print-wrapper { width: 100%; padding: 2mm 5mm; box-sizing: border-box; }
+          h2 { text-align: center; font-size: 18px; margin: 0 0 5px 0; font-weight: 900; color: #000; }
+          .subtitle { text-align: center; font-size: 13px; margin-bottom: 10px; border-bottom: 2px dashed #000; padding-bottom: 6px; font-weight: bold; color: #000; }
+          .amount-box { display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 6px 0; margin-top: 10px; margin-bottom: 5px; color: #000; }
+          .amount-box .box-title { font-size: 14px; font-weight: bold; }
+          .amount-box .box-value { font-size: 18px; font-weight: 900; }
+          .footer-brand { text-align: center; margin-top: 20px; font-size: 11px; font-weight: 900; border-top: 1px dashed #000; padding-top: 8px; color: #000; }
+        </style>
+      </head>
+      <body>
+        <div class="print-wrapper">
+          <h2>${currentStoreName}</h2>
+          <div class="subtitle">${t('zreport.title', 'التقرير الختامي (Z-REPORT)')}</div>
+          
+          <div style="font-size: 11px; font-weight: bold; margin-bottom: 10px; color: #000; text-align: center;">
+             ${dateStr} <br>
+             ${t('zreport.closed_by', 'إغلاق:')} ${zReportData.adminName}
+          </div>
+
+          <div style="font-size: 12px; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 6px;">
+            ${t('zreport.shifts_details', 'الورديات')}
+          </div>
+          
+          ${zReportData.shifts.length > 0 ? shiftsHtml : `<div style="text-align:center; font-size:12px;">${t('common.noResults', 'لا توجد بيانات')}</div>`}
+
+          <div class="amount-box" style="border-top: none; margin-top: 10px;">
+            <span class="box-title">${t('zreport.opening', 'الافتتاح')}:</span>
+            <span class="box-value" style="font-size:14px;" dir="ltr">${Number(zReportData.totals.opening).toLocaleString()}</span>
+          </div>
+          <div class="amount-box" style="border-top: none; border-bottom: none; padding-top: 0;">
+            <span class="box-title">${t('zreport.net_sales', 'المبيعات')}:</span>
+            <span class="box-value" style="font-size:14px;" dir="ltr">${Number(zReportData.totals.sales).toLocaleString()}</span>
+          </div>
+          <div class="amount-box">
+            <span class="box-title">${t('zreport.actual_cash', 'النقد الفعلي')}:</span>
+            <span class="box-value" dir="ltr">${Number(zReportData.totals.actual).toLocaleString()} ${curr}</span>
+          </div>
+
+          <div class="footer-brand">POWERED BY GHERBI.AI</div>
+        </div>
+      </body>
+      </html>
+    `);
+    doc.close();
+
+    iframe.contentWindow.focus();
+    setTimeout(() => { 
+      iframe.contentWindow.print(); 
+      setShowZReportPrintModal(false); 
+    }, 500);
+  };
+
   const handleCloseReceipt = () => {
     setShowReceipt(false);
     setActiveShift(null);
@@ -230,7 +572,6 @@ export default function EndOfDay() {
     setNotes('');
   };
 
-  // طباعة وحفظ تلقائي إذا كان الزر مفعلاً
   useEffect(() => {
     if (showReceipt && receiptData && autoPrintEnabled && !isSuperAdmin) {
       const timer = setTimeout(() => {
@@ -256,7 +597,6 @@ export default function EndOfDay() {
           actual: Number(actualAmount),
           sales: todaySales
         });
-        
         setIsConfirmModalOpen(false);
         setShowReceipt(true);
       }
@@ -271,12 +611,11 @@ export default function EndOfDay() {
         totals: { ...grandTotals },
         shifts: [...allShifts]
       };
-
       const res = await window.api.closeBusinessDay(cashierName);
       if (res.success) {
         setZReportData(reportSnapshot);
         setIsCloseDayModalOpen(false);
-        setShowZReport(true); 
+        setShowZReportPrintModal(true); 
         showToast('success', t('common.success'));
         fetchData(); 
       } else {
@@ -296,7 +635,6 @@ export default function EndOfDay() {
     </div>
   );
 
-  // دالة لتنظيم التاريخ بشكل يدوي وتفادي تقاطع الأرقام
   const getFormattedDate = () => {
     const d = new Date();
     return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
@@ -310,166 +648,218 @@ export default function EndOfDay() {
       <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans relative text-start">
         {renderToast()}
         
-        {/* تقرير Z-Report للمدير */}
-        {showZReport && zReportData && (
-          <div className="fixed inset-0 z-[9999] bg-slate-950/90 flex flex-col items-center p-4 backdrop-blur-sm overflow-y-auto" dir={isRTL ? "rtl" : "ltr"}>
-            <div className="flex gap-4 mb-4 no-print mt-4">
-              <button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg flex items-center gap-2 shadow-lg">
-                <Printer size={20} /> {t('common.printReport', i18n.language === 'ar' ? 'طباعة التقرير (A4)' : 'Print Report')}
-              </button>
-              <button onClick={() => setShowZReport(false)} className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-2 px-6 rounded-lg flex items-center gap-2 border border-slate-700">
-                <X size={20} /> {t('common.close', 'إغلاق')}
-              </button>
+{/* 🌟 نافذة خيارات الطباعة للوردية الأرشيفية الفردية */}
+        <Modal isOpen={isPrintModalOpen} onClose={() => setIsPrintModalOpen(false)} title={t('eod.printShiftOptionsTitle', 'خيارات طباعة وردية الكاشير')}>
+          <div className="p-6 flex flex-col gap-4 text-start" dir={isRTL ? 'rtl' : 'ltr'}>
+            <p className="text-slate-400 mb-4 text-center">{t('eod.printShiftDesc', 'اختر مقاس الورق المناسب لطباعة تفاصيل هذه الوردية.')}</p>
+            
+            <button onClick={() => exportShiftToWordA4(selectedArchivedShift)} className="w-full flex items-center justify-between p-4 bg-indigo-600/10 hover:bg-indigo-600 border border-indigo-500/50 hover:border-indigo-500 rounded-xl transition-all text-indigo-400 hover:text-white font-bold group">
+              <div className="flex items-center gap-4">
+                <Download size={24} className="text-indigo-400 group-hover:text-white" />
+                <div className="text-start">
+                  <div className="text-lg">{t('eod.printWordA4', 'تحميل تقرير مفصل Word (A4)')}</div>
+                  <div className="text-xs font-normal opacity-80 mt-1">{t('eod.printShiftWordA4Desc', 'مستند وورد شامل يحتوي على حركة الوردية لحفظه في أرشيف الشركة.')}</div>
+                </div>
+              </div>
+              <FileText size={20} />
+            </button>
+
+            <button onClick={() => printShiftA7Thermal(selectedArchivedShift)} className="w-full flex items-center justify-between p-4 bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/50 hover:border-emerald-500 rounded-xl transition-all text-emerald-500 hover:text-white font-bold group">
+              <div className="flex items-center gap-4">
+                <Printer size={24} className="text-emerald-400 group-hover:text-white" />
+                <div className="text-start">
+                  <div className="text-lg">{t('eod.printThermalA7', 'وصل طباعة حرارية (80mm)')}</div>
+                  <div className="text-xs font-normal opacity-80 mt-1">{t('eod.printThermalA7Desc', 'وصل ورقي سريع ومقروء يُطبع فوراً من طابعة الكاشير.')}</div>
+                </div>
+              </div>
+              <Printer size={20} />
+            </button>
+          </div>
+        </Modal>
+
+        {/* 🔴 النافذة السحرية لطباعة التقرير الختامي Z-Report */}
+        <Modal isOpen={showZReportPrintModal} onClose={() => setShowZReportPrintModal(false)} title={t('eod.printZReportOptionsTitle', 'خيارات طباعة التقرير الختامي')}>
+          <div className="p-6 flex flex-col gap-4 text-start" dir={isRTL ? 'rtl' : 'ltr'}>
+            <p className="text-slate-400 mb-4 text-center">{t('eod.printZReportDesc', 'تم ترحيل اليومية بنجاح! اختر كيفية طباعة التقرير.')}</p>
+            
+            <button onClick={handleDownloadZReportWordA4} className="w-full flex items-center justify-between p-4 bg-indigo-600/10 hover:bg-indigo-600 border border-indigo-500/50 hover:border-indigo-500 rounded-xl transition-all text-indigo-400 hover:text-white font-bold group">
+              <div className="flex items-center gap-4">
+                <Download size={24} className="text-indigo-400 group-hover:text-white" />
+                <div className="text-start">
+                  <div className="text-lg">{t('eod.printWordA4', 'تحميل تقرير مفصل Word (A4)')}</div>
+                  <div className="text-xs font-normal opacity-80 mt-1">{t('eod.printWordA4Desc', 'مستند وورد شامل يحتوي على تفاصيل اليومية لحفظه في أرشيف الشركة.')}</div>
+                </div>
+              </div>
+              <FileText size={20} />
+            </button>
+
+            <button onClick={handlePrintZReportA7Thermal} className="w-full flex items-center justify-between p-4 bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/50 hover:border-emerald-500 rounded-xl transition-all text-emerald-500 hover:text-white font-bold group">
+              <div className="flex items-center gap-4">
+                <Printer size={24} className="text-emerald-400 group-hover:text-white" />
+                <div className="text-start">
+                  <div className="text-lg">{t('eod.printThermalA7', 'وصل طباعة حرارية (80mm)')}</div>
+                  <div className="text-xs font-normal opacity-80 mt-1">{t('eod.printThermalA7Desc', 'وصل ورقي سريع ومقروء يُطبع فوراً من طابعة الكاشير.')}</div>
+                </div>
+              </div>
+              <Printer size={20} />
+            </button>
+          </div>
+        </Modal>
+
+        <>
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h1 className="text-3xl font-bold text-white flex items-center gap-3 mb-2">
+                <LineChart className="text-blue-500" /> {t('eod.masterDashboardTitle', 'لوحة المراقبة الشاملة')}
+              </h1>
+              <p className="text-sm text-slate-500">{t('eod.masterDashboardDesc', 'مراقبة وإغلاق الورديات اليومية')}</p>
             </div>
-
-            <div className="printable-area bg-white text-black shadow-2xl relative font-sans w-full max-w-[210mm] min-h-[297mm] p-10 mx-auto" style={{ color: '#000000', backgroundColor: '#ffffff' }}>
-              <div className="text-center mb-8 border-b-2 border-black pb-4">
-                <h2 className="text-3xl font-bold mb-2">{currentStoreName}</h2>
-                <h3 className="text-xl font-bold mb-2">{t('zreport.title', i18n.language === 'ar' ? 'التقرير الختامي (Z-REPORT)' : 'Final Report (Z-REPORT)')}</h3>
-                <div className="flex justify-between text-sm mt-4 font-bold">
-                  <span>{t('zreport.date', i18n.language === 'ar' ? 'التاريخ:' : 'Date:')} <span dir="ltr">{getFormattedDate()}</span></span>
-                  <span>{t('zreport.closed_by', i18n.language === 'ar' ? 'تم الإغلاق بواسطة:' : 'Closed by:')} <span>{zReportData.adminName}</span></span>
-                </div>
-              </div>
-
-              <div className="mb-8">
-                <h4 className="text-lg font-bold bg-gray-200 p-2 mb-4 border border-black">{t('zreport.summary', i18n.language === 'ar' ? 'الملخص المالي لليوم' : 'Financial Summary')}</h4>
-                <div className="grid grid-cols-3 gap-6 text-center">
-                  <div className="border-2 border-black rounded-lg p-4">
-                    <p className="text-sm font-bold mb-1">{t('zreport.opening', i18n.language === 'ar' ? 'إجمالي الافتتاح' : 'Total Opening')}</p>
-                    <p className="font-black text-xl" dir="ltr">{zReportData.totals.opening.toLocaleString()} {t('currency', 'د.ج')}</p>
-                  </div>
-                  <div className="border-2 border-black rounded-lg p-4 bg-gray-50">
-                    <p className="text-sm font-bold mb-1">{t('zreport.net_sales', i18n.language === 'ar' ? 'صافي المبيعات' : 'Net Sales')}</p>
-                    <p className="font-black text-xl" dir="ltr">{zReportData.totals.sales.toLocaleString()} {t('currency', 'د.ج')}</p>
-                  </div>
-                  <div className="border-2 border-black rounded-lg p-4 bg-gray-100">
-                    <p className="text-sm font-bold mb-1">{t('zreport.actual_cash', i18n.language === 'ar' ? 'إجمالي الصندوق الفعلي' : 'Actual Cash')}</p>
-                    <p className="font-black text-2xl" dir="ltr">{zReportData.totals.actual.toLocaleString()} {t('currency', 'د.ج')}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="text-lg font-bold bg-gray-200 p-2 mb-4 border border-black">{t('zreport.shifts_details', i18n.language === 'ar' ? 'تفاصيل الورديات' : 'Shifts Details')}</h4>
-                <table className="w-full border-collapse text-sm text-center border-2 border-black">
-                  <thead>
-                    <tr className="border-b-2 border-black bg-gray-100">
-                      <th className="p-3 border border-black">{t('zreport.cashier', i18n.language === 'ar' ? 'الكاشير' : 'Cashier')}</th>
-                      <th className="p-3 border border-black">{t('zreport.time_in', i18n.language === 'ar' ? 'الدخول' : 'Time In')}</th>
-                      <th className="p-3 border border-black">{t('zreport.time_out', i18n.language === 'ar' ? 'الخروج' : 'Time Out')}</th>
-                      <th className="p-3 border border-black">{t('zreport.opening', i18n.language === 'ar' ? 'الافتتاح' : 'Opening')}</th>
-                      <th className="p-3 border border-black">{t('zreport.deductions', i18n.language === 'ar' ? 'مسحوبات' : 'Deductions')}</th>
-                      <th className="p-3 border border-black">{t('zreport.sales', i18n.language === 'ar' ? 'المبيعات' : 'Sales')}</th>
-                      <th className="p-3 border border-black">{t('zreport.actual_drawer', i18n.language === 'ar' ? 'الدرج الفعلي' : 'Actual Drawer')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {zReportData.shifts.map((s, idx) => (
-                      <tr key={idx} className="border-b border-black font-bold">
-                        <td className="p-3 border border-black">{s.cashier_name}</td>
-                        <td className="p-3 border border-black" dir="ltr">{new Date(s.start_time).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</td>
-                        <td className="p-3 border border-black" dir="ltr">{s.end_time ? new Date(s.end_time).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' }) : t('zreport.not_closed', 'لم تُغلق')}</td>
-                        <td className="p-3 border border-black" dir="ltr">{Number(s.opening_balance).toLocaleString()}</td>
-                        <td className="p-3 border border-black" dir="ltr">{s.totalOut?.toLocaleString()}</td>
-                        <td className="p-3 border border-black" dir="ltr">{s.calculatedSales?.toLocaleString()}</td>
-                        <td className="p-3 border border-black bg-gray-50" dir="ltr">{Number(s.actual_cash || 0).toLocaleString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="mt-16 pt-8 border-t-2 border-black flex justify-between font-bold text-lg px-8">
-                <div className="text-center w-48">
-                  <p className="border-b-2 border-black pb-2 mb-2">{t('zreport.manager_sig', i18n.language === 'ar' ? 'توقيع الإدارة' : 'Manager Signature')}</p>
-                </div>
-                <div className="text-center w-48">
-                  <p className="border-b-2 border-black pb-2 mb-2">{t('zreport.company_seal', i18n.language === 'ar' ? 'ختم المحل' : 'Company Seal')}</p>
-                </div>
-              </div>
-
-              <div className="absolute bottom-6 left-0 right-0 text-center text-sm font-bold text-gray-500">
-                 POWERED BY GHERBI.AI
-              </div>
+            <div className="flex gap-3">
+              <button onClick={() => setIsCloseDayModalOpen(true)} disabled={allShifts.length === 0} className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-md font-medium hover:bg-red-700 transition-colors disabled:opacity-50 shadow-lg shadow-red-900/20">
+                <Lock size={18} />
+                <span>{t('eod.close_day_btn', 'إغلاق اليومية (Z-Report)')}</span>
+              </button>
+              <button onClick={fetchData} className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-md font-medium hover:bg-slate-700 transition-colors border border-slate-700">
+                <RotateCcw size={18} className={isLoading ? 'animate-spin' : ''} />
+                <span>{t('common.refresh', 'تحديث')}</span>
+              </button>
             </div>
           </div>
-        )}
 
-        {!showZReport && (
-          <>
-            <div className="flex justify-between items-center mb-8">
-              <div>
-                <h1 className="text-3xl font-bold text-white flex items-center gap-3 mb-2">
-                  <LineChart className="text-blue-500" /> {t('eod.masterDashboardTitle', 'لوحة المراقبة الشاملة')}
-                </h1>
-                <p className="text-sm text-slate-500">{t('eod.masterDashboardDesc', 'مراقبة وإغلاق الورديات اليومية')}</p>
-              </div>
-              <div className="flex gap-3">
-                <button onClick={() => setIsCloseDayModalOpen(true)} disabled={allShifts.length === 0} className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-md font-medium hover:bg-red-700 transition-colors disabled:opacity-50 shadow-lg shadow-red-900/20">
-                  <Lock size={18} />
-                  <span>{t('eod.close_day_btn', 'إغلاق اليومية (Z-Report)')}</span>
-                </button>
-                <button onClick={fetchData} className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-md font-medium hover:bg-slate-700 transition-colors border border-slate-700">
-                  <RotateCcw size={18} className={isLoading ? 'animate-spin' : ''} />
-                  <span>{t('common.refresh', 'تحديث')}</span>
-                </button>
-              </div>
-            </div>
+          <div className="flex bg-slate-900 border border-slate-800 rounded-lg w-fit p-1 mb-6">
+            <button onClick={() => setAdminTab('live')} className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-medium transition-colors ${adminTab === 'live' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}>
+              <Clock size={18} /> {t('eod.liveShifts', 'الورديات الحالية')}
+            </button>
+            <button onClick={() => setAdminTab('archive')} className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-medium transition-colors ${adminTab === 'archive' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}>
+              <Archive size={18} /> {t('eod.shiftArchiveSubtitle', 'أرشيف وردية كاشير')}
+            </button>
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="p-5 bg-slate-900 border border-slate-800 rounded-xl shadow-lg border-t-4 border-t-blue-500">
-                <h3 className="text-slate-400 text-sm mb-1">{t('eod.grandTotalOpening', 'إجمالي الافتتاح')}</h3>
-                <p className="text-3xl font-bold text-white mt-2">{grandTotals.opening.toLocaleString()} {t('currency')}</p>
+          {adminTab === 'live' && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="p-5 bg-slate-900 border border-slate-800 rounded-xl shadow-lg border-t-4 border-t-blue-500">
+                  <h3 className="text-slate-400 text-sm mb-1">{t('eod.grandTotalOpening', 'إجمالي الافتتاح')}</h3>
+                  <p className="text-3xl font-bold text-white mt-2">{grandTotals.opening.toLocaleString()} {t('currency')}</p>
+                </div>
+                <div className="p-5 bg-slate-900 border border-slate-800 rounded-xl shadow-lg border-t-4 border-t-emerald-500">
+                  <h3 className="text-slate-400 text-sm mb-1">{t('eod.grandTotalActual', 'إجمالي الدرج الفعلي')}</h3>
+                  <p className="text-3xl font-bold text-emerald-400 mt-2">{grandTotals.actual.toLocaleString()} {t('currency')}</p>
+                </div>
+                <div className="p-5 bg-slate-900 border border-slate-800 rounded-xl shadow-lg border-t-4 border-t-amber-500">
+                  <h3 className="text-slate-400 text-sm mb-1">{t('eod.grandTotalSales', 'إجمالي المبيعات')}</h3>
+                  <p className="text-3xl font-bold text-amber-400 mt-2">{grandTotals.sales.toLocaleString()} {t('currency')}</p>
+                </div>
               </div>
-              <div className="p-5 bg-slate-900 border border-slate-800 rounded-xl shadow-lg border-t-4 border-t-emerald-500">
-                <h3 className="text-slate-400 text-sm mb-1">{t('eod.grandTotalActual', 'إجمالي الدرج الفعلي')}</h3>
-                <p className="text-3xl font-bold text-emerald-400 mt-2">{grandTotals.actual.toLocaleString()} {t('currency')}</p>
-              </div>
-              <div className="p-5 bg-slate-900 border border-slate-800 rounded-xl shadow-lg border-t-4 border-t-amber-500">
-                <h3 className="text-slate-400 text-sm mb-1">{t('eod.grandTotalSales', 'إجمالي المبيعات')}</h3>
-                <p className="text-3xl font-bold text-amber-400 mt-2">{grandTotals.sales.toLocaleString()} {t('currency')}</p>
-              </div>
-            </div>
 
+              <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
+                <div className="p-4 border-b border-slate-800 bg-slate-950/30">
+                  <h3 className="font-bold text-white">{t('eod.allShifts', 'جميع الورديات')}</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-start border-collapse" dir={i18n.dir()}>
+                    <thead>
+                      <tr className="border-b border-slate-800 bg-slate-950/80">
+                        <th className="px-6 py-4 text-sm font-medium text-slate-400 text-start">{t('eod.cashierName', 'الكاشير')}</th>
+                        <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('hr.table.status', 'الحالة')}</th>
+                        <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('eod.timing', 'التوقيت')}</th>
+                        <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('eod.opening_balance', 'صندوق الافتتاح')}</th>
+                        <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('eod.today_sales', 'المبيعات')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allShifts.length === 0 ? (
+                        <tr><td colSpan="5" className="text-center py-12 text-slate-500">{t('common.noResults', 'لا توجد بيانات')}</td></tr>
+                      ) : (
+                        allShifts.map(s => (
+                          <tr key={s.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
+                            <td className="px-6 py-4 font-medium text-white flex items-center gap-2">
+                              <div className="bg-slate-800 p-2 rounded-full"><User size={14} className="text-blue-400"/></div>
+                              {s.cashier_name}
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${s.status === 'open' ? 'bg-emerald-950 text-emerald-400 border-emerald-900' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>
+                                {s.status === 'open' ? t('eod.statusOpen', 'مفتوح') : t('eod.statusClosed', 'مغلق')}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-center text-sm text-slate-400">
+                              <div className="flex flex-col gap-1">
+                                <span className="text-emerald-400/80" dir="ltr">{new Date(s.start_time).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span>
+                                {s.end_time ? <span className="text-red-400/80" dir="ltr">{new Date(s.end_time).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span> : <span className="text-slate-600">---</span>}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-center font-bold text-slate-300" dir="ltr">{Number(s.opening_balance).toLocaleString()} {t('currency', 'د.ج')}</td>
+                            <td className="px-6 py-4 text-center font-bold text-amber-400" dir="ltr">{s.status === 'open' ? '---' : `+${s.calculatedSales.toLocaleString()} ${t('currency', 'د.ج')}`}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+
+          {adminTab === 'archive' && (
             <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
               <div className="p-4 border-b border-slate-800 bg-slate-950/30">
-                <h3 className="font-bold text-white">{t('eod.allShifts', 'جميع الورديات')}</h3>
+                <h3 className="font-bold text-white">{t('eod.archivedShiftsTitle', 'سجل الورديات المغلقة السابقة')}</h3>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-start border-collapse" dir={i18n.dir()}>
                   <thead>
                     <tr className="border-b border-slate-800 bg-slate-950/80">
                       <th className="px-6 py-4 text-sm font-medium text-slate-400 text-start">{t('eod.cashierName', 'الكاشير')}</th>
-                      <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('hr.table.status', 'الحالة')}</th>
-                      <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('eod.timing', 'التوقيت')}</th>
-                      <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('eod.opening_balance', 'صندوق الافتتاح')}</th>
+                      <th className="px-6 py-4 text-sm font-medium text-slate-400 text-start">{t('eod.dateAndTime', 'التاريخ ووقت العمل')}</th>
+                      <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('eod.opening_balance', 'الافتتاح')}</th>
                       <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('eod.today_sales', 'المبيعات')}</th>
+                      <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('eod.actual_cash', 'الدرج الفعلي')}</th>
+                      <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('suppliers.table.actions', 'الإجراءات')}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {allShifts.length === 0 ? (
-                      <tr><td colSpan="5" className="text-center py-12 text-slate-500">{t('common.noResults', 'لا توجد بيانات')}</td></tr>
+                    {archivedShifts.length === 0 ? (
+                      <tr><td colSpan="6" className="text-center py-12 text-slate-500">{t('eod.noArchivedShifts', 'لا توجد ورديات أرشيفية')}</td></tr>
                     ) : (
-                      allShifts.map(s => (
+                      archivedShifts.map(s => (
                         <tr key={s.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
-                          <td className="px-6 py-4 font-medium text-white flex items-center gap-2">
-                            <div className="bg-slate-800 p-2 rounded-full"><User size={14} className="text-blue-400"/></div>
-                            {s.cashier_name}
-                          </td>
+                          <td className="px-6 py-4 font-bold text-white">{s.cashier_name}</td>
+<td className="px-6 py-4 text-sm text-slate-300">
+  <div className="flex flex-col items-start">
+    {/* التاريخ مبني يدوياً لكي لا يتداخل */}
+    <span className="font-mono tracking-widest text-white" dir="ltr">
+      {(() => {
+        const d = new Date(s.start_time);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      })()}
+    </span>
+    {/* الوقت مرتب بشكل مرن */}
+    <div className="text-xs text-slate-400 mt-1 flex items-center gap-2">
+      <span className="text-emerald-400/80 whitespace-nowrap" dir="ltr">
+        {new Date(s.start_time).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
+      </span>
+      {s.end_time && (
+        <>
+          <span>{isRTL ? '←' : '→'}</span>
+          <span className="text-red-400/80 whitespace-nowrap" dir="ltr">
+            {new Date(s.end_time).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </>
+      )}
+    </div>
+  </div>
+</td>
+                          <td className="px-6 py-4 text-center font-bold text-slate-400" dir="ltr">{Number(s.opening_balance).toLocaleString()} {t('currency', 'د.ج')}</td>
+                          <td className="px-6 py-4 text-center font-bold text-amber-400" dir="ltr">+{Number(s.calculatedSales).toLocaleString()} {t('currency', 'د.ج')}</td>
+                          <td className="px-6 py-4 text-center font-bold text-emerald-400 bg-slate-950/50" dir="ltr">{Number(s.actual_cash).toLocaleString()} {t('currency', 'د.ج')}</td>
                           <td className="px-6 py-4 text-center">
-                            <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${s.status === 'open' ? 'bg-emerald-950 text-emerald-400 border-emerald-900' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>
-                              {s.status === 'open' ? t('eod.statusOpen', 'مفتوح') : t('eod.statusClosed', 'مغلق')}
-                            </span>
+                            <button 
+                              onClick={() => { setSelectedArchivedShift(s); setIsPrintModalOpen(true); }}
+                              className="bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded-lg flex items-center gap-2 mx-auto transition-colors"
+                            >
+                              <Printer size={16} /> {t('common.print', 'طباعة')}
+                            </button>
                           </td>
-                          <td className="px-6 py-4 text-center text-sm text-slate-400">
-                            <div className="flex flex-col gap-1">
-                              <span className="text-emerald-400/80" dir="ltr">{new Date(s.start_time).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span>
-                              {s.end_time ? <span className="text-red-400/80" dir="ltr">{new Date(s.end_time).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span> : <span className="text-slate-600">---</span>}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-center font-bold text-slate-300" dir="ltr">{Number(s.opening_balance).toLocaleString()} {t('currency', 'د.ج')}</td>
-                          <td className="px-6 py-4 text-center font-bold text-amber-400" dir="ltr">{s.status === 'open' ? '---' : `+${s.calculatedSales.toLocaleString()} ${t('currency', 'د.ج')}`}</td>
                         </tr>
                       ))
                     )}
@@ -477,28 +867,28 @@ export default function EndOfDay() {
                 </table>
               </div>
             </div>
+          )}
 
-            <Modal isOpen={isCloseDayModalOpen} onClose={() => setIsCloseDayModalOpen(false)} title={t('eod.close_day_btn', 'إغلاق اليومية')}>
-              <div className="p-4 text-start">
-                <p className="text-white mb-6 text-lg">{t('eod.close_day_confirm', 'هل أنت متأكد من إغلاق اليومية؟')}</p>
-                <div className="bg-slate-950 p-4 rounded-lg mb-6 border border-slate-800 space-y-3">
-                  <div className="flex justify-between items-center pb-3 border-b border-slate-800">
-                      <span className="text-slate-400">{t('eod.grandTotalActual', 'إجمالي الدرج الفعلي')}</span>
-                      <span className="text-emerald-400 font-bold text-xl" dir="ltr">{grandTotals.actual.toLocaleString()} {t('currency', 'د.ج')}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                      <span className="text-slate-400">{t('eod.grandTotalSales', 'إجمالي المبيعات')}</span>
-                      <span className="text-amber-400 font-bold text-xl" dir="ltr">{grandTotals.sales.toLocaleString()} {t('currency', 'د.ج')}</span>
-                  </div>
+          <Modal isOpen={isCloseDayModalOpen} onClose={() => setIsCloseDayModalOpen(false)} title={t('eod.close_day_btn', 'إغلاق اليومية')}>
+            <div className="p-4 text-start">
+              <p className="text-white mb-6 text-lg">{t('eod.close_day_confirm', 'هل أنت متأكد من إغلاق اليومية؟')}</p>
+              <div className="bg-slate-950 p-4 rounded-lg mb-6 border border-slate-800 space-y-3">
+                <div className="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <span className="text-slate-400">{t('eod.grandTotalActual', 'إجمالي الدرج الفعلي')}</span>
+                    <span className="text-emerald-400 font-bold text-xl" dir="ltr">{grandTotals.actual.toLocaleString()} {t('currency', 'د.ج')}</span>
                 </div>
-                <div className="flex justify-end gap-3">
-                  <button onClick={() => setIsCloseDayModalOpen(false)} className="px-4 py-2 text-white bg-slate-700 rounded-lg hover:bg-slate-600">{t('common.cancel', 'إلغاء')}</button>
-                  <button onClick={executeCloseDay} className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 flex items-center gap-2"><Lock size={18}/> {t('common.confirm', 'تأكيد')}</button>
+                <div className="flex justify-between items-center">
+                    <span className="text-slate-400">{t('eod.grandTotalSales', 'إجمالي المبيعات')}</span>
+                    <span className="text-amber-400 font-bold text-xl" dir="ltr">{grandTotals.sales.toLocaleString()} {t('currency', 'د.ج')}</span>
                 </div>
               </div>
-            </Modal>
-          </>
-        )}
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setIsCloseDayModalOpen(false)} className="px-4 py-2 text-white bg-slate-700 rounded-lg hover:bg-slate-600">{t('common.cancel', 'إلغاء')}</button>
+                <button onClick={executeCloseDay} className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 flex items-center gap-2"><Lock size={18}/> {t('common.confirm', 'تأكيد')}</button>
+              </div>
+            </div>
+          </Modal>
+        </>
       </div>
     );
   }
@@ -543,23 +933,14 @@ export default function EndOfDay() {
     <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans relative">
       {renderToast()}
 
-      {/* 🔴 النافذة الاحترافية لخيارات الطباعة والمعاينة */}
       {showReceipt && receiptData && !isSuperAdmin && (
         <div className="fixed inset-0 z-[9999] bg-slate-950/95 flex items-center justify-center p-4 backdrop-blur-md" dir={isRTL ? "rtl" : "ltr"}>
-          
           <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-5xl flex flex-col md:flex-row overflow-hidden">
-            
-            {/* القسم الأيسر: المعاينة الحية للوصل */}
             <div className="bg-slate-800 p-8 flex justify-center items-center w-full md:w-1/2 border-b md:border-b-0 md:border-l border-slate-700 relative overflow-y-auto max-h-[85vh]">
               <div className="absolute top-4 left-4 bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-700 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 <span className="text-xs font-bold tracking-widest text-slate-300 uppercase">Live Preview</span>
               </div>
-              
-              {/* 
-                  هنا يوجد كود الوصل الخاص بك كما هو،
-                  وضعناه في حاوية تصغره ليلائم الشاشة بدون المساس بالكود 
-              */}
               <div style={{ transform: 'scale(0.95)', transformOrigin: 'top center', marginTop: '2rem' }}>
                 <div id="printable-receipt" className="receipt-ticket-forced mx-auto shadow-2xl bg-white text-black print:shadow-none" dir={isRTL ? "rtl" : "ltr"}>
                   <div className="header-title">GHERBI.AI</div>
@@ -567,9 +948,7 @@ export default function EndOfDay() {
                   <div className="header-title" style={{ marginTop: '1mm' }}><bdi>{currentStoreName}</bdi></div>
                   
                   <div className="badge-action">
-                    {t('eod.x_report', i18n.language === 'ar' ? 'تقرير الوردية (X-REPORT)' : i18n.language === 'fr' ? 'Rapport de Quart (X-REPORT)' : 'Shift Report (X-REPORT)')}
-                    
-                    {/* حل مشكلة التاريخ المقلوب */}
+                    {t('eod.x_report', 'تقرير الوردية (X-REPORT)')}
                     <div style={{ fontSize: '10px', marginTop: '2px', fontWeight: 'normal' }} dir="ltr">
                       {getFormattedDate()}
                     </div>
@@ -579,15 +958,15 @@ export default function EndOfDay() {
 
                   <div className="flex flex-col w-full my-2">
                     <div className="info-row">
-                      <span className="label-field">{t('eod.cashierName', i18n.language === 'ar' ? 'الكاشير:' : i18n.language === 'fr' ? 'Caissier:' : 'Cashier:')}</span>
+                      <span className="label-field">{t('eod.cashierName', 'الكاشير:')}</span>
                       <span className="value-field">{receiptData.cashier}</span>
                     </div>
                     <div className="info-row">
-                      <span className="label-field">{t('hr.table.timeIn', i18n.language === 'ar' ? 'الدخول:' : i18n.language === 'fr' ? 'Entrée:' : 'Time In:')}</span>
+                      <span className="label-field">{t('hr.table.timeIn', 'الدخول:')}</span>
                       <span className="value-field" dir="ltr">{new Date(receiptData.startTime).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                     <div className="info-row">
-                      <span className="label-field">{t('eod.time_out', i18n.language === 'ar' ? 'الخروج:' : i18n.language === 'fr' ? 'Sortie:' : 'Time Out:')}</span>
+                      <span className="label-field">{t('eod.time_out', 'الخروج:')}</span>
                       <span className="value-field" dir="ltr">{new Date(receiptData.endTime).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   </div>
@@ -596,31 +975,31 @@ export default function EndOfDay() {
 
                   <div className="flex flex-col w-full my-2">
                     <div className="info-row">
-                      <span className="label-field">{t('eod.opening_balance', i18n.language === 'ar' ? 'الافتتاح:' : i18n.language === 'fr' ? 'Ouverture:' : 'Opening:')}</span>
+                      <span className="label-field">{t('eod.opening_balance', 'الافتتاح:')}</span>
                       <span className="value-field" dir="ltr"><bdi>{receiptData.opening.toLocaleString()} {t('currency', 'DA')}</bdi></span>
                     </div>
                     <div className="info-row">
-                      <span className="label-field">{t('eod.total_deducted', i18n.language === 'ar' ? 'المسحوبات:' : i18n.language === 'fr' ? 'Déductions:' : 'Deductions:')}</span>
+                      <span className="label-field">{t('eod.total_deducted', 'المسحوبات:')}</span>
                       <span className="value-field" dir="ltr"><bdi>{(receiptData.out || 0).toLocaleString()} {t('currency', 'DA')}</bdi></span>
                     </div>
                   </div>
 
                   <div className="amount-box">
-                    <span className="box-title">{t('eod.actual_cash', i18n.language === 'ar' ? 'الدرج الفعلي:' : i18n.language === 'fr' ? 'Tiroir Réel:' : 'Actual Drawer:')}</span>
+                    <span className="box-title">{t('eod.actual_cash', 'الدرج الفعلي:')}</span>
                     <span className="box-value" dir="ltr">
                       <bdi>{(receiptData.actual || 0).toLocaleString()} {t('currency', 'DA')}</bdi>
                     </span>
                   </div>
 
                   <div className="amount-box">
-                    <span className="box-title">{t('eod.today_sales', i18n.language === 'ar' ? 'المبيعات:' : i18n.language === 'fr' ? 'Ventes:' : 'Sales:')}</span>
+                    <span className="box-title">{t('eod.today_sales', 'المبيعات:')}</span>
                     <span className="box-value" dir="ltr">
                       <bdi>{(receiptData.sales || 0).toLocaleString()} {t('currency', 'DA')}</bdi>
                     </span>
                   </div>
 
                   <div className="signatures-area" style={{ justifyContent: 'center', marginTop: '8mm' }}>
-                    <span>{t('eod.receipt_footer', i18n.language === 'ar' ? 'احتفظ بالوصل للمراجعة' : i18n.language === 'fr' ? 'Conservez ce reçu' : 'Keep for review')}</span>
+                    <span>{t('eod.receipt_footer', 'احتفظ بالوصل للمراجعة')}</span>
                   </div>
 
                   <div className="receipt-divider"></div>
@@ -632,61 +1011,54 @@ export default function EndOfDay() {
               </div>
             </div>
 
-            {/* القسم الأيمن: أزرار التحكم الاحترافية الخاصة بالطباعة */}
             <div className="p-8 w-full md:w-1/2 flex flex-col justify-center space-y-8 bg-slate-900">
               <div>
-                <h2 className="text-3xl font-bold text-white mb-2">{t('common.printSettings', i18n.language === 'ar' ? 'إعدادات الطباعة' : 'Print Settings')}</h2>
-                <p className="text-slate-400 text-sm">{i18n.language === 'ar' ? 'النافذة الاحترافية الخاصة بالطباعة' : 'Professional Print Dashboard'}</p>
+                <h2 className="text-3xl font-bold text-white mb-2">{t('common.printSettings', 'إعدادات الطباعة')}</h2>
+                <p className="text-slate-400 text-sm">{t('eod.printDesc', 'النافذة الاحترافية الخاصة بالطباعة')}</p>
               </div>
 
               <div className="space-y-4 mt-6">
-                {/* 1. زر تغيير اللغة */}
                 <button onClick={toggleLanguage} className="w-full flex items-center justify-between p-4 bg-slate-950 hover:bg-slate-800 border border-slate-700 rounded-xl transition-all text-white font-bold group">
                   <div className="flex items-center gap-4">
                     <div className="bg-slate-800 p-2 rounded-lg group-hover:bg-blue-600 transition-colors">
                       <Globe size={22} className="text-blue-400 group-hover:text-white" />
                     </div>
-                    <span className="text-lg">{t('common.language', i18n.language === 'ar' ? 'تغيير لغة الوصل' : 'Change Receipt Language')}</span>
+                    <span className="text-lg">{t('common.language', 'تغيير لغة الوصل')}</span>
                   </div>
                   <span className="text-sm bg-blue-900/30 border border-blue-800 text-blue-300 px-3 py-1 rounded-md uppercase tracking-wider">{i18n.language}</span>
                 </button>
 
-                {/* 2. زر الطباعة المباشرة (النسخة المعزولة 100%) */}
                 <button onClick={handlePrint} className="w-full flex items-center justify-between p-4 bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/50 hover:border-emerald-500 rounded-xl transition-all text-emerald-500 hover:text-white font-bold group">
                   <div className="flex items-center gap-4">
                     <div className="bg-emerald-500/20 group-hover:bg-emerald-500 p-2 rounded-lg transition-colors">
                       <Printer size={22} className="text-emerald-400 group-hover:text-white" />
                     </div>
-                    <span className="text-lg">{t('common.print', i18n.language === 'ar' ? 'طباعة مباشرة' : 'Direct Print')}</span>
+                    <span className="text-lg">{t('common.print', 'طباعة مباشرة')}</span>
                   </div>
                   <span className="text-xs bg-emerald-950 border border-emerald-800 text-emerald-400 px-3 py-1 rounded-md">XPrinter 80mm</span>
                 </button>
 
-                {/* 3. زر حفظ الـ PDF */}
                 <button onClick={handleSavePDF} className="w-full flex items-center justify-between p-4 bg-indigo-600/10 hover:bg-indigo-600 border border-indigo-500/50 hover:border-indigo-500 rounded-xl transition-all text-indigo-400 hover:text-white font-bold group">
                   <div className="flex items-center gap-4">
                     <div className="bg-indigo-500/20 group-hover:bg-indigo-500 p-2 rounded-lg transition-colors">
                       <Download size={22} className="text-indigo-400 group-hover:text-white" />
                     </div>
-                    <span className="text-lg">{t('common.save', i18n.language === 'ar' ? 'حفظ' : 'Save PDF')}</span>
+                    <span className="text-lg">{t('common.save', 'حفظ PDF')}</span>
                   </div>
                   <span className="text-xs bg-indigo-950 border border-indigo-800 text-indigo-400 px-3 py-1 rounded-md">Digital Copy</span>
                 </button>
               </div>
 
               <div className="pt-8 mt-auto">
-                {/* 4. زر الإغلاق */}
                 <button onClick={handleCloseReceipt} className="w-full flex items-center justify-center gap-2 p-4 bg-red-950/30 hover:bg-red-600 text-red-500 hover:text-white border border-red-900/50 hover:border-red-500 rounded-xl transition-all font-bold text-lg">
-                  <X size={24} /> <span>{t('common.close', i18n.language === 'ar' ? 'إغلاق' : 'Close')}</span>
+                  <X size={24} /> <span>{t('common.close', 'إغلاق')}</span>
                 </button>
               </div>
             </div>
-
           </div>
         </div>
       )}
 
-      {/* لوحة تحكم إغلاق الكاشير (إغلاق الوردية) */}
       {!showReceipt && (
         <>
           <div className="flex justify-between items-end mb-8">
@@ -739,7 +1111,7 @@ export default function EndOfDay() {
                     </button>
                     <span className="text-sm font-bold text-slate-300 flex items-center gap-2">
                       <Printer size={16} className={autoPrintEnabled ? "text-blue-400" : "text-slate-500"} />
-                      {t('eod.auto_print', i18n.language === 'ar' ? 'الطباعة والحفظ التلقائي' : 'Auto Print & Save')}
+                      {t('eod.auto_print', 'الطباعة والحفظ التلقائي')}
                     </span>
                   </div>
                 </div>

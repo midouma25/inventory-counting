@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, ArrowDownCircle, Wallet, Edit, Trash2, ShieldAlert, Filter, Info, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Plus, Search, ArrowDownCircle, Wallet, Edit, Trash2, ShieldAlert, Filter, Info, CheckCircle2, AlertCircle, Printer, Download, FileText, Calendar } from 'lucide-react';
 import Modal from '../ui/Modal';
 import ConfirmAlert from '../ui/ConfirmAlert'; 
 import useEmployeeStore from '../../store/employeeStore';
@@ -11,6 +11,8 @@ export default function Expenses() {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.dir() === 'rtl';
   
+  const currentStoreName = localStorage.getItem('storeName') || 'GHERBI.AI';
+
   const [expenses, setExpenses] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -19,6 +21,11 @@ export default function Expenses() {
   const [expenseToDelete, setExpenseToDelete] = useState(null);
   const [hasActiveShift, setHasActiveShift] = useState(true); 
   const [toast, setToast] = useState(null); 
+
+  // 🌟 حالات الفلترة بالتواريخ والطباعة
+  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
   const { employees, fetchEmployees } = useEmployeeStore();
   const { suppliers, fetchSuppliers } = useSupplierStore();
@@ -107,17 +114,16 @@ export default function Expenses() {
     setIsModalOpen(true);
   };
 
-  // 🔴 الإصلاح السحري هنا: تمرير (expenseToDelete.id) للباك-اند وليس الكائن بأكمله
   const confirmDelete = async () => {
     if (!expenseToDelete) return;
     try {
       let result;
       if (expenseToDelete.category === 'advance' && window.api.deleteAdvance) {
-        result = await window.api.deleteAdvance(expenseToDelete.id); // تمرير الـ ID فقط
+        result = await window.api.deleteAdvance(expenseToDelete.id); 
       } else if (expenseToDelete.category === 'supplier_payment' && window.api.deletePayment) {
-        result = await window.api.deletePayment(expenseToDelete.id); // تمرير الـ ID فقط
+        result = await window.api.deletePayment(expenseToDelete.id); 
       } else if (window.api.deleteExpense) {
-        result = await window.api.deleteExpense(expenseToDelete.id, user?.username || 'Unknown'); // تمرير الـ ID واسم المستخدم
+        result = await window.api.deleteExpense(expenseToDelete.id, user?.username || 'Unknown'); 
       }
 
       if (result && result.success) {
@@ -174,19 +180,21 @@ export default function Expenses() {
     } catch (error) { console.error("Error saving transaction:", error); }
   };
 
-  const filteredExpenses = expenses?.filter(exp => {
-    const description = exp.description || "";
-    return description.toLowerCase().includes(searchTerm.toLowerCase());
-  }) || []; 
-
-  const todayString = new Date().toISOString().split('T')[0];
-  const todayTotal = expenses?.filter(exp => exp.date === todayString)?.reduce((sum, exp) => sum + (exp.amount || 0), 0) || 0;
-  const monthTotal = expenses?.reduce((sum, exp) => sum + (exp.amount || 0), 0) || 0;
-
   const getCategoryTranslation = (category) => {
     const translated = t(`expenses.categories.${category}`);
     return translated.includes('expenses.categories') ? category : translated;
   };
+
+  // 🌟 دالة الفلترة الشاملة (للعرض والطباعة)
+  const filteredExpenses = useMemo(() => {
+    return expenses?.filter(exp => {
+      const matchesSearch = (exp.description || "").toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesDate = exp.date >= startDate && exp.date <= endDate;
+      return matchesSearch && matchesDate;
+    }) || [];
+  }, [expenses, searchTerm, startDate, endDate]);
+
+  const totalFilteredAmount = filteredExpenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
 
   const availableCaisses = useMemo(() => {
       const caisses = new Set(['admin']);
@@ -195,6 +203,198 @@ export default function Expenses() {
       });
       return Array.from(caisses);
   }, [employees]);
+
+  // =========================================================================
+  // 🌟 دوال الطباعة (A4 Word و A7 Thermal)
+  // =========================================================================
+
+  const getReportTitleInfo = () => {
+    const period = startDate === endDate 
+      ? t('expenses.print.singleDate', { date: startDate, defaultValue: i18n.language === 'ar' ? `ليوم: ${startDate}` : `Date: ${startDate}` })
+      : t('expenses.print.period', { start: startDate, end: endDate, defaultValue: i18n.language === 'ar' ? `من ${startDate} إلى ${endDate}` : `From ${startDate} To ${endDate}` });
+      
+    let source = t('expenses.print.allSources', i18n.language === 'ar' ? 'جميع الصناديق' : 'All Caisses');
+    if (!isSuperAdmin) source = t('expenses.print.caisseOf', { name: myCaisseName, defaultValue: i18n.language === 'ar' ? `صندوق الكاشير: ${myCaisseName}` : `Caisse: ${myCaisseName}` });
+    else if (selectedCaisseFilter !== 'all') {
+      source = selectedCaisseFilter === 'admin' 
+        ? t('expenses.adminCaisse', i18n.language === 'ar' ? 'صندوق المدير' : 'Admin Caisse') 
+        : t('expenses.print.caisseOf', { name: selectedCaisseFilter, defaultValue: i18n.language === 'ar' ? `صندوق: ${selectedCaisseFilter}` : `Caisse: ${selectedCaisseFilter}` });
+    }
+
+    return { period, source };
+  };
+
+  const handleDownloadWordA4 = () => {
+    const dir = isRTL ? 'rtl' : 'ltr';
+    const curr = t('currency', 'د.ج');
+    const { period, source } = getReportTitleInfo();
+    const showCaisseColumn = isSuperAdmin && selectedCaisseFilter === 'all';
+
+    let html = `
+    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+    <head>
+      <meta charset="utf-8">
+      <title>${t('expenses.print.reportTitle', i18n.language === 'ar' ? 'تقرير المصاريف' : 'Expenses Report')}</title>
+      <style>
+        body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; direction: ${dir}; color: #000; }
+        h2 { text-align: center; color: #1e293b; margin-bottom: 5px; font-size: 24px; text-transform: uppercase; }
+        h3 { text-align: center; color: #475569; margin-top: 0; font-size: 14px; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+        .info-box { text-align: center; margin-bottom: 20px; font-size: 13px; font-weight: bold; }
+        .main-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px; }
+        .main-table th, .main-table td { border: 1px solid #000; padding: 6px; text-align: center; }
+        .main-table th { background-color: #e2e8f0; font-weight: bold; }
+        .total-row { font-size: 16px; font-weight: bold; background-color: #f1f5f9; }
+        .footer-note { text-align: center; font-size: 10px; color: #64748b; margin-top: 40px; font-weight: bold; }
+      </style>
+    </head>
+    <body>
+      <h2>${currentStoreName}</h2>
+      <h3>${t('expenses.print.reportTitle', i18n.language === 'ar' ? 'التقرير المفصل للمصاريف' : 'Detailed Expenses Report')}</h3>
+      
+      <div class="info-box">
+        <p>${period}</p>
+        <p>${t('expenses.caisseSourceLabel', i18n.language === 'ar' ? 'المصدر:' : 'Source:')} ${source}</p>
+      </div>
+    `;
+
+    if (filteredExpenses.length === 0) {
+      html += `<p style="text-align: center; color: #64748b;">${t('common.noResults', 'لا توجد بيانات')}</p>`;
+    } else {
+      html += `
+        <table class="main-table">
+          <thead>
+            <tr>
+              <th>${t('expenses.table.date', i18n.language === 'ar' ? 'التاريخ' : 'Date')}</th>
+              <th>${t('expenses.table.description', i18n.language === 'ar' ? 'البيان' : 'Description')}</th>
+              <th>${t('expenses.table.category', i18n.language === 'ar' ? 'التصنيف' : 'Category')}</th>
+              ${showCaisseColumn ? `<th>${t('expenses.caisseSourceLabel', i18n.language === 'ar' ? 'المصدر' : 'Source')}</th>` : ''}
+              <th>${t('expenses.table.amount', i18n.language === 'ar' ? 'المبلغ' : 'Amount')}</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      filteredExpenses.forEach(exp => {
+        html += `
+          <tr>
+            <td dir="ltr">${exp.date}</td>
+            <td style="font-weight: bold;">${exp.description}</td>
+            <td>${getCategoryTranslation(exp.category)}</td>
+            ${showCaisseColumn ? `<td>${exp.caisse_source === 'admin' ? t('common.superAdmin', 'المدير') : exp.caisse_source}</td>` : ''}
+            <td dir="ltr" style="font-weight: bold; color: #b91c1c;">${Number(exp.amount).toLocaleString()} ${curr}</td>
+          </tr>
+        `;
+      });
+      html += `
+            <tr class="total-row">
+              <td colspan="${showCaisseColumn ? 4 : 3}" style="text-align: ${isRTL ? 'left' : 'right'};">${t('expenses.print.total', i18n.language === 'ar' ? 'المجموع الكلي:' : 'Grand Total:')}</td>
+              <td dir="ltr">${totalFilteredAmount.toLocaleString()} ${curr}</td>
+            </tr>
+          </tbody>
+        </table>
+      `;
+    }
+
+    html += `<div class="footer-note">POWERED BY GHERBI.AI</div></body></html>`;
+
+    const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Expenses_${source}_${startDate}_to_${endDate}.doc`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setIsPrintModalOpen(false);
+  };
+
+  const handlePrintA7Thermal = () => {
+    const curr = t('currency', 'د.ج');
+    const { period, source } = getReportTitleInfo();
+    const showCaisseColumn = isSuperAdmin && selectedCaisseFilter === 'all';
+
+    let iframe = document.getElementById('silent-print-iframe');
+    if (iframe) document.body.removeChild(iframe);
+    
+    iframe = document.createElement('iframe');
+    iframe.id = 'silent-print-iframe';
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+
+    let itemsHtml = '';
+    filteredExpenses.forEach(exp => {
+      itemsHtml += `
+        <div style="border-bottom: 1px dashed #000; padding: 6px 0; margin-bottom: 4px;">
+          <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:13px;">
+            <span>${exp.description}</span>
+            <span dir="ltr">${Number(exp.amount).toLocaleString()} ${curr}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:11px; margin-top:2px;">
+            <span dir="ltr">${exp.date}</span>
+            <span>${showCaisseColumn ? `(${exp.caisse_source}) ` : ''}${getCategoryTranslation(exp.category)}</span>
+          </div>
+        </div>
+      `;
+    });
+
+    doc.write(`
+      <!DOCTYPE html>
+      <html lang="${i18n.language}" dir="${isRTL ? 'rtl' : 'ltr'}">
+      <head>
+        <title>Expenses Thermal Print</title>
+        <style>
+          @page { margin: 0; }
+          html, body { margin: 0; padding: 0; width: 72mm; background: #fff; color: #000; font-family: sans-serif; }
+          .print-wrapper { width: 100%; padding: 2mm 6mm; box-sizing: border-box; }
+          h2 { text-align: center; font-size: 18px; margin: 0 0 5px 0; font-weight: 900; color: #000; }
+          .subtitle { text-align: center; font-size: 13px; margin-bottom: 10px; border-bottom: 2px dashed #000; padding-bottom: 6px; font-weight: bold; color: #000; }
+          .amount-box { display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 8px 0; margin-top: 15px; color: #000; }
+          .amount-box .box-title { font-size: 15px; font-weight: bold; padding: 0 5px; color: #000; }
+          .amount-box .box-value { font-size: 18px; font-weight: 900; padding: 0 5px; color: #000; }
+          .footer-brand { text-align: center; margin-top: 20px; font-size: 11px; font-weight: 900; border-top: 1px dashed #000; padding-top: 8px; color: #000; }
+        </style>
+      </head>
+      <body>
+        <div class="print-wrapper">
+          <h2>${currentStoreName}</h2>
+          <div class="subtitle">${t('expenses.print.reportTitle', i18n.language === 'ar' ? 'تقرير المصاريف' : 'Expenses Report')}</div>
+          
+          <div style="font-size: 11px; font-weight: bold; margin-bottom: 10px; color: #000; text-align: center;">
+             ${period} <br>
+             ${source}
+          </div>
+
+          <div style="font-size: 12px; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 6px;">
+            ${t('expenses.print.details', i18n.language === 'ar' ? 'التفاصيل' : 'Details')}
+          </div>
+          
+          ${filteredExpenses.length > 0 ? itemsHtml : `<div style="text-align:center; font-size:12px;">${t('common.noResults', 'لا توجد بيانات')}</div>`}
+
+          <div class="amount-box">
+            <span class="box-title">${t('expenses.print.total', i18n.language === 'ar' ? 'المجموع الكلي:' : 'Total:')}</span>
+            <span class="box-value" dir="ltr">${totalFilteredAmount.toLocaleString()} ${curr}</span>
+          </div>
+
+          <div class="footer-brand">POWERED BY GHERBI.AI</div>
+        </div>
+      </body>
+      </html>
+    `);
+    doc.close();
+
+    iframe.contentWindow.focus();
+    setTimeout(() => { 
+      iframe.contentWindow.print(); 
+      setIsPrintModalOpen(false); 
+    }, 500);
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans text-start relative">
@@ -210,6 +410,33 @@ export default function Expenses() {
         </div>
       )}
 
+      {/* 🔴 النافذة السحرية لخيارات الطباعة */}
+      <Modal isOpen={isPrintModalOpen} onClose={() => setIsPrintModalOpen(false)} title={t('expenses.print.modalTitle', i18n.language === 'ar' ? 'خيارات طباعة التقرير' : 'Print Options')}>
+        <div className="p-6 flex flex-col gap-4 text-start" dir={isRTL ? 'rtl' : 'ltr'}>
+          <p className="text-slate-400 mb-4 text-center">{t('expenses.print.modalDesc', i18n.language === 'ar' ? 'اختر مقاس الورق المناسب لطباعة تقرير المصاريف المحدد.' : 'Select paper size to print the filtered expenses.')}</p>
+          
+          <button onClick={handleDownloadWordA4} className="w-full flex items-center justify-between p-4 bg-indigo-600/10 hover:bg-indigo-600 border border-indigo-500/50 hover:border-indigo-500 rounded-xl transition-all text-indigo-400 hover:text-white font-bold group">
+            <div className="flex items-center gap-4">
+              <Download size={24} className="text-indigo-400 group-hover:text-white" />
+              <div className="text-start">
+                <div className="text-lg">{t('payroll.printA4', i18n.language === 'ar' ? 'تحميل تقرير مفصل Word (A4)' : 'Download Word (A4)')}</div>
+              </div>
+            </div>
+            <FileText size={20} />
+          </button>
+
+          <button onClick={handlePrintA7Thermal} className="w-full flex items-center justify-between p-4 bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/50 hover:border-emerald-500 rounded-xl transition-all text-emerald-500 hover:text-white font-bold group">
+            <div className="flex items-center gap-4">
+              <Printer size={24} className="text-emerald-400 group-hover:text-white" />
+              <div className="text-start">
+                <div className="text-lg">{t('payroll.printA7', i18n.language === 'ar' ? 'وصل طباعة حرارية (80mm)' : 'Thermal Print (80mm)')}</div>
+              </div>
+            </div>
+            <Printer size={20} />
+          </button>
+        </div>
+      </Modal>
+
       {!hasActiveShift && !isSuperAdmin && (
         <div className="mb-6 bg-amber-500/10 border border-amber-500/50 p-4 rounded-xl flex items-center gap-3 animate-in fade-in">
           <ShieldAlert className="text-amber-400 shrink-0" size={24} />
@@ -222,7 +449,7 @@ export default function Expenses() {
         </div>
       )}
 
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
             <Wallet className="text-blue-500" /> {t('expenses.title', i18n.language === 'ar' ? 'المصاريف والسلف' : i18n.language === 'fr' ? 'Dépenses et Avances' : 'Expenses & Advances')}
@@ -230,25 +457,44 @@ export default function Expenses() {
           <p className="text-slate-500">{t('expenses.subtitle', i18n.language === 'ar' ? 'تتبع كل الحركات المالية الخارجة' : i18n.language === 'fr' ? 'Suivre toutes les transactions sortantes' : 'Track all outgoing transactions')}</p>
         </div>
       
-        <div className="flex items-center gap-3">
-          {isSuperAdmin && (
-             <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 shadow-sm">
-               <Filter size={18} className="text-blue-400" />
-               <select 
-                 value={selectedCaisseFilter} 
-                 onChange={(e) => setSelectedCaisseFilter(e.target.value)}
-                 className="bg-transparent text-sm text-white font-medium focus:outline-none cursor-pointer"
-                 dir={isRTL ? "rtl" : "ltr"}
-               >
-                 <option value="all">{t('expenses.allCaisses', i18n.language === 'ar' ? 'كل الصناديق' : i18n.language === 'fr' ? 'Toutes les caisses' : 'All Caisses')}</option>
-                 {availableCaisses.map(c => (
-                   <option key={c} value={c}>
-                     {c === 'admin' ? t('expenses.adminCaisse', i18n.language === 'ar' ? 'صندوق المدير' : i18n.language === 'fr' ? 'Caisse Admin' : 'Admin Caisse') : t('expenses.cashierCaisse', { name: c, defaultValue: i18n.language === 'ar' ? `صندوق الكاشير: ${c}` : `Caisse: ${c}` })}
-                   </option>
-                 ))}
-               </select>
-             </div>
-          )}
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+          {/* 🌟 فلاتر التاريخ الجديدة المدمجة مع زر الصناديق */}
+          <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 shadow-sm w-full md:w-auto">
+            <div className="flex items-center gap-2 px-2 border-e border-slate-700">
+               <Calendar size={16} className="text-emerald-400" />
+               <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-transparent text-xs text-white outline-none cursor-pointer" title={t('common.from', 'من')} />
+               <span className="text-slate-500">-</span>
+               <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-transparent text-xs text-white outline-none cursor-pointer" title={t('common.to', 'إلى')} />
+            </div>
+
+            {isSuperAdmin && (
+               <div className="flex items-center gap-1 px-2">
+                 <Filter size={16} className="text-blue-400" />
+                 <select 
+                   value={selectedCaisseFilter} 
+                   onChange={(e) => setSelectedCaisseFilter(e.target.value)}
+                   className="bg-transparent text-sm text-white font-medium focus:outline-none cursor-pointer w-28 md:w-auto"
+                   dir={isRTL ? "rtl" : "ltr"}
+                 >
+                   <option value="all">{t('expenses.allCaisses', i18n.language === 'ar' ? 'كل الصناديق' : i18n.language === 'fr' ? 'Toutes les caisses' : 'All Caisses')}</option>
+                   {availableCaisses.map(c => (
+                     <option key={c} value={c}>
+                       {c === 'admin' ? t('expenses.adminCaisse', i18n.language === 'ar' ? 'صندوق المدير' : 'Admin') : c}
+                     </option>
+                   ))}
+                 </select>
+               </div>
+            )}
+          </div>
+
+          <button 
+            onClick={() => setIsPrintModalOpen(true)} 
+            disabled={filteredExpenses.length === 0}
+            className="flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 disabled:opacity-50"
+            title={t('common.print', 'طباعة')}
+          >
+            <Printer size={18} />
+          </button>
 
           <button 
             onClick={openAddModal} 
@@ -258,7 +504,7 @@ export default function Expenses() {
                 : 'bg-blue-600 text-white hover:bg-blue-700'
             }`}
           >
-            <Plus size={18} /><span>{t('expenses.addExpense', i18n.language === 'ar' ? 'إضافة مصروف' : i18n.language === 'fr' ? 'Ajouter une dépense' : 'Add Expense')}</span>
+            <Plus size={18} /><span className="hidden md:inline">{t('expenses.addExpense', i18n.language === 'ar' ? 'إضافة مصروف' : i18n.language === 'fr' ? 'Ajouter' : 'Add')}</span>
           </button>
         </div>
       </div>
@@ -272,21 +518,14 @@ export default function Expenses() {
         </div>
       )}
 
+      {/* 🌟 عرض المجموع المفلتر بدلاً من الثابت */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl flex items-center justify-between">
           <div>
-            <p className="text-sm text-slate-400">{t('expenses.kpi.today', i18n.language === 'ar' ? 'مصاريف اليوم' : i18n.language === 'fr' ? 'Dépenses du jour' : 'Today Expenses')}</p>
-            <h3 className="text-2xl font-bold text-white mt-1">{todayTotal.toLocaleString()} {t('currency', 'DA')}</h3>
+            <p className="text-sm text-slate-400">{t('expenses.kpi.filteredTotal', i18n.language === 'ar' ? 'مجموع المصاريف (للفترة المحددة)' : 'Filtered Total')}</p>
+            <h3 className="text-2xl font-bold text-white mt-1">{totalFilteredAmount.toLocaleString()} {t('currency', 'DA')}</h3>
           </div>
           <div className="p-3 bg-red-950/30 rounded-lg text-red-400"><ArrowDownCircle size={24} /></div>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl flex items-center justify-between">
-          <div>
-            <p className="text-sm text-slate-400">{t('expenses.kpi.month', i18n.language === 'ar' ? 'إجمالي المصاريف' : i18n.language === 'fr' ? 'Dépenses Totales' : 'Total Expenses')}</p>
-            <h3 className="text-2xl font-bold text-slate-300 mt-1">{monthTotal.toLocaleString()} {t('currency', 'DA')}</h3>
-          </div>
-          <div className="p-3 bg-slate-800 rounded-lg text-slate-400"><Wallet size={24} /></div>
         </div>
       </div>
 
@@ -294,7 +533,7 @@ export default function Expenses() {
         <div className="p-4 border-b border-slate-800 bg-slate-950/30">
           <div className="relative w-full max-w-md">
             <Search size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder={t('common.search', i18n.language === 'ar' ? 'بحث...' : i18n.language === 'fr' ? 'Rechercher...' : 'Search...')} className="w-full bg-slate-900 border border-slate-700 rounded-lg ps-10 pe-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors shadow-inner text-start" dir={isRTL ? "rtl" : "ltr"} />
+            <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder={t('common.search', i18n.language === 'ar' ? 'بحث في البيان...' : 'Search...')} className="w-full bg-slate-900 border border-slate-700 rounded-lg ps-10 pe-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors shadow-inner text-start" dir={isRTL ? "rtl" : "ltr"} />
           </div>
         </div>
 
@@ -304,7 +543,7 @@ export default function Expenses() {
               <tr className="border-b border-slate-800 bg-slate-950/80">
                 <th className="px-6 py-4 text-sm font-medium text-slate-400 text-start">{t('expenses.table.date', i18n.language === 'ar' ? 'التاريخ' : i18n.language === 'fr' ? 'Date' : 'Date')}</th>
                 <th className="px-6 py-4 text-sm font-medium text-slate-400 text-start">{t('expenses.table.description', i18n.language === 'ar' ? 'البيان / الوصف' : i18n.language === 'fr' ? 'Description' : 'Description')}</th>
-                {isSuperAdmin && <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('expenses.caisseSourceLabel', i18n.language === 'ar' ? 'المصدر' : i18n.language === 'fr' ? 'Source' : 'Source')}</th>}
+                {isSuperAdmin && selectedCaisseFilter === 'all' && <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('expenses.caisseSourceLabel', i18n.language === 'ar' ? 'المصدر' : i18n.language === 'fr' ? 'Source' : 'Source')}</th>}
                 <th className="px-6 py-4 text-sm font-medium text-slate-400 text-start">{t('expenses.table.amount', i18n.language === 'ar' ? 'المبلغ' : i18n.language === 'fr' ? 'Montant' : 'Amount')}</th>
                 <th className="px-6 py-4 text-sm font-medium text-slate-400 text-center">{t('suppliers.table.actions', i18n.language === 'ar' ? 'الإجراءات' : i18n.language === 'fr' ? 'Actions' : 'Actions')}</th>
               </tr>
@@ -312,13 +551,13 @@ export default function Expenses() {
             <tbody>
               {filteredExpenses.map((exp) => (
                 <tr key={`${exp.source}-${exp.id}`} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
-                  <td className="px-6 py-4 text-sm text-slate-400 whitespace-nowrap text-start">{exp.date}</td>
+                  <td className="px-6 py-4 text-sm text-slate-400 whitespace-nowrap text-start" dir="ltr">{exp.date}</td>
                   <td className="px-6 py-4 text-start">
                     <span className="font-medium text-white">{exp.description}</span>
                     <div className="text-xs text-slate-500 mt-1">{getCategoryTranslation(exp.category)}</div>
                   </td>
                   
-                  {isSuperAdmin && (
+                  {isSuperAdmin && selectedCaisseFilter === 'all' && (
                      <td className="px-6 py-4 text-center">
                        <span className={`px-2 py-1 rounded-md text-xs font-medium ${exp.caisse_source === 'admin' ? 'bg-blue-950 text-blue-400 border border-blue-900' : 'bg-slate-800 text-slate-300 border border-slate-700'}`}>
                          {exp.caisse_source === 'admin' ? t('common.superAdmin', i18n.language === 'ar' ? 'المدير' : i18n.language === 'fr' ? 'Admin' : 'Admin') : exp.caisse_source}
@@ -326,7 +565,7 @@ export default function Expenses() {
                      </td>
                   )}
 
-                  <td className="px-6 py-4 text-start font-bold text-red-400">{exp.amount.toLocaleString()} {t('currency', 'DA')}</td>
+                  <td className="px-6 py-4 text-start font-bold text-red-400" dir="ltr">{exp.amount.toLocaleString()} {t('currency', 'DA')}</td>
                   
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-2">
@@ -341,7 +580,7 @@ export default function Expenses() {
                 </tr>
               ))}
               {filteredExpenses.length === 0 && (
-                <tr><td colSpan={isSuperAdmin ? "5" : "4"} className="px-6 py-12 text-center text-slate-500">{t('common.noResults', i18n.language === 'ar' ? 'لا توجد نتائج' : i18n.language === 'fr' ? 'Aucun résultat' : 'No results')}</td></tr>
+                <tr><td colSpan={isSuperAdmin && selectedCaisseFilter === 'all' ? "5" : "4"} className="px-6 py-12 text-center text-slate-500">{t('common.noResults', i18n.language === 'ar' ? 'لا توجد نتائج مطابقة للتاريخ والبحث' : 'No results found')}</td></tr>
               )}
             </tbody>
           </table>
@@ -412,7 +651,7 @@ export default function Expenses() {
 
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('expenses.table.amount', i18n.language === 'ar' ? 'المبلغ' : i18n.language === 'fr' ? 'Montant' : 'Amount')} ({t('currency', 'DA')})</label>
-            <input type="number" min="1" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start" required />
+            <input type="number" min="1" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start" required dir="ltr" />
           </div>
 
           <div>

@@ -983,6 +983,97 @@ function getSystemNotifications() {
     return { success: false, error: error.message };
   }
 }
+
+// دالة الاستبدال الآمن
+function replaceDatabase(sourcePath) {
+  try {
+    db.close(); // إغلاق الاتصال لفك القفل
+    const walPath = dbPath + '-wal';
+    const shmPath = dbPath + '-shm';
+    if (fs.existsSync(walPath)) fs.unlinkSync(walPath);
+    if (fs.existsSync(shmPath)) fs.unlinkSync(shmPath);
+    
+    fs.copyFileSync(sourcePath, dbPath);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+// 🌟 دالة تصفير النظام (Factory Reset) مع مراعاة قيود العلاقات (Foreign Keys)
+function resetDatabase() {
+  try {
+    // 🔴 الترتيب هنا مهم جداً: يجب مسح الأبناء أولاً قبل الآباء!
+    const tablesToClear = [
+      // 1. الجداول الفرعية (الأبناء - Children)
+      'receipts', 'payments', 
+      'attendance', 'advances', 'salaries',
+      'shelf_products', 
+      'inv_items', 'inv_types',
+      'shifts',
+      
+      // 2. الجداول الرئيسية (الآباء - Parents)
+      'suppliers', 'employees', 'mapped_products', 'inv_families', 'daily_closures',
+      
+      // 3. جداول مستقلة (Independent)
+      'expenses', 'agenda_tasks',
+      'audit_logs', 'map_layout', 'store_zones', 'store_shelves', 'store_layouts',
+      'users' // 🔴 أضفنا جدول المستخدمين ليتم مسحه بالكامل لضمان نظافة النظام
+    ];
+
+    db.transaction(() => {
+      // 1. مسح محتوى الجداول بالترتيب الصحيح
+      for (const table of tablesToClear) {
+        db.prepare(`DELETE FROM ${table}`).run();
+      }
+      
+      // 2. تصفير العدادات (Auto Increment IDs) لتبدأ من 1
+      db.prepare(`DELETE FROM sqlite_sequence`).run();
+
+      // 3. 🔴 إنشاء حساب الأدمن الافتراضي من الصفر لضمان عمله 100%
+      db.prepare("INSERT INTO users (username, password, role) VALUES ('admin', 'admin', 'superadmin')").run();
+      
+      // 4. 🔴 إضافة الأدمن كـ "موظف" أيضاً لكي لا تحدث أخطاء في الورديات (Shifts) أو السلفيات
+      db.prepare("INSERT INTO employees (name, role, pin_code) VALUES ('admin', 'superadmin', 'admin')").run();
+
+      // 5. تسجيل حدث التصفير
+      db.prepare("INSERT INTO audit_logs (username, action, details) VALUES ('System', 'FACTORY_RESET', 'تم تصفير النظام والعودة لنقطة البداية')").run();
+    })();
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+// 🌟 دالة جلب أرشيف الورديات المغلقة للمدير
+function getArchivedShiftsArchive() {
+  try {
+    const shifts = db.prepare("SELECT * FROM shifts WHERE status = 'closed' ORDER BY id DESC").all();
+    const detailedShifts = shifts.map(shift => {
+      let expensesRow, paymentsRow, advancesRow;
+      const endTimeLimit = shift.end_time || new Date().toISOString();
+
+      if (shift.cashier_name === 'المدير العام' || shift.cashier_name === 'Super Admin' || shift.cashier_name === 'admin') {
+        expensesRow = db.prepare("SELECT SUM(amount) as total FROM expenses WHERE created_at >= ? AND created_at <= ?").get(shift.start_time, endTimeLimit);
+        paymentsRow = db.prepare("SELECT SUM(amount) as total FROM payments WHERE created_at >= ? AND created_at <= ?").get(shift.start_time, endTimeLimit);
+        advancesRow = db.prepare("SELECT SUM(amount) as total FROM advances WHERE created_at >= ? AND created_at <= ?").get(shift.start_time, endTimeLimit);
+      } else {
+        expensesRow = db.prepare("SELECT SUM(amount) as total FROM expenses WHERE caisse_source = ? AND created_at >= ? AND created_at <= ?").get(shift.cashier_name, shift.start_time, endTimeLimit);
+        paymentsRow = db.prepare("SELECT SUM(amount) as total FROM payments WHERE caisse_source = ? AND created_at >= ? AND created_at <= ?").get(shift.cashier_name, shift.start_time, endTimeLimit);
+        advancesRow = db.prepare("SELECT SUM(amount) as total FROM advances WHERE caisse_source = ? AND created_at >= ? AND created_at <= ?").get(shift.cashier_name, shift.start_time, endTimeLimit);
+      }
+      
+      const totalOut = (expensesRow?.total || 0) + (paymentsRow?.total || 0) + (advancesRow?.total || 0);
+      const shiftSales = shift.actual_cash ? (Number(shift.actual_cash) + totalOut) - Number(shift.opening_balance) : 0;
+      
+      return { ...shift, totalOut, calculatedSales: shiftSales };
+    });
+
+    return { success: true, data: detailedShifts };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
 module.exports = {
   initDatabase, verifyLogin, getSuppliers, addSupplier, getEmployees, addEmployee, 
   handlePinEntry, getExpenses, addExpense, deleteExpense, updateExpense, getTodayAttendance,
@@ -994,6 +1085,7 @@ module.exports = {
   getUsers, addUser, deleteUser,dbPath,
   updateEmployee, deleteEmployee, logAudit, getAuditLogs, generateExcelBackup, backupDatabase, importSuppliersFromExcel, deleteSupplier, updateSupplier , deleteReceipt, deletePayment, updateAdvance, deleteAdvance, 
   getAllShiftsSummary, closeBusinessDay, getDailyClosures, getArchivedZReport, updateAttendanceRecord, getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, saveMapLayout, getMapLayout,getStoreLayouts, saveStoreLayout, deleteStoreLayout, activateStoreLayout, getShelfProducts, deleteShelfProduct, updateShelfProduct,
-  getInventoryTree, addInvFamily, deleteInvFamily, addInvType, deleteInvType, addInvItem, updateInvItem, deleteInvItem , updateInvFamily, updateInvType , getSystemNotifications
+  getInventoryTree, addInvFamily, deleteInvFamily, addInvType, deleteInvType, addInvItem, updateInvItem, deleteInvItem , updateInvFamily, updateInvType , getSystemNotifications, resetDatabase, getArchivedShiftsArchive
+ , replaceDatabase
 
 };

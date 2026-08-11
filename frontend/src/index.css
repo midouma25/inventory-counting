@@ -4,6 +4,24 @@
 @tailwind components;
 @tailwind utilities;
 
+html.light-mode {
+  filter: invert(1) hue-rotate(180deg);
+  background-color: #0f172a; /* لون لملء الفراغات إن وجدت */
+}
+
+/* 🌟 استثناء الصور وأشياء معينة لكي لا تنعكس ألوانها */
+html.light-mode img,
+html.light-mode iframe,
+html.light-mode .recharts-surface,
+html.light-mode .no-invert {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* 🌟 سلاسة عند التكبير وتغيير الوضع */
+html {
+  transition: filter 0.3s ease-in-out, zoom 0.3s ease-in-out;
+}
+
 /* 🛠️ التنسيق العام للـ Ticket أثناء العرض على الشاشة */
 .receipt-ticket-forced{
 

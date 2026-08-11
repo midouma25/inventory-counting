@@ -98,4 +98,14 @@ checkActivation: () => ipcRenderer.invoke('check-activation'),
   updateInvFamily: (id, name) => ipcRenderer.invoke('update-inv-family', id, name),
   updateInvType: (id, name) => ipcRenderer.invoke('update-inv-type', id, name),
   getSystemNotifications: () => ipcRenderer.invoke('get-system-notifications'),
+  resetDatabase: () => ipcRenderer.invoke('reset-database'),
+  getArchivedShiftsArchive: () => ipcRenderer.invoke('get-archived-shifts-archive'),
+  onAttendanceShortcut: (callback) => {
+    ipcRenderer.on('trigger-attendance-shortcut', () => callback());
+  },
+  // تنظيف المستمع عند الخروج من الصفحة
+  offAttendanceShortcut: () => {
+    ipcRenderer.removeAllListeners('trigger-attendance-shortcut');
+  }
+
 });

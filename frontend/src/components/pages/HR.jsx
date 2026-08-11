@@ -159,9 +159,6 @@ const HR = () => {
     }
   };
 
-  // ------------------------------------------------------------------
-  // 🔴 2. دالة الطباعة المباشرة لبطاقة الموظف (التقنية المعزولة - Padding 6mm)
-  // ------------------------------------------------------------------
   const handleExecutePrint = () => {
     const printElement = document.getElementById('printable-badge');
     if (!printElement) return;
@@ -200,7 +197,7 @@ const HR = () => {
             width: 100%;
             max-width: 72mm; 
             margin: 0 auto;
-            padding: 4mm 6mm; /* الحماية من الحواف */
+            padding: 4mm 6mm;
             box-sizing: border-box;
           }
           .receipt-ticket-forced { width: 100%; box-sizing: border-box; }
@@ -377,49 +374,84 @@ const HR = () => {
 
       {activeTab === 'employees' && (
         <div className="flex flex-col gap-6">
-          <div className="flex justify-between items-center bg-slate-900/50 p-4 rounded-xl border border-slate-800 shadow-lg">
-            <button onClick={() => { setFormData({ name: "", role: "", pinCode: "" }); setEditingEmployee(null); setIsDialogOpen(true); }} className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 px-4 py-2.5 rounded-lg font-medium transition-colors">
-              <Plus size={18} /> {t('hr.employees.addBtn', 'إضافة موظف')}
-            </button>
-            <div className="relative w-1/3 text-start">
-              <Search size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-500" />
-              <input type="text" placeholder={t('hr.employees.search', 'بحث...')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg ps-10 pe-4 py-2.5 text-white focus:outline-none focus:border-blue-500 text-start" dir={isRTL ? "rtl" : "ltr"} />
+          {empLoading ? (
+            <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden shadow-lg p-12 text-center text-slate-500">
+              {t('hr.table.loading', 'جاري التحميل...')}
             </div>
-          </div>
+          ) : employees.length === 0 ? (
+            /* 🌟 الشاشة التفاعلية الفارغة (Empty State) 🌟 */
+            <div className="bg-slate-900 border border-dashed border-slate-700 rounded-2xl p-12 flex flex-col items-center justify-center text-center animate-in fade-in zoom-in-95 duration-300 mt-4">
+              <div className="w-24 h-24 bg-blue-500/10 rounded-full flex items-center justify-center mb-6 shadow-inner border border-blue-500/20">
+                <Users size={48} className="text-blue-500" />
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-3">
+                {t('hr.emptyState.title', i18n.language === 'ar' ? 'ليس لديك أي موظفين بعد..' : i18n.language === 'fr' ? "Vous n'avez pas encore d'employés.." : 'You have no employees yet..')}
+              </h2>
+              <p className="text-slate-400 max-w-md mx-auto mb-8 text-sm leading-relaxed">
+                {t('hr.emptyState.desc', i18n.language === 'ar' ? 'ابدأ بإضافة موظفك الأول لتتمكن من تتبع الحضور، الانصراف، الرواتب، والسلفيات بكل سهولة!' : i18n.language === 'fr' ? 'Commencez par ajouter votre premier employé pour suivre facilement les présences, la paie et les avances !' : 'Start by adding your first employee to easily track attendance, payroll, and advances!')}
+              </p>
+              
+              <button
+                onClick={() => { setFormData({ name: "", role: "", pinCode: "" }); setEditingEmployee(null); setIsDialogOpen(true); }}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2"
+              >
+                <Plus size={20} />
+                {t('hr.emptyState.addBtn', i18n.language === 'ar' ? 'إضافة أول موظف' : i18n.language === 'fr' ? 'Ajouter le premier employé' : 'Add First Employee')}
+              </button>
+            </div>
+          ) : (
+            /* الجدول المعتاد يظهر فقط إذا كان هناك موظفون */
+            <>
+              <div className="flex justify-between items-center bg-slate-900/50 p-4 rounded-xl border border-slate-800 shadow-lg">
+                <button onClick={() => { setFormData({ name: "", role: "", pinCode: "" }); setEditingEmployee(null); setIsDialogOpen(true); }} className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 px-4 py-2.5 rounded-lg font-medium transition-colors">
+                  <Plus size={18} /> {t('hr.employees.addBtn', 'إضافة موظف')}
+                </button>
+                <div className="relative w-1/3 text-start">
+                  <Search size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <input type="text" placeholder={t('hr.employees.search', 'بحث...')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg ps-10 pe-4 py-2.5 text-white focus:outline-none focus:border-blue-500 text-start" dir={isRTL ? "rtl" : "ltr"} />
+                </div>
+              </div>
 
-          <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
-            <table className="w-full text-start border-collapse">
-              <thead>
-                <tr className="border-b border-slate-800 bg-slate-950/80 text-slate-400 text-sm">
-                  <th className="px-6 py-4 font-medium text-start">{t('hr.employees.table.name', 'الاسم')}</th>
-                  <th className="px-6 py-4 font-medium text-start">{t('hr.employees.table.role', 'المنصب')}</th>
-                  <th className="px-6 py-4 font-medium text-center">{t('hr.employees.table.status', 'الحالة')}</th>
-                  <th className="px-6 py-4 font-medium text-center">{t('hr.employees.table.actions', 'إجراء')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {empLoading ? (
-                  <tr><td colSpan={4} className="text-center py-8 text-slate-500">{t('hr.table.loading', 'جاري التحميل...')}</td></tr>
-                ) : filteredEmployees.length === 0 ? (
-                  <tr><td colSpan={4} className="text-center py-8 text-slate-500">{t('hr.employees.empty', 'لا يوجد')}</td></tr>
-                ) : (
-                  filteredEmployees.map((emp) => (
-                    <tr key={emp.id} className="border-b border-slate-800/50 hover:bg-slate-800/20">
-                      <td className="px-6 py-4 font-medium text-start text-white">{emp.name}</td>
-                      <td className="px-6 py-4 text-slate-400 text-start">{t(`hr.roles.${emp.role}`, { defaultValue: emp.role })}</td>
-                      <td className="px-6 py-4 text-center">
-                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{t('hr.status.active', 'نشط')}</span>
-                      </td>
-                      <td className="px-6 py-4 text-center flex justify-center gap-2">
-                        <button onClick={() => { setFormData({ name: emp.name, role: emp.role, pinCode: emp.pin_code }); setEditingEmployee(emp); setIsDialogOpen(true); }} className="p-2 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" title={t('hr.employees.actions.edit', 'تعديل')}><Edit size={18} /></button>
-                        <button onClick={() => setEmployeeToDelete(emp)} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors" title={t('hr.employees.actions.delete', 'حذف')}><Trash2 size={18} /></button>
-                      </td>
+              <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden shadow-lg animate-in fade-in">
+                <table className="w-full text-start border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-800 bg-slate-950/80 text-slate-400 text-sm">
+                      <th className="px-6 py-4 font-medium text-start">{t('hr.employees.table.name', 'الاسم')}</th>
+                      <th className="px-6 py-4 font-medium text-start">{t('hr.employees.table.role', 'المنصب')}</th>
+                      <th className="px-6 py-4 font-medium text-center">{t('hr.employees.table.status', 'الحالة')}</th>
+                      <th className="px-6 py-4 font-medium text-center">{t('hr.employees.table.actions', 'إجراء')}</th>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody>
+                    {filteredEmployees.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="text-center py-12 text-slate-500">
+                          <div className="flex flex-col items-center gap-3 justify-center">
+                            <Search size={32} className="opacity-20"/>
+                            <p>{t('common.noResults', 'لا توجد نتائج')}</p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredEmployees.map((emp) => (
+                        <tr key={emp.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
+                          <td className="px-6 py-4 font-medium text-start text-white">{emp.name}</td>
+                          <td className="px-6 py-4 text-slate-400 text-start">{t(`hr.roles.${emp.role}`, { defaultValue: emp.role })}</td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{t('hr.status.active', 'نشط')}</span>
+                          </td>
+                          <td className="px-6 py-4 text-center flex justify-center gap-2">
+                            <button onClick={() => { setFormData({ name: emp.name, role: emp.role, pinCode: emp.pin_code }); setEditingEmployee(emp); setIsDialogOpen(true); }} className="p-2 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" title={t('hr.employees.actions.edit', 'تعديل')}><Edit size={18} /></button>
+                            <button onClick={() => setEmployeeToDelete(emp)} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors" title={t('hr.employees.actions.delete', 'حذف')}><Trash2 size={18} /></button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
 
           <Modal isOpen={isDialogOpen} onClose={() => setIsDialogOpen(false)} title={editingEmployee ? t('hr.dialog.editTitle', 'تعديل') : t('hr.dialog.title', 'إضافة موظف')}>
               <div className="p-2 text-start">

@@ -6,7 +6,7 @@ import useSupplierStore from '../../store/supplierStore';
 import useEmployeeStore from '../../store/employeeStore'; 
 import ConfirmAlert from '../ui/ConfirmAlert'; 
 import Modal from '../ui/Modal';
-import { Plus, Search, ArrowUpDown, ArrowRight, ArrowLeft, FileText, Banknote, ArrowUpRight, ArrowDownRight, Calendar, Eye, Edit, Trash2, Upload, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Plus, Search, ArrowUpDown, ArrowRight, ArrowLeft, FileText, Banknote, ArrowUpRight, ArrowDownRight, Calendar, Eye, Edit, Trash2, Upload, AlertCircle, CheckCircle2, Users } from 'lucide-react';
 
 export default function Suppliers() {
   const { t, i18n } = useTranslation();
@@ -41,7 +41,6 @@ export default function Suppliers() {
 
   useEffect(() => { fetchSuppliers(); fetchEmployees(); }, []);
 
-  // 🔴 هذه الدالة هي التي ترسل البيانات إلى صفحة PrintPreview التي أصلحناها في الجزء الأول
   const handlePreview = (type, item) => { navigate('/preview', { state: { type, item, supplierName: currentSupplier.name } }); };
 
   const handleSaveSupplier = async (e) => { 
@@ -257,7 +256,6 @@ export default function Suppliers() {
                       <p className="text-sm text-slate-300">{r.note || '-'}</p>
                     </div>
                     <div className="flex gap-2 ms-4 border-s border-slate-800 ps-4">
-                      {/* 🔴 هنا زر فتح الطباعة / عرض الوصل */}
                       <button onClick={() => handlePreview('receipt', r)} className="p-2 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-colors border border-slate-800" title={t('common.viewDocument', i18n.language === 'ar' ? 'عرض / طباعة الوصل' : i18n.language === 'fr' ? 'Imprimer le reçu' : 'Print Receipt')}><Eye size={18} /></button>
                       <button onClick={() => openEditTransactionModal('receipt', r)} className="p-2 text-blue-400 hover:bg-slate-800 hover:text-blue-300 rounded-lg transition-colors border border-slate-800" title={t('common.edit', i18n.language === 'ar' ? 'تعديل' : i18n.language === 'fr' ? 'Modifier' : 'Edit')}><Edit size={18} /></button>
                       <button onClick={() => handleDeleteTransactionClick('receipt', r.id)} className="p-2 text-red-400 hover:bg-slate-800 hover:text-red-300 rounded-lg transition-colors border border-slate-800" title={t('common.delete', i18n.language === 'ar' ? 'حذف' : i18n.language === 'fr' ? 'Supprimer' : 'Delete')}><Trash2 size={18} /></button>
@@ -288,7 +286,6 @@ export default function Suppliers() {
                       <p className="text-sm text-slate-300">{p.note || '-'}</p>
                     </div>
                     <div className="flex gap-2 ms-4 border-s border-slate-800 ps-4">
-                      {/* 🔴 هنا زر فتح الطباعة / عرض الوصل */}
                       <button onClick={() => handlePreview('payment', p)} className="p-2 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-colors border border-slate-800" title={t('common.viewDocument', i18n.language === 'ar' ? 'عرض / طباعة الوصل' : i18n.language === 'fr' ? 'Imprimer le reçu' : 'Print Receipt')}><Eye size={18} /></button>
                       <button onClick={() => openEditTransactionModal('payment', p)} className="p-2 text-blue-400 hover:bg-slate-800 hover:text-blue-300 rounded-lg transition-colors border border-slate-800" title={t('common.edit', i18n.language === 'ar' ? 'تعديل' : i18n.language === 'fr' ? 'Modifier' : 'Edit')}><Edit size={18} /></button>
                       <button onClick={() => handleDeleteTransactionClick('payment', p.id)} className="p-2 text-red-400 hover:bg-slate-800 hover:text-red-300 rounded-lg transition-colors border border-slate-800" title={t('common.delete', i18n.language === 'ar' ? 'حذف' : i18n.language === 'fr' ? 'Supprimer' : 'Delete')}><Trash2 size={18} /></button>
@@ -307,25 +304,25 @@ export default function Suppliers() {
               <input type="number" min="0" required value={transactionData.amount} onChange={(e) => setTransactionData({...transactionData, amount: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('expenses.dateLabel')}</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('expenses.dateLabel', i18n.language === 'ar' ? 'التاريخ' : 'Date')}</label>
               <input type="date" required value={transactionData.date} onChange={(e) => setTransactionData({...transactionData, date: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start" />
             </div>
             
             {transactionType === 'payment' && (
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('expenses.caisseSourceLabel')}</label>
+                <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('expenses.caisseSourceLabel', i18n.language === 'ar' ? 'مصدر الأموال' : 'Source')}</label>
                 <select required value={transactionData.caisseSource} onChange={(e) => setTransactionData({...transactionData, caisseSource: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start">
-                  <option value="" disabled>-- {t('payroll.selectCaisse')} --</option>
-                  <option value="admin">{t('expenses.adminCaisse')}</option>
+                  <option value="" disabled>-- {t('payroll.selectCaisse', i18n.language === 'ar' ? 'اختر الصندوق' : 'Select Caisse')} --</option>
+                  <option value="admin">{t('expenses.adminCaisse', i18n.language === 'ar' ? 'صندوق المدير' : 'Admin Caisse')}</option>
                   {employees.filter(emp => emp.role === 'cashier' || emp.role === 'scale').map(emp => (
-                    <option key={emp.id} value={emp.name}>{t('expenses.cashierCaisse', { name: emp.name, defaultValue: `صندوق الكاشير: ${emp.name}` })}</option>
+                    <option key={emp.id} value={emp.name}>{t('expenses.cashierCaisse', { name: emp.name, defaultValue: i18n.language === 'ar' ? `صندوق الكاشير: ${emp.name}` : `Caisse: ${emp.name}` })}</option>
                   ))}
                 </select>
               </div>
             )}
             
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('payroll.note')} ({t('common.optional')})</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('payroll.note', i18n.language === 'ar' ? 'البيان' : 'Note')} ({t('common.optional')})</label>
               <input type="text" value={transactionData.note} onChange={(e) => setTransactionData({...transactionData, note: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start" />
             </div>
             <div className="pt-4 flex justify-end gap-3 mt-4">
@@ -348,14 +345,14 @@ export default function Suppliers() {
           }}>
             <div><label className="block text-sm text-slate-400 mb-1 text-start">{t('suppliers.details.amount')}</label><input type="number" required value={scheduleData.amount} onChange={(e) => setScheduleData({...scheduleData, amount: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-start" /></div>
             <div className="grid grid-cols-2 gap-4">
-              <div><label className="block text-sm text-slate-400 mb-1 text-start">{t('expenses.dateLabel')}</label><input type="date" required value={scheduleData.date} onChange={(e) => setScheduleData({...scheduleData, date: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-start" /></div>
-              <div><label className="block text-sm text-slate-400 mb-1 text-start">{t('agenda.modal.timeLabel')}</label><input type="time" required value={scheduleData.time} onChange={(e) => setScheduleData({...scheduleData, time: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-start" /></div>
+              <div><label className="block text-sm text-slate-400 mb-1 text-start">{t('expenses.dateLabel', i18n.language === 'ar' ? 'التاريخ' : 'Date')}</label><input type="date" required value={scheduleData.date} onChange={(e) => setScheduleData({...scheduleData, date: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-start" /></div>
+              <div><label className="block text-sm text-slate-400 mb-1 text-start">{t('agenda.modal.timeLabel', i18n.language === 'ar' ? 'الوقت' : 'Time')}</label><input type="time" required value={scheduleData.time} onChange={(e) => setScheduleData({...scheduleData, time: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-start" /></div>
             </div>
             <div className="pt-4 flex justify-end gap-3"><button type="button" onClick={() => setIsScheduleModalOpen(false)} className="px-4 py-2 text-slate-300 hover:bg-slate-800 rounded-lg">{t('common.cancel')}</button><button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">{t('common.confirm')}</button></div>
           </form>
         </Modal>
 
-        <ConfirmAlert isOpen={!!transactionToDelete} onClose={() => setTransactionToDelete(null)} onConfirm={executeDeleteTransaction} title={t('suppliers.actions.delete')} message={t('expenses.deleteConfirm')} confirmText={t('suppliers.actions.confirmDeleteBtn')} />
+        <ConfirmAlert isOpen={!!transactionToDelete} onClose={() => setTransactionToDelete(null)} onConfirm={executeDeleteTransaction} title={t('suppliers.actions.delete')} message={t('expenses.deleteConfirm', i18n.language === 'ar' ? 'هل أنت متأكد من الحذف؟' : 'Are you sure?')} confirmText={t('suppliers.actions.confirmDeleteBtn')} />
       </div>
     );
   }
@@ -368,58 +365,95 @@ export default function Suppliers() {
           <h1 className="text-3xl font-bold text-white">{t('suppliers.title')}</h1>
           <p className="text-sm text-slate-500 mt-1">{t('suppliers.subtitle')}</p>
         </div>
-        <div className="flex items-center gap-3">
-           <button onClick={handleImportExcel} className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-md font-medium hover:bg-emerald-700 transition-colors">
-              <Upload size={18} /><span>Excel</span>
-           </button>
-           <button onClick={() => { setEditingSupplier(null); setFormData({ name: '', phone: '', initialDebt: 0 }); setIsAddModalOpen(true); }} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md font-medium hover:bg-blue-700 transition-colors">
-             <Plus size={18} /><span>{t('suppliers.addSupplier')}</span>
-           </button>
-        </div>
-      </div>
-
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
-        <div className="p-4 border-b border-slate-800 flex items-center bg-slate-950/30">
-          <div className="relative w-full max-w-md">
-            <Search size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <input type="text" value={globalFilter ?? ''} onChange={e => setGlobalFilter(e.target.value)} placeholder={t('suppliers.searchPlaceholder')} className="w-full bg-slate-950 border border-slate-700 rounded-lg ps-10 pe-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors shadow-inner text-start" dir={isRTL ? "rtl" : "ltr"} />
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-start border-collapse" dir={i18n.dir()}>
-            <thead>
-              {table.getHeaderGroups().map(headerGroup => (
-                <tr key={headerGroup.id} className="border-b border-slate-800 bg-slate-950/80">
-                  {headerGroup.headers.map(header => (
-                    <th key={header.id} className="px-6 py-4 text-sm font-medium text-slate-400 whitespace-nowrap text-start">
-                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody>
-              {table.getRowModel().rows.map(row => (
-                <tr key={row.id} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
-                  {row.getVisibleCells().map(cell => (
-                    <td key={cell.id} className="px-6 py-4 text-sm whitespace-nowrap text-start">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
         
-        {table.getRowModel().rows.length === 0 && (
-          <div className="p-12 text-center text-slate-500 flex flex-col items-center gap-3">
-             <Search size={32} className="opacity-20" />
-             <p>{t('common.noResults')}</p>
+        {/* إخفاء الأزرار العلوية إذا كانت القائمة فارغة تماماً لكي لا تتكرر في الشاشة الفارغة */}
+        {suppliers.length > 0 && (
+          <div className="flex items-center gap-3">
+             <button onClick={handleImportExcel} className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-md font-medium hover:bg-emerald-700 transition-colors">
+                <Upload size={18} /><span>Excel</span>
+             </button>
+             <button onClick={() => { setEditingSupplier(null); setFormData({ name: '', phone: '', initialDebt: 0 }); setIsAddModalOpen(true); }} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md font-medium hover:bg-blue-700 transition-colors">
+               <Plus size={18} /><span>{t('suppliers.addSupplier')}</span>
+             </button>
           </div>
         )}
       </div>
+
+      {/* 🌟 الشاشة التفاعلية الفارغة (Empty State) 🌟 */}
+      {suppliers.length === 0 ? (
+        <div className="bg-slate-900 border border-dashed border-slate-700 rounded-2xl p-12 flex flex-col items-center justify-center text-center animate-in fade-in zoom-in-95 duration-300 mt-10">
+          <div className="w-24 h-24 bg-blue-500/10 rounded-full flex items-center justify-center mb-6 shadow-inner border border-blue-500/20">
+            <Users size={48} className="text-blue-500" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-3">
+            {t('suppliers.emptyState.title', i18n.language === 'ar' ? 'ليس لديك أي موردين بعد..' : i18n.language === 'fr' ? 'Vous n\'avez pas encore de fournisseurs..' : 'You have no suppliers yet..')}
+          </h2>
+          <p className="text-slate-400 max-w-md mx-auto mb-8 text-sm leading-relaxed">
+            {t('suppliers.emptyState.desc', i18n.language === 'ar' ? 'ابدأ بإضافة موردك الأول لتتمكن من تتبع فواتيرك وديونك بسهولة، أو قم باستيراد قائمة جاهزة من ملف إكسيل!' : i18n.language === 'fr' ? 'Commencez par ajouter votre premier fournisseur pour suivre facilement vos factures et dettes, ou importez depuis Excel !' : 'Start by adding your first supplier to easily track your invoices and debts, or import from Excel!')}
+          </p>
+          
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full justify-center">
+            <button
+              onClick={() => { setEditingSupplier(null); setFormData({ name: '', phone: '', initialDebt: 0 }); setIsAddModalOpen(true); }}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 w-full sm:w-auto"
+            >
+              <Plus size={20} />
+              {t('suppliers.emptyState.addBtn', i18n.language === 'ar' ? 'إضافة أول مورد' : i18n.language === 'fr' ? 'Ajouter le premier fournisseur' : 'Add First Supplier')}
+            </button>
+            <button
+              onClick={handleImportExcel}
+              className="bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/50 hover:border-emerald-500 text-emerald-500 hover:text-white font-bold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2 w-full sm:w-auto"
+            >
+              <Upload size={20} />
+              {t('suppliers.actions.importExcel', i18n.language === 'ar' ? 'استيراد من إكسيل' : i18n.language === 'fr' ? 'Importer depuis Excel' : 'Import from Excel')}
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* الجدول المعتاد يظهر فقط إذا كان هناك موردون */
+        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg animate-in fade-in">
+          <div className="p-4 border-b border-slate-800 flex items-center bg-slate-950/30">
+            <div className="relative w-full max-w-md">
+              <Search size={18} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <input type="text" value={globalFilter ?? ''} onChange={e => setGlobalFilter(e.target.value)} placeholder={t('suppliers.searchPlaceholder')} className="w-full bg-slate-950 border border-slate-700 rounded-lg ps-10 pe-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors shadow-inner text-start" dir={isRTL ? "rtl" : "ltr"} />
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-start border-collapse" dir={i18n.dir()}>
+              <thead>
+                {table.getHeaderGroups().map(headerGroup => (
+                  <tr key={headerGroup.id} className="border-b border-slate-800 bg-slate-950/80">
+                    {headerGroup.headers.map(header => (
+                      <th key={header.id} className="px-6 py-4 text-sm font-medium text-slate-400 whitespace-nowrap text-start">
+                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                      </th>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+              <tbody>
+                {table.getRowModel().rows.map(row => (
+                  <tr key={row.id} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
+                    {row.getVisibleCells().map(cell => (
+                      <td key={cell.id} className="px-6 py-4 text-sm whitespace-nowrap text-start">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          
+          {table.getRowModel().rows.length === 0 && (
+            <div className="p-12 text-center text-slate-500 flex flex-col items-center gap-3">
+               <Search size={32} className="opacity-20" />
+               <p>{t('common.noResults')}</p>
+            </div>
+          )}
+        </div>
+      )}
 
       <Modal isOpen={isAddModalOpen} onClose={() => { setIsAddModalOpen(false); setEditingSupplier(null); }} title={editingSupplier ? t('suppliers.actions.edit') : t('suppliers.addSupplier')}>
         <form className="space-y-4" onSubmit={handleSaveSupplier} dir={isRTL ? "rtl" : "ltr"}>
@@ -434,7 +468,7 @@ export default function Suppliers() {
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-1 text-start">{t('suppliers.table.totalDebt')} ({t('currency')}) - {t('common.optional')}</label>
             <input type="number" min="0" value={formData.initialDebt} onChange={(e) => setFormData({...formData, initialDebt: Number(e.target.value)})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors text-start" />
-            <p className="text-xs text-slate-500 mt-1 text-start">الرصيد الافتتاحي (ديون سابقة إن وجدت)</p>
+            <p className="text-xs text-slate-500 mt-1 text-start">{t('suppliers.initialDebtHint', i18n.language === 'ar' ? 'الرصيد الافتتاحي (ديون سابقة إن وجدت)' : i18n.language === 'fr' ? 'Solde initial (dettes précédentes si existantes)' : 'Initial Balance (previous debts if any)')}</p>
           </div>
           <div className="pt-4 flex justify-end gap-3 mt-4">
             <button type="button" onClick={() => { setIsAddModalOpen(false); setEditingSupplier(null); }} className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-800 transition-colors">{t('common.cancel')}</button>

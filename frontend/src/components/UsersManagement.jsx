@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Shield, UserPlus, Trash2, Users, Key, AlertCircle, Save, Upload, CheckCircle2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Shield, UserPlus, Trash2, Users, Key, AlertCircle, Save, Upload, CheckCircle2, RotateCcw, AlertTriangle } from 'lucide-react';
 import useAuthStore from '../store/authStore';
-import ConfirmAlert from './ui/ConfirmAlert'; // 🔴 إضافة النافذة المخصصة
+import ConfirmAlert from './ui/ConfirmAlert'; 
+import Modal from './ui/Modal'; 
 
 export default function UsersManagement() {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.dir() === 'rtl';
+  const navigate = useNavigate();
+  
   const currentUser = useAuthStore(state => state.user);
+  const logout = useAuthStore(state => state.logout); 
   
   const [users, setUsers] = useState([]);
   const [username, setUsername] = useState('');
@@ -17,10 +22,12 @@ export default function UsersManagement() {
   const [userToDelete, setUserToDelete] = useState(null); 
   const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false); 
   
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // 🔴 نظام الإشعارات الذكي
   const [toast, setToast] = useState(null);
   const showToast = (type, message) => {
     setToast({ type, message });
@@ -63,7 +70,7 @@ export default function UsersManagement() {
 
   const handleDeleteUserClick = (id, name) => {
     if (name === 'admin' || name === currentUser?.username) {
-      showToast('warning', t('settings.deleteAlert')); // 🔴 Toast بدل alert
+      showToast('warning', t('settings.deleteAlert'));
       return;
     }
     setUserToDelete({ id, name }); 
@@ -89,14 +96,6 @@ export default function UsersManagement() {
     setUserToDelete(null); 
   };
 
-  if (currentUser?.role !== 'superadmin') {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-950 text-red-500 text-xl font-bold gap-3">
-        <AlertCircle size={32} /> {t('settings.accessDenied')}
-      </div>
-    );
-  }
-
   const handleBackup = async () => {
     try {
       const result = await window.api.backupDatabase();
@@ -106,36 +105,81 @@ export default function UsersManagement() {
       else if (!result.canceled) { 
           showToast('error', t('database.messages.error') + "\n" + (result.error || '')); 
       }
+      return result;
     } catch (error) { 
+        showToast('error', t('database.messages.error')); 
+        return { success: false };
+    }
+  };
+  
+  // 🔴 الضربة القاضية للمشكلة: لا نغلق النافذة أبداً إلا بعد انتهاء الويندوز!
+  const confirmRestore = async () => {
+    try {
+      // 1. فتح نافذة الويندوز فوراً وبشكل مباشر (Synchronous Trigger)
+      const result = await window.api.restoreDatabase();
+      
+      // 2. الآن، وبعد أن يختار المستخدم الملف (أو يضغط إلغاء)، نغلق نافذة التأكيد السوداء
+      setIsRestoreModalOpen(false);
+      
+      // 3. معالجة النتيجة
+      if (result.success) { 
+          showToast('success', t('database.messages.restoreSuccess')); 
+      } 
+      else if (!result.canceled) { 
+          if (result.error === 'invalid_format') {
+             showToast('error', t('database.messages.invalidFile', 'The selected file is invalid! Please choose a valid database file (.db or .sqlite).'));
+          } else {
+             showToast('error', t('database.messages.error') + "\n" + (result.error || '')); 
+          }
+      }
+    } catch (error) { 
+        setIsRestoreModalOpen(false);
         showToast('error', t('database.messages.error')); 
     }
   };
 
-  
-const confirmRestore = async () => {
-      setIsRestoreModalOpen(false);
-      try {
-        const result = await window.api.restoreDatabase();
-        if (result.success) { 
-            showToast('success', t('database.messages.restoreSuccess')); 
-        } 
-        else if (!result.canceled) { 
-            // 🔴 دعم الترجمة إذا كان الملف خاطئاً (ليس قاعدة بيانات)
-            if (result.error === 'invalid_format') {
-               showToast('error', t('database.messages.invalidFile', 'The selected file is invalid! Please choose a valid database file (.db or .sqlite).'));
-            } else {
-               showToast('error', t('database.messages.error') + "\n" + (result.error || '')); 
-            }
+  const executeFactoryReset = async (withBackup) => {
+    setIsResetting(true);
+    try {
+      if (withBackup) {
+        const backupResult = await handleBackup();
+        if (!backupResult.success) {
+          setIsResetting(false);
+          setIsResetModalOpen(false);
+          return;
         }
-      } catch (error) { 
-          showToast('error', t('database.messages.error')); 
       }
+
+      const resetResult = await window.api.resetDatabase();
+      if (resetResult.success) {
+        showToast('success', t('database.messages.resetSuccess', 'تم تصفير النظام بنجاح!'));
+        setTimeout(() => {
+          logout(); 
+          navigate('/login'); 
+        }, 1500);
+      } else {
+        showToast('error', t('database.messages.error') + "\n" + resetResult.error);
+        setIsResetting(false);
+        setIsResetModalOpen(false);
+      }
+    } catch (error) {
+      showToast('error', t('database.messages.error'));
+      setIsResetting(false);
+      setIsResetModalOpen(false);
+    }
   };
+
+  if (currentUser?.role !== 'superadmin') {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-950 text-red-500 text-xl font-bold gap-3">
+        <AlertCircle size={32} /> {t('settings.accessDenied')}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans text-start relative">
       
-      {/* 🔴 مكون الـ Toast */}
       {toast && (
         <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[9999] px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 ${
           toast.type === 'success' ? 'bg-emerald-600 text-white' :
@@ -250,15 +294,8 @@ const confirmRestore = async () => {
             {t('database.title')}
           </h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-slate-950/50 border border-slate-800 rounded-lg p-5 flex flex-col items-center text-center">
-              <div className="w-14 h-14 bg-blue-500/10 rounded-full flex items-center justify-center mb-4"><Save className="text-blue-500" size={28} /></div>
-              <h3 className="text-lg font-bold text-white mb-2">{t('database.backup')}</h3>
-              <p className="text-sm text-slate-400 mb-6 flex-1">{t('database.backupDesc')}</p>
-              <button onClick={handleBackup} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg transition-colors font-medium flex justify-center items-center gap-2">
-                <Save size={18} />{t('database.backup')}
-              </button>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
             <div className="bg-slate-950/50 border border-slate-800 rounded-lg p-5 flex flex-col items-center text-center">
               <div className="w-14 h-14 bg-red-500/10 rounded-full flex items-center justify-center mb-4"><Upload className="text-red-500" size={28} /></div>
               <h3 className="text-lg font-bold text-white mb-2">{t('database.restore')}</h3>
@@ -267,11 +304,29 @@ const confirmRestore = async () => {
                 <Upload size={18} />{t('database.restore')}
               </button>
             </div>
+
+            <div className="bg-slate-950/50 border border-slate-800 rounded-lg p-5 flex flex-col items-center text-center">
+              <div className="w-14 h-14 bg-blue-500/10 rounded-full flex items-center justify-center mb-4"><Save className="text-blue-500" size={28} /></div>
+              <h3 className="text-lg font-bold text-white mb-2">{t('database.backup')}</h3>
+              <p className="text-sm text-slate-400 mb-6 flex-1">{t('database.backupDesc')}</p>
+              <button onClick={handleBackup} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg transition-colors font-medium flex justify-center items-center gap-2">
+                <Save size={18} />{t('database.backup')}
+              </button>
+            </div>
+
+            <div className="bg-red-950/20 border border-red-900/50 rounded-lg p-5 flex flex-col items-center text-center">
+              <div className="w-14 h-14 bg-red-500/10 rounded-full flex items-center justify-center mb-4"><RotateCcw className="text-red-500" size={28} /></div>
+              <h3 className="text-lg font-bold text-red-400 mb-2">{t('database.resetTitle', 'بدء بيانات جديدة')}</h3>
+              <p className="text-sm text-slate-400 mb-6 flex-1">{t('database.resetDesc', 'تصفير كل الإحصائيات والجداول للبدء من جديد (يصلح بعد انتهاء فترة التدريب).')}</p>
+              <button onClick={() => setIsResetModalOpen(true)} className="w-full bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-lg transition-colors font-medium flex justify-center items-center gap-2">
+                <AlertTriangle size={18} />{t('database.resetBtn', 'تصفير النظام')}
+              </button>
+            </div>
+
           </div>
         </div>
       </div>
 
-      {/* 🔴 استخدام النافذة السوداء المخصصة بدلاً من Modal العادية */}
       <ConfirmAlert 
         isOpen={!!userToDelete}
         onClose={() => setUserToDelete(null)}
@@ -281,7 +336,6 @@ const confirmRestore = async () => {
         confirmText={t('suppliers.actions.confirmDeleteBtn')}
       />
 
-      {/* 🔴 استخدام النافذة السوداء المخصصة لاسترجاع النسخة الاحتياطية */}
       <ConfirmAlert 
         isOpen={isRestoreModalOpen}
         onClose={() => setIsRestoreModalOpen(false)}
@@ -291,6 +345,40 @@ const confirmRestore = async () => {
         confirmText={t('common.confirm')}
         confirmColor="bg-red-600 hover:bg-red-700"
       />
+
+      <Modal isOpen={isResetModalOpen} onClose={() => !isResetting && setIsResetModalOpen(false)} title={t('database.resetTitle', 'تحذير: تصفير قاعدة البيانات')}>
+        <div className="p-6 text-center" dir={isRTL ? "rtl" : "ltr"}>
+          <AlertTriangle size={64} className="text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-white mb-2">{t('database.resetWarningTitle', 'هل أنت متأكد من تصفير النظام؟')}</h2>
+          <p className="text-slate-400 mb-8 leading-relaxed text-sm">
+            {t('database.resetWarningMsg', 'سيتم مسح جميع المبيعات، الموردين، المنتجات، والرواتب بالكامل، ولن تتمكن من استرجاعها إلا إذا أخذت نسخة احتياطية الآن. (سيتم إبقاء حساب الدخول الافتراضي فقط).')}
+          </p>
+          
+          <div className="flex flex-col gap-3">
+            <button 
+              disabled={isResetting}
+              onClick={() => executeFactoryReset(true)} 
+              className="bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-xl font-bold shadow-lg transition-colors flex items-center justify-center gap-2"
+            >
+              <Save size={18} /> {t('database.resetWithBackup', 'حفظ نسخة احتياطية ثم التصفير (موصى به)')}
+            </button>
+            <button 
+              disabled={isResetting}
+              onClick={() => executeFactoryReset(false)} 
+              className="bg-slate-900 border border-red-900/50 hover:bg-red-950/50 text-red-400 py-3 px-4 rounded-xl font-bold transition-colors flex items-center justify-center gap-2"
+            >
+              <Trash2 size={18} /> {t('database.resetWithoutBackup', 'تصفير النظام مباشرة (مسح نهائي)')}
+            </button>
+            <button 
+              disabled={isResetting}
+              onClick={() => setIsResetModalOpen(false)} 
+              className="bg-slate-800 hover:bg-slate-700 text-slate-300 py-3 px-4 rounded-xl font-bold transition-colors mt-2"
+            >
+              {t('common.cancel', 'تراجع وإلغاء')}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
     </div>
   );

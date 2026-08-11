@@ -21,6 +21,7 @@ import StoreMap from './components/pages/StoreMap';
 import PdfImporter from './components/pages/PdfImporter'; 
 import ActivationScreen from './components/ActivationScreen';
 import Inventory from './components/pages/Inventory';
+import CashierAttendance from './components/pages/CashierAttendance';
 
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
@@ -98,6 +99,7 @@ function App() {
           <Route path="inventory" element={<SuperAdminRoute><Inventory /></SuperAdminRoute>} />
           <Route path="store-map" element={<SuperAdminRoute><StoreMap /></SuperAdminRoute>} />
           <Route path="pdf-importer" element={<SuperAdminRoute><PdfImporter /></SuperAdminRoute>} />
+          <Route path="cashier-attendance" element={<CashierAttendance />} />
         </Route>
       </Routes>
     </HashRouter>

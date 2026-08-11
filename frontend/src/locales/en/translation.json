@@ -26,6 +26,11 @@
     "actions": "Actions",
     "edit": "Edit",
     "name": "Name",
+    "description": "Description", 
+    "addNew": "Add New",
+    "add": "Add",
+    "print": "Print",
+    "printPreview": "Print Preview",
     "confirmDelete": "Confirm Deletion"
   },
   "sidebar": {
@@ -42,7 +47,7 @@
     "storeMap": "3D Store Map",
     "pdfImporter": "Import Invoices (PDF)"
   },
-"storeMap": {
+  "storeMap": {
     "title": "Interactive Store Map",
     "subtitle": "Drag tools, design aisles, and set up shelves to auto-receive PDF items",
     "toolbox": "Toolbox",
@@ -110,7 +115,7 @@
       "save": "Save",
       "cancel": "Cancel"
     },
-"catGroups": {
+    "catGroups": {
       "grocery": "Groceries (Dry Foods)",
       "dairy": "Dairy & Cheese (Fridges)",
       "drinks": "Beverages & Juices",
@@ -145,8 +150,7 @@
       "addBtn": "Add",
       "success": "Product added manually successfully!"
     }
-  }
-  ,
+  },
   "pdfImporter": {
     "title": "Smart Importer (PDF)",
     "subtitle": "Upload delivery notes to extract items and link them to the store map.",
@@ -212,11 +216,16 @@
       "payNow": "Pay Now"
     }
   },
-"suppliers": {
+  "suppliers": {
     "title": "Suppliers",
     "subtitle": "Manage supplier accounts and invoices",
     "addSupplier": "New Supplier",
     "searchPlaceholder": "Search by name or phone...",
+    "emptyState": {
+      "title": "You have no suppliers yet..",
+      "desc": "Start by adding your first supplier to easily track your invoices and debts, or import from Excel!",
+      "addBtn": "Add First Supplier"
+    },
     "table": {
       "name": "Supplier Name",
       "phone": "Phone",
@@ -235,8 +244,10 @@
       "delete": "Delete",
       "confirmDeleteBtn": "Confirm Delete",
       "importSuccess": "Successfully imported {{count}} suppliers",
-      "importError": "Error importing from Excel"
+      "importError": "Error importing from Excel",
+      "importExcel": "Import from Excel"
     },
+    "initialDebtHint": "Initial Balance (previous debts if any)",
     "messages": {
       "saveError": "Error saving supplier",
       "deleteError": "Error deleting supplier",
@@ -258,9 +269,8 @@
       "printReceipt": "Print Receipt",
       "print": "Print"
     }
-  
   },
-"receipt": {
+  "receipt": {
     "title": "Receipt",
     "storeName": "GHERBI.AI",
     "date": "Date:",
@@ -275,6 +285,7 @@
   },
   "hr": {
     "title": "Human Resources",
+    "attendance": "Attendance",
     "subtitle": "Manage staff attendance and shifts",
     "tabs": {
       "attendance": "Terminal",
@@ -283,7 +294,8 @@
     "scanner": {
       "title": "Check In / Out",
       "placeholder": "Scan Barcode or Enter PIN...",
-      "submit": "Submit"
+      "submit": "Submit",
+      "desc": "Scan your barcode to start or end your shift."
     },
     "scannerHint": "Scanner acts as a keyboard. Focus field and scan.",
     "attendanceLog": "Today's Attendance Log",
@@ -363,7 +375,8 @@
     "cashierNotice": "Viewing records for your register ({{name}}) only.",
     "kpi": {
       "today": "Today's Outflows",
-      "month": "Monthly Outflows"
+      "month": "Monthly Outflows",
+      "filteredTotal": "Filtered Total"
     },
     "table": {
       "date": "Date",
@@ -384,9 +397,20 @@
       "supplier_payment": "Supplier Payment",
       "salaries": "Payroll",
       "رواتب": "Payroll"
+    },
+    "print": {
+      "modalTitle": "Print Report Options",
+      "modalDesc": "Select paper size to print the filtered expenses.",
+      "reportTitle": "Detailed Expenses Report",
+      "singleDate": "Date: {{date}}",
+      "period": "From {{start}} To {{end}}",
+      "allSources": "All Caisses",
+      "caisseOf": "Caisse: {{name}}",
+      "details": "Details",
+      "total": "Grand Total:"
     }
   },
-"payroll": {
+  "payroll": {
     "title": "Staff Payroll",
     "subtitle": "Manage and calculate salaries and deductions",
     "tabs": {
@@ -433,11 +457,11 @@
     "cancelAdvanceMessage": "Are you sure you want to cancel this advance? The amount will be refunded to the fund.",
     "cancelAdvanceBtn": "Yes, Delete",
     "errors": {
-      "overlap": "Cannot calculate! A salary was already paid ({{start}} to {{end}})"
+      "overlap": "Cannot calculate! A salary was already paid ({{start}} to {{end}})",
+      "advanceNotFound": "Advance record not found."
     },
     "rolloverNote": "Rollover debt ({{start}} to {{end}})",
-    "expenseNote": "Salary: {{name}} ({{start}} to {{end}})"
-  },
+    "expenseNote": "Salary: {{name}} ({{start}} to {{end}})",
     "modal": {
       "addAdvance": "Record Advance",
       "editAdvance": "Edit Advance",
@@ -465,10 +489,8 @@
       "source": "Source (Register)",
       "status": "Status",
       "actions": "Actions"
-    },
-    "errors": {
-      "advanceNotFound": "Advance record not found."
-    },
+    }
+  },
   "agenda": {
     "title": "Agenda & Tasks",
     "subtitle": "Manage schedule and due payments",
@@ -532,7 +554,25 @@
     "print_receipt": "Print Receipt",
     "x_report": "X-REPORT (Shift)",
     "time_out": "Time Out",
-    "receipt_footer": "Keep this receipt for your records."
+    "liveShifts": "Live Shifts",
+    "shiftArchiveSubtitle": "Cashier Shift Archive",
+    "archivedShiftsTitle": "Previous Closed Shifts Log",
+    "dateAndTime": "Date & Time",
+    "receipt_footer": "Keep this receipt for your records.",
+    "printShiftOptionsTitle": "Shift Print Options",
+    "printShiftDesc": "Choose the appropriate paper size to print this shift's details.",
+    "printZReportOptionsTitle": "Z-Report Print Options",
+    "printZReportDesc": "Day closed successfully! Choose how to print the report.",
+    "printWordA4": "Download Detailed Word (A4)",
+    "printWordA4Desc": "Comprehensive Word document containing daily details for company archives.",
+    "printShiftWordA4Desc": "Comprehensive Word document containing shift details for company archives.",
+    "printThermalA7": "Thermal Print Ticket (80mm)",
+    "printThermalA7Desc": "Fast, readable paper ticket printed instantly from the cashier printer.",
+    "salesLabel": "Sales:",
+    "drawLabel": "Draw:",
+    "shiftReportTitle": "Cashier Shift Report",
+    "shiftReportDetail": "Detailed Report for Cashier ({{name}})",
+    "noArchivedShifts": "No archived shifts found"
   },
   "zreport": {
     "title": "Z-REPORT (End of Day)",
@@ -600,12 +640,20 @@
     "backupDesc": "Create a secure backup file of all your data.",
     "restore": "Restore Database",
     "restoreDesc": "Restore data from a previous backup file.",
+    "resetTitle": "Start Fresh Data",
+    "resetDesc": "Reset all statistics and tables to start over (ideal after finishing the training period).",
+    "resetBtn": "Factory Reset",
+    "resetWarningTitle": "Are you sure you want to reset?",
+    "resetWarningMsg": "All sales, suppliers, inventory, and payrolls will be permanently deleted. Only the default admin account will be kept.",
+    "resetWithBackup": "Backup then Reset (Recommended)",
+    "resetWithoutBackup": "Reset directly (Permanent Deletion)",
     "messages": {
       "backupSuccess": "Backup created successfully.",
       "restoreSuccess": "Database restored! App will restart.",
       "restoreConfirm": "Are you sure? Current data will be replaced.",
       "invalidFile": "The selected file is invalid! Please choose a valid database file (.db or .sqlite).",
-      "error": "Database operation failed."
+      "error": "Database operation failed.",
+      "resetSuccess": "System reset successfully! Redirecting to login."
     }
   },
   "audit": {
@@ -637,16 +685,16 @@
     "no_shifts_to_close": "No shifts available to close."
   },
   "activation": {
-  "title": "System Activation",
-  "subtitle": "This version is not activated. Please send the Machine ID to the developer to receive your license key.",
-  "machineId": "Machine ID",
-  "licenseKey": "License Key",
-  "btn": "Activate System",
-  "emptyKey": "Please enter the license key!",
-  "invalidKey": "Invalid license key, please check your entry.",
-  "error": "An error occurred while connecting to the system."
-},
-"inventory": {
+    "title": "System Activation",
+    "subtitle": "This version is not activated. Please send the Machine ID to the developer to receive your license key.",
+    "machineId": "Machine ID",
+    "licenseKey": "License Key",
+    "btn": "Activate System",
+    "emptyKey": "Please enter the license key!",
+    "invalidKey": "Invalid license key, please check your entry.",
+    "error": "An error occurred while connecting to the system."
+  },
+  "inventory": {
     "qty": "Qty",
     "pieces": "Pcs/Box",
     "product": "Product",
@@ -703,18 +751,18 @@
     "selectedTypes": "Selected Types:",
     "selectOneFamilyAtLeast": "Please assign at least one family"
   },
-"badge": {
-      "printBtn": "Employee Badge",
-      "modalTitle": "Issue Access Badge (Barcode)",
-      "modalDesc": "Enter the employee PIN to generate a printable barcode.",
-      "searchPlaceholder": "Enter PIN code...",
-      "notFound": "No employee found with this PIN!",
-      "printExecute": "Print",
-      "downloadPDF": "Download PDF",
-      "idCard": "EMPLOYEE ID CARD",
-      "scanInstruction": "Please scan this barcode upon entry and exit."
-    },
-    "notif": {
+  "badge": {
+    "printBtn": "Employee Badge",
+    "modalTitle": "Issue Access Badge (Barcode)",
+    "modalDesc": "Enter the employee PIN to generate a printable barcode.",
+    "searchPlaceholder": "Enter PIN code...",
+    "notFound": "No employee found with this PIN!",
+    "printExecute": "Print",
+    "downloadPDF": "Download PDF",
+    "idCard": "EMPLOYEE ID CARD",
+    "scanInstruction": "Please scan this barcode upon entry and exit."
+  },
+  "notif": {
     "title": "Notifications",
     "markAllRead": "Mark all as read",
     "noNotifs": "No new notifications",
@@ -724,5 +772,56 @@
     "debtDesc": "Supplier {{name}} has a debt of {{debt}} DA",
     "thursdayTitle": "Payroll Day Alert ⚠️",
     "thursdayDesc": "Today is Thursday (Payroll day). Please don't forget to close shifts and settle staff accounts."
+  },
+  "onboarding": {
+    "title": "Welcome! Let's set up your store",
+    "desc": "Complete these basic steps to get the most out of the system.",
+    "store": "Update Store Name",
+    "emp": "Add First Employee",
+    "sup": "Add a Supplier",
+    "exp": "Record First Expense",
+    "done": "Great job! You're all set to use the system."
   }
+  ,
+  "guide": {
+    "buttonTitle": "User Guide",
+    "modalTitle": "Quick System Guide",
+    "modalDesc": "Select a section below to learn how to use it:",
+    "pos": {
+      "title": "Cashier & POS",
+      "content": "1. You cannot sell or add expenses without opening a shift.\n2. To open a shift: Go to the 'Register' screen and enter the actual opening cash.\n3. At the end of work, 'Close Shift' to save sales and print the cashier report.\n4. At the end of the day, the manager clicks 'Z-Report' to archive all daily earnings."
+    },
+    "hr": {
+      "title": "HR & Employees",
+      "content": "1. To add an employee: Go to the 'Employees' tab and click 'Add Employee'. Give them a role and a PIN.\n2. To print an ID badge: Click 'Employee Badge' at the top, enter their PIN, and print the barcode.\n3. Attendance: Employees scan their barcode to securely check in and out."
+    },
+    "suppliers": {
+      "title": "Suppliers & Debts",
+      "content": "1. Add a supplier first using the 'New Supplier' button.\n2. If you receive goods on credit: Open the supplier's account, click 'Add Receipt', and enter the amount.\n3. If you pay the supplier: Open their account and click 'Add Payment'. It will be deducted from their debt."
+    },
+    "expenses": {
+      "title": "Expenses & Advances",
+      "content": "1. Any cash leaving the drawer must be recorded here to avoid shortages.\n2. Employee Advance: Select 'Staff Advance' and choose the employee. This amount is automatically sent to the 'Payroll' page to be deducted from their monthly salary."
+    },
+    "map": {
+      "title": "3D Map & PDF Import",
+      "content": "1. In the 3D Map screen: Draw your store layout (add shelves and fridges).\n2. Click on a shelf and link it to a 'Category' (e.g., Dairy).\n3. In 'Import PDF': When you upload a supplier's invoice, the system extracts the items and automatically routes them to the linked shelves!"
+    },
+    "cashier_shift": {
+      "title": "Shift (Open & Close)",
+      "content": "1. At the start of your work, you must enter the 'Opening Cash' currently in the drawer to open the shift.\n2. You cannot make any sales before opening a shift.\n3. At the end of your work, click 'Close Shift', count the actual cash in the drawer, and enter it in the 'Actual Cash' field."
+    },
+    "cashier_pos": {
+      "title": "Point of Sale (POS)",
+      "content": "1. Scan the item's barcode to add it automatically to the cart.\n2. You can change the quantity by clicking on it in the cart.\n3. When finished, click 'Pay' to issue the receipt and record the sale."
+    },
+    "cashier_expenses": {
+      "title": "Drawer Expenses",
+      "content": "1. If the manager asks you to pay a supplier or record an advance from your drawer, go to the 'Expenses' page.\n2. Add the expense so it gets deducted from your total, preventing any cash shortages when closing your shift."
+    },
+    "cashier_attendance": {
+      "title": "Check In / Check Out",
+      "content": "1. Press (Ctrl + Shift + A) on your keyboard at any time to instantly open the attendance screen.\n2. Scan your ID card to log your check-in or check-out time."
+    }
   }
+}
