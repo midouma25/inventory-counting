@@ -1,28 +1,26 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { HelpCircle, Store, Users, FileText, Wallet, MonitorPlay, ChevronDown, ChevronUp, ShoppingCart, ScanLine, Clock } from 'lucide-react';
+import { HelpCircle, Store, Users, FileText, Wallet, MonitorPlay, ChevronDown, ChevronUp, ShoppingCart, ScanLine, Clock, Calculator } from 'lucide-react';
 import Modal from '../ui/Modal';
-import useAuthStore from '../../store/authStore'; // 🌟 جلبنا صلاحيات المستخدم
+import useAuthStore from '../../store/authStore'; 
 
 export default function HelpGuide() {
   const { t, i18n } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('');
 
-  // 🌟 التعرف على من يقرأ الدليل الآن
   const user = useAuthStore(state => state.user);
   const isCashier = user?.role === 'cashier' || user?.role === 'scale' || user?.role === 'stock';
 
-  // 1. أقسام الدليل الخاصة بالمدير العام
   const adminSections = [
     { id: 'pos', icon: <MonitorPlay size={20} />, title: t('guide.pos.title', 'الصندوق والمبيعات') },
     { id: 'hr', icon: <Users size={20} />, title: t('guide.hr.title', 'الموارد البشرية والعمال') },
+    { id: 'payroll', icon: <Calculator size={20} />, title: t('guide.payroll.title', 'رواتب العمال') },
     { id: 'suppliers', icon: <FileText size={20} />, title: t('guide.suppliers.title', 'الموردين والديون') },
     { id: 'expenses', icon: <Wallet size={20} />, title: t('guide.expenses.title', 'المصاريف والسلف') },
     { id: 'map', icon: <Store size={20} />, title: t('guide.map.title', 'المخطط والفواتير PDF') },
   ];
 
-  // 2. أقسام الدليل الخاصة بالكاشير
   const cashierSections = [
     { id: 'cashier_shift', icon: <Clock size={20} />, title: t('guide.cashier_shift.title', 'الوردية وافتتاح الصندوق') },
     { id: 'cashier_pos', icon: <ShoppingCart size={20} />, title: t('guide.cashier_pos.title', 'نقطة البيع (الكاشير)') },
@@ -30,7 +28,6 @@ export default function HelpGuide() {
     { id: 'cashier_attendance', icon: <ScanLine size={20} />, title: t('guide.cashier_attendance.title', 'تسجيل الحضور والانصراف') },
   ];
 
-  // 🌟 التبديل التلقائي حسب المستخدم
   const sections = isCashier ? cashierSections : adminSections;
 
   return (
@@ -44,10 +41,10 @@ export default function HelpGuide() {
         <span className="hidden md:inline font-bold text-sm">{t('guide.buttonTitle', 'دليل الاستخدام')}</span>
       </button>
 
-      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title={t('guide.modalTitle', 'دليل الاستخدام السريع')}>
-        <div className="p-4 text-start h-[60vh] overflow-y-auto" dir={i18n.dir()}>
+      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title={t('guide.modalTitle', 'دليل الاستخدام الشامل')}>
+        <div className="p-4 text-start h-[70vh] overflow-y-auto" dir={i18n.dir()}>
           <p className="text-slate-400 mb-6 text-sm">
-            {t('guide.modalDesc', 'اختر القسم الذي تريد معرفة كيفية استخدامه من القائمة أدناه:')}
+            {t('guide.modalDesc', 'اختر القسم الذي تريد معرفة تفاصيله بدقة من القائمة أدناه:')}
           </p>
 
           <div className="space-y-3">
@@ -64,7 +61,7 @@ export default function HelpGuide() {
                 </button>
                 
                 {activeSection === sec.id && (
-                  <div className="p-4 border-t border-slate-800 bg-slate-950/50 text-slate-300 text-sm leading-relaxed whitespace-pre-line">
+                  <div className="p-5 border-t border-slate-800 bg-slate-950/80 text-slate-300 text-sm leading-loose whitespace-pre-line">
                     {t(`guide.${sec.id}.content`)}
                   </div>
                 )}

@@ -790,45 +790,49 @@
     "exp": "Enregistrer la première dépense",
     "done": "Excellent travail ! Vous êtes prêt à utiliser le système."
   },
-  "guide": {
+"guide": {
     "buttonTitle": "Guide",
-    "modalTitle": "Guide Rapide du Système",
-    "modalDesc": "Sélectionnez une section ci-dessous pour apprendre à l'utiliser :",
+    "modalTitle": "Guide Complet du Système",
+    "modalDesc": "Sélectionnez une section ci-dessous pour lire ses instructions détaillées :",
     "pos": {
-      "title": "Caisse et Ventes",
-      "content": "1. Vous ne pouvez pas vendre sans ouvrir un quart de travail (Caisse).\n2. Pour ouvrir : Allez sur 'Caisse' et saisissez le fond de caisse initial.\n3. À la fin, 'Clôturer le quart' pour enregistrer les ventes et imprimer le rapport.\n4. En fin de journée, le manager clique sur 'Z-Report' pour valider les revenus."
+      "title": "Caisse et Clôture (EOD)",
+      "content": "🎯 Objectif :\nLe cœur financier du magasin. Permet au manager de surveiller les caissiers, de clôturer les quarts et d'archiver les ventes pour éviter les fraudes.\n\n⚙️ Étapes Détaillées :\n• Quarts Actifs : Voir qui travaille, l'heure d'arrivée et les ventes en direct.\n• Clôturer Quart : Nécessite la saisie des 'Espèces Réelles' comptées physiquement dans le tiroir.\n• Rapport Z : L'action quotidienne la plus cruciale. Clôture la journée, archive toutes les données et réinitialise les tiroirs.\n• Archive : Accédez aux jours précédents pour réimprimer les Rapports Z en A4 ou en ticket thermique."
     },
     "hr": {
-      "title": "Ressources Humaines",
-      "content": "1. Pour ajouter un employé : Allez sur 'Employés' et cliquez sur 'Ajouter'. Attribuez-lui un rôle et un code PIN.\n2. Pour imprimer un badge : Cliquez sur 'Badge Employé', saisissez le PIN et imprimez le code-barres.\n3. Présence : Les employés scannent leur badge pour le pointage."
+      "title": "RH et Badges Employés",
+      "content": "🎯 Objectif :\nContrôle total sur le personnel. Suivre les présences pour la paie, émettre des badges sécurisés et définir les permissions.\n\n⚙️ Étapes Détaillées :\n• Ajouter : Dans 'Employés', attribuez un nom, un rôle (définit l'accès) et un code PIN unique.\n• Émettre Badge : Cliquez sur 'Badge Employé', entrez le PIN pour générer une carte avec code-barres.\n• Présence : Les employés scannent leur badge pour pointer l'entrée et la sortie.\n• Modifier l'heure : Le manager peut corriger manuellement une erreur de pointage via l'icône d'édition."
+    },
+    "payroll": {
+      "title": "Calculateur de Paie",
+      "content": "🎯 Objectif :\nAutomatise les calculs de salaire mensuel, en déduisant automatiquement les avances prises.\n\n⚙️ Étapes Détaillées :\n• Calculer : Sélectionnez l'employé, la période et le taux horaire pour obtenir le 'Salaire Brut'.\n• Déductions Auto : Le système soustrait les avances pour afficher le 'Salaire Net'.\n• Paiement : 'Payer et Enregistrer' archive le salaire.\n• Report de Dette : Si les avances dépassent le salaire, le système propose de reporter la dette comme nouvelle avance pour le mois suivant."
     },
     "suppliers": {
       "title": "Fournisseurs et Dettes",
-      "content": "1. Ajoutez un fournisseur via 'Nouveau Fournisseur'.\n2. Si vous recevez des marchandises à crédit : Cliquez sur 'Ajouter un reçu' et entrez le montant.\n3. Si vous payez le fournisseur : Cliquez sur 'Ajouter un paiement' pour réduire sa dette."
+      "content": "🎯 Objectif :\nRegistre numérique précis. Empêche la perte de factures et suit chaque centime dû ou payé.\n\n⚙️ Étapes Détaillées :\n• Ajouter Dette (Reçu) : Dans le profil du fournisseur, ajoutez un reçu pour augmenter la dette.\n• Payer : Cliquez sur 'Ajouter Paiement'. Spécifiez de quel tiroir (Admin ou Caissier) provient l'argent pour équilibrer la caisse.\n• Planifier : Programmez les paiements futurs pour recevoir des alertes dans l'Agenda."
     },
     "expenses": {
       "title": "Dépenses et Avances",
-      "content": "1. Toute sortie d'argent doit être enregistrée ici pour éviter les déficits.\n2. Avance Employé : Sélectionnez 'Avance', ce montant sera automatiquement déduit de son salaire à la fin du mois."
+      "content": "🎯 Objectif :\nJustifier toute sortie d'argent hors inventaire pour calculer le bénéfice net réel.\n\n⚙️ Étapes Détaillées :\n• Ajouter Dépense : Sélectionnez la caisse source, la catégorie, le montant et une description.\n• Avance Personnel : L'avance est envoyée automatiquement au module 'Paie' pour déduction mensuelle.\n• Impression : Filtrez et imprimez des rapports complets pour la comptabilité."
     },
     "map": {
       "title": "Plan 3D et Import PDF",
-      "content": "1. Dans le Plan 3D : Dessinez votre magasin (ajoutez des étagères).\n2. Cliquez sur une étagère et liez-la à une 'Catégorie' (ex: Produits laitiers).\n3. Dans 'Importer PDF' : Le système extraira les articles de la facture et les acheminera automatiquement vers vos étagères !"
-    }
-  },
-  "cashier_shift": {
+      "content": "🎯 Objectif :\nDigitaliser le magasin et automatiser la saisie via les factures PDF.\n\n⚙️ Étapes Détaillées :\n• Plan 3D : Dessinez vos étagères et liez-les à des catégories (ex: Produits laitiers).\n• Import PDF : Téléchargez un bon de livraison. Le système extrait les codes-barres.\n• Routage Auto : Les articles sont assignés aux étagères correspondantes du plan 3D. Cliquez sur 'Enregistrer' pour remplir votre stock instantanément."
+    },
+    "cashier_shift": {
       "title": "Quart (Ouverture & Clôture)",
-      "content": "1. Au début de votre travail, vous devez entrer le 'Fond de caisse' présent dans le tiroir pour ouvrir le quart.\n2. Vous ne pouvez pas effectuer de ventes avant d'avoir ouvert un quart.\n3. À la fin de votre travail, cliquez sur 'Clôturer le quart', comptez l'argent réel dans le tiroir et entrez-le dans le champ 'Espèces réelles'."
+      "content": "🎯 Objectif :\nProtège votre responsabilité financière en séparant vos transactions de celles des autres.\n\n⚙️ Étapes Détaillées :\n1. Ouverture : Comptez votre tiroir et entrez le 'Fond de caisse initial'.\n2. Clôture : Comptez vos espèces réelles et entrez le montant.\n3. Notes : Saisissez la raison de tout écart (manque/surplus) entre le comptage et le système pour vous justifier auprès du manager."
     },
     "cashier_pos": {
       "title": "Point de Vente (Caisse)",
-      "content": "1. Scannez le code-barres de l'article pour l'ajouter automatiquement au panier.\n2. Vous pouvez modifier la quantité en cliquant dessus dans le panier.\n3. Une fois terminé, cliquez sur 'Payer' pour émettre le reçu et enregistrer la vente."
+      "content": "🎯 Objectif :\nInterface de vente rapide pour servir les clients efficacement.\n\n⚙️ Étapes Détaillées :\n1. Scanner le code-barres pour ajouter au panier.\n2. Ajuster la quantité en cliquant sur l'article.\n3. Cliquer sur 'Payer' pour finaliser et imprimer le ticket."
     },
     "cashier_expenses": {
-      "title": "Dépenses de Caisse",
-      "content": "1. Si le manager vous demande de payer un fournisseur ou d'enregistrer une avance depuis votre caisse, allez sur la page 'Dépenses'.\n2. Ajoutez la dépense pour qu'elle soit déduite de votre total, évitant ainsi un déficit lors de la clôture de votre quart."
+      "title": "Dépenses du Tiroir",
+      "content": "🎯 Objectif :\nJustifier tout argent retiré de votre tiroir pour éviter un déficit lors de la clôture.\n\n⚙️ Étapes Détaillées :\n1. Si le manager demande de payer un fournisseur ou de donner une avance depuis votre tiroir, allez dans 'Dépenses'.\n2. Ajoutez le montant et la note. Le système le déduira de vos ventes attendues."
     },
     "cashier_attendance": {
       "title": "Pointage (Entrée/Sortie)",
-      "content": "1. Appuyez sur (Ctrl + Shift + A) sur votre clavier à tout moment pour ouvrir instantanément l'écran de pointage.\n2. Scannez votre carte pour enregistrer votre heure d'arrivée ou de départ."
+      "content": "🎯 Objectif :\nEnregistrer précisément vos heures pour le calcul de votre salaire.\n\n⚙️ Étapes Détaillées :\n1. Raccourci : Appuyez sur (Ctrl + Shift + A) n'importe où pour ouvrir le pointage.\n2. Scannez votre badge ou tapez votre PIN.\n3. Attendez le message vert de confirmation."
     }
+  }
 }

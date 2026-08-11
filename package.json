@@ -16,13 +16,21 @@
       "output": "release-builds"
     },
     "win": {
-      "target": "nsis"
-      
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true
+      "createDesktopShortcut": true,
+      "artifactName": "${productName}-${version}-${arch}-Setup.${ext}"
     },
     "files": [
       "backend/**/*",
@@ -31,7 +39,7 @@
     ]
   },
   "devDependencies": {
-    "electron": "^43.3.0",
-    "electron-builder": "^26.15.3"
+    "electron": "^22.3.27",
+    "electron-builder": "^23.6.0"
   }
 }

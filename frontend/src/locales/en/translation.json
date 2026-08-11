@@ -783,45 +783,49 @@
     "done": "Great job! You're all set to use the system."
   }
   ,
-  "guide": {
+"guide": {
     "buttonTitle": "User Guide",
-    "modalTitle": "Quick System Guide",
-    "modalDesc": "Select a section below to learn how to use it:",
+    "modalTitle": "Comprehensive System Guide",
+    "modalDesc": "Select a section below to read its detailed instructions:",
     "pos": {
-      "title": "Cashier & POS",
-      "content": "1. You cannot sell or add expenses without opening a shift.\n2. To open a shift: Go to the 'Register' screen and enter the actual opening cash.\n3. At the end of work, 'Close Shift' to save sales and print the cashier report.\n4. At the end of the day, the manager clicks 'Z-Report' to archive all daily earnings."
+      "title": "End of Day & Shifts (EOD)",
+      "content": "🎯 Purpose:\nThe financial heart of the store. Allows the manager to monitor cashiers, force-close shifts, and archive daily sales securely to prevent fraud.\n\n⚙️ Detailed Steps:\n• Live Shifts: View who is currently working, their check-in time, and live sales.\n• Close Shift: Usually done by the cashier, but the admin can force-close it. Requires entering the 'Actual Cash' counted in the drawer.\n• Z-Report: The most crucial daily action. Closes the business day, archives all shifts and financial data, and resets drawers for the next day.\n• Archive: Access past days to reprint Z-Reports in detailed A4 format or thermal receipt format."
     },
     "hr": {
-      "title": "HR & Employees",
-      "content": "1. To add an employee: Go to the 'Employees' tab and click 'Add Employee'. Give them a role and a PIN.\n2. To print an ID badge: Click 'Employee Badge' at the top, enter their PIN, and print the barcode.\n3. Attendance: Employees scan their barcode to securely check in and out."
+      "title": "HR & Employee Badges",
+      "content": "🎯 Purpose:\nTotal control over your workforce. Track exact attendance for accurate payroll, issue secure access badges, and define system permissions.\n\n⚙️ Detailed Steps:\n• Add Employee: Go to 'Employees' tab, click 'Add'. Assign a name, role (determines their access level), and a unique PIN.\n• Issue Badge: Click 'Employee Badge', enter the PIN, and the system generates a printable barcode ID card.\n• Attendance: Employees scan their barcode to log check-in and check-out times.\n• Edit Time: If an employee forgets to check out, admins can click the edit icon in the attendance log to correct the time manually."
+    },
+    "payroll": {
+      "title": "Payroll Calculator",
+      "content": "🎯 Purpose:\nAutomates monthly salary calculations. Eliminates manual math by aggregating working hours and automatically deducting taken advances.\n\n⚙️ Detailed Steps:\n• Calculate: Select an employee, set the date range and hourly rate. The system calculates the 'Gross Salary'.\n• Auto-Deductions: The system finds any advances taken in that period and subtracts them to show the 'Net Salary'.\n• Payment: Clicking 'Pay and Save' marks advances as paid and archives the salary.\n• Debt Rollover: If advances exceed the salary (negative net), the system will ask to roll over the remaining debt as a new advance for the following month."
     },
     "suppliers": {
       "title": "Suppliers & Debts",
-      "content": "1. Add a supplier first using the 'New Supplier' button.\n2. If you receive goods on credit: Open the supplier's account, click 'Add Receipt', and enter the amount.\n3. If you pay the supplier: Open their account and click 'Add Payment'. It will be deducted from their debt."
+      "content": "🎯 Purpose:\nA precise digital ledger. Prevents lost invoices, tracks every penny owed or paid, and provides detailed statements for each supplier.\n\n⚙️ Detailed Steps:\n• Add Supplier: Create manually or import a full list via 'Excel'. You can add an 'Initial Debt' balance.\n• Add Debt (Receipt): Open the supplier's profile, click 'Add Receipt', and enter the invoice amount to increase your debt.\n• Pay Supplier: Click 'Add Payment' to register cash given to the supplier. You MUST specify which drawer the money came from (Admin or Cashier) so it balances their shift.\n• Schedule: Schedule future payments to receive notifications in the Agenda."
     },
     "expenses": {
       "title": "Expenses & Advances",
-      "content": "1. Any cash leaving the drawer must be recorded here to avoid shortages.\n2. Employee Advance: Select 'Staff Advance' and choose the employee. This amount is automatically sent to the 'Payroll' page to be deducted from their monthly salary."
+      "content": "🎯 Purpose:\nEnsure no unexplained cash shortages. Any money leaving the drawer for non-inventory reasons must be recorded here to calculate true net profit.\n\n⚙️ Detailed Steps:\n• Add Expense: Select the source drawer, category (maintenance, utilities), enter the amount, and write a clear description.\n• Staff Advance: If you select 'Staff Advance', you must specify the employee. This automatically sends the debt to the Payroll module for end-of-month deduction.\n• Printing: Filter expenses by date or drawer and print comprehensive reports for accounting."
     },
     "map": {
-      "title": "3D Map & PDF Import",
-      "content": "1. In the 3D Map screen: Draw your store layout (add shelves and fridges).\n2. Click on a shelf and link it to a 'Category' (e.g., Dairy).\n3. In 'Import PDF': When you upload a supplier's invoice, the system extracts the items and automatically routes them to the linked shelves!"
+      "title": "3D Map & PDF Invoices",
+      "content": "🎯 Purpose:\nThe system's revolutionary feature. Digitize your physical store and automate data entry by letting the system read PDF invoices and route items to shelves.\n\n⚙️ Detailed Steps:\n• Build Map: Drag and drop shelves/fridges to design your store. Click a shelf to link it to a category (e.g., Cleaning Supplies).\n• Set Active: Save the map and set it as the 'Active Layout'.\n• Import PDF: Upload a supplier's delivery note (PDF). The system extracts barcodes and quantities.\n• Auto-Routing: The system matches extracted items to your mapped shelves. Review the table, then click 'Save and Link' to inject hundreds of items into your inventory in seconds."
     },
     "cashier_shift": {
       "title": "Shift (Open & Close)",
-      "content": "1. At the start of your work, you must enter the 'Opening Cash' currently in the drawer to open the shift.\n2. You cannot make any sales before opening a shift.\n3. At the end of your work, click 'Close Shift', count the actual cash in the drawer, and enter it in the 'Actual Cash' field."
+      "content": "🎯 Purpose:\nProtects you financially by separating your transactions from other cashiers, holding you accountable only for your shift's timeframe.\n\n⚙️ Detailed Steps:\n1. Open Shift: Count the actual cash in your drawer when you start, and enter it as 'Opening Balance' in the Register screen.\n2. Sales: You cannot access the POS without an open shift.\n3. Close Shift: At the end of your shift, click 'Close Shift'. Count your drawer's physical cash and enter it in 'Actual Cash'.\n4. Notes: If there is a discrepancy (shortage/surplus) between your count and the system, write the reason in the notes.\n5. Print: Your shift report will print automatically as proof of your shift's balance."
     },
     "cashier_pos": {
       "title": "Point of Sale (POS)",
-      "content": "1. Scan the item's barcode to add it automatically to the cart.\n2. You can change the quantity by clicking on it in the cart.\n3. When finished, click 'Pay' to issue the receipt and record the sale."
+      "content": "🎯 Purpose:\nYour main workspace. Designed for speed and simplicity to serve customers efficiently.\n\n⚙️ Detailed Steps:\n1. Scan: Use the barcode scanner; items immediately appear in the cart.\n2. Adjust: Click the quantity number in the cart to modify it.\n3. Pay: Click 'Pay' to finalize the transaction, register the revenue, and print the customer ticket.\n4. Cancel: You can delete individual items or clear the entire cart if the customer cancels the purchase."
     },
     "cashier_expenses": {
       "title": "Drawer Expenses",
-      "content": "1. If the manager asks you to pay a supplier or record an advance from your drawer, go to the 'Expenses' page.\n2. Add the expense so it gets deducted from your total, preventing any cash shortages when closing your shift."
+      "content": "🎯 Purpose:\nJustify any cash taken out of your drawer. If you don't record it, your shift will show a cash shortage!\n\n⚙️ Detailed Steps:\n1. When to use: If the manager asks you to pay a supplier, pay a utility bill, or give an advance to a coworker from your drawer.\n2. Record: Go to the 'Expenses' page and click 'Add Expense'.\n3. Details: Choose the right category, enter the exact amount, and write a clear note.\n4. Balance: The system will automatically subtract this from your expected drawer total."
     },
     "cashier_attendance": {
       "title": "Check In / Check Out",
-      "content": "1. Press (Ctrl + Shift + A) on your keyboard at any time to instantly open the attendance screen.\n2. Scan your ID card to log your check-in or check-out time."
+      "content": "🎯 Purpose:\nEnsures your exact working hours are logged so your salary is calculated accurately without unfair deductions.\n\n⚙️ Detailed Steps:\n1. Quick Access: No matter what screen you are on, press (Ctrl + Shift + A) on your keyboard to instantly open the attendance popup.\n2. Scan: Scan your ID badge barcode or type your PIN.\n3. Confirm: Look for the green success message confirming your 'Check In' or 'Check Out'. Always verify this message!"
     }
   }
 }
