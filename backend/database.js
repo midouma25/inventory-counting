@@ -396,7 +396,44 @@ function closeShift(data) {
     return { success: false, error: error.message }; 
   }
 }
+// 🌟 الدالة السحرية الجديدة: جلب التفاصيل الدقيقة لكل المسحوبات (المصاريف/التسديدات/السلف)
+function getShiftDeductionsDetails(cashierName, startTime, endTimeLimit) {
+  try {
+    let expenses = [], payments = [], advances = [];
+    let params = [startTime];
+    let endCond = "";
+    
+    // تجهيز شرط وقت النهاية (للأرشيف)
+    if (endTimeLimit) {
+      endCond = " AND created_at <= ?";
+      params.push(endTimeLimit);
+    }
 
+    if (cashierName === 'المدير العام' || cashierName === 'Super Admin' || cashierName === 'admin') {
+      expenses = db.prepare(`SELECT description, amount, 'مصروف' as type FROM expenses WHERE created_at >= ? ${endCond}`).all(...params);
+      
+      // 🔴 تم إضافة p. و a. لتحديد الجدول بدقة ومنع تعارض الأسماء (Ambiguous)
+      payments = db.prepare(`SELECT s.name as description, p.amount, 'مورد' as type FROM payments p JOIN suppliers s ON p.supplier_id = s.id WHERE p.created_at >= ? ${endCond.replace('created_at', 'p.created_at')}`).all(...params);
+      
+      advances = db.prepare(`SELECT e.name as description, a.amount, 'سلفة' as type FROM advances a JOIN employees e ON a.employee_id = e.id WHERE a.created_at >= ? ${endCond.replace('created_at', 'a.created_at')}`).all(...params);
+      
+    } else {
+      const userParams = [cashierName, ...params];
+      
+      expenses = db.prepare(`SELECT description, amount, 'مصروف' as type FROM expenses WHERE caisse_source = ? AND created_at >= ? ${endCond}`).all(...userParams);
+      
+      // 🔴 تحديد مصدر الصندوق والتاريخ بوضوح تام للجدولين
+      payments = db.prepare(`SELECT s.name as description, p.amount, 'مورد' as type FROM payments p JOIN suppliers s ON p.supplier_id = s.id WHERE p.caisse_source = ? AND p.created_at >= ? ${endCond.replace('created_at', 'p.created_at')}`).all(...userParams);
+      
+      advances = db.prepare(`SELECT e.name as description, a.amount, 'سلفة' as type FROM advances a JOIN employees e ON a.employee_id = e.id WHERE a.caisse_source = ? AND a.created_at >= ? ${endCond.replace('created_at', 'a.created_at')}`).all(...userParams);
+    }
+    
+    return [...expenses, ...payments, ...advances];
+  } catch (err) {
+    console.error("Error fetching deductions details:", err);
+    return [];
+  }
+}
 function getShiftSummary(cashierName, providedStartTime) { 
   try { 
     // 🔥 الحل الجذري: تجاهل التوقيت القادم من الواجهة لتفادي مشكلة (Timezone)
@@ -417,15 +454,19 @@ function getShiftSummary(cashierName, providedStartTime) {
       paymentsRow = db.prepare("SELECT SUM(amount) as total FROM payments WHERE caisse_source = ? AND created_at >= ?").get(cashierName, actualStartTime); 
       advancesRow = db.prepare("SELECT SUM(amount) as total FROM advances WHERE caisse_source = ? AND created_at >= ?").get(cashierName, actualStartTime); 
     } 
+// 🌟 جلب قائمة التفاصيل
+    const deductionsList = getShiftDeductionsDetails(cashierName, actualStartTime, null);
+
     return { 
       success: true, 
       data: { 
         expenses: expensesRow.total || 0, 
         supplierPayments: paymentsRow.total || 0, 
         advances: advancesRow.total || 0, 
-        totalOut: (expensesRow.total || 0) + (paymentsRow.total || 0) + (advancesRow.total || 0) 
+        totalOut: (expensesRow.total || 0) + (paymentsRow.total || 0) + (advancesRow.total || 0),
+        deductionsList // 🌟 تمرير القائمة للواجهة
       } 
-    }; 
+    };
   } catch (error) { 
     return { success: false, error: error.message }; 
   } 
@@ -744,7 +785,9 @@ function getAllShiftsSummary() {
       }
       grandTotalOpening += Number(shift.opening_balance || 0);
 
-      return { ...shift, totalOut, calculatedSales: shiftSales };
+      const deductionsList = getShiftDeductionsDetails(shift.cashier_name, shift.start_time, null);
+
+      return { ...shift, totalOut, calculatedSales: shiftSales, deductionsList };
     });
 
     return { success: true, data: { shifts: detailedShifts, grandTotals: { opening: grandTotalOpening, actual: grandTotalActual, sales: grandTotalSales } } };
@@ -1066,7 +1109,9 @@ function getArchivedShiftsArchive() {
       const totalOut = (expensesRow?.total || 0) + (paymentsRow?.total || 0) + (advancesRow?.total || 0);
       const shiftSales = shift.actual_cash ? (Number(shift.actual_cash) + totalOut) - Number(shift.opening_balance) : 0;
       
-      return { ...shift, totalOut, calculatedSales: shiftSales };
+const deductionsList = getShiftDeductionsDetails(shift.cashier_name, shift.start_time, endTimeLimit);
+
+      return { ...shift, totalOut, calculatedSales: shiftSales, deductionsList };
     });
 
     return { success: true, data: detailedShifts };
@@ -1086,6 +1131,6 @@ module.exports = {
   updateEmployee, deleteEmployee, logAudit, getAuditLogs, generateExcelBackup, backupDatabase, importSuppliersFromExcel, deleteSupplier, updateSupplier , deleteReceipt, deletePayment, updateAdvance, deleteAdvance, 
   getAllShiftsSummary, closeBusinessDay, getDailyClosures, getArchivedZReport, updateAttendanceRecord, getStoreMapData, processPdfInventoryEntry, enrichExtractedItems, saveMapLayout, getMapLayout,getStoreLayouts, saveStoreLayout, deleteStoreLayout, activateStoreLayout, getShelfProducts, deleteShelfProduct, updateShelfProduct,
   getInventoryTree, addInvFamily, deleteInvFamily, addInvType, deleteInvType, addInvItem, updateInvItem, deleteInvItem , updateInvFamily, updateInvType , getSystemNotifications, resetDatabase, getArchivedShiftsArchive
- , replaceDatabase
+ , replaceDatabase , getShiftDeductionsDetails
 
 };

@@ -572,7 +572,16 @@
     "drawLabel": "Draw:",
     "shiftReportTitle": "Cashier Shift Report",
     "shiftReportDetail": "Detailed Report for Cashier ({{name}})",
+    "expenseType": "Expense",
+    "supplierType": "Supplier Payment",
+    "advanceType": "Staff Advance",
+    "deductionsDetails": "Deductions Details:",
+    "description": "Description",
+    "type": "Type",
+    "amount": "Amount",
+    "deductedAmount": "Deducted Amount",
     "noArchivedShifts": "No archived shifts found"
+
   },
   "zreport": {
     "title": "Z-REPORT (End of Day)",

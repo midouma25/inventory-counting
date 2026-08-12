@@ -579,6 +579,14 @@
     "shiftReportTitle": "Rapport de Quart Caissier",
     "shiftReportDetail": "Rapport détaillé pour le caissier ({{name}})",
     "noArchivedShifts": "Aucun quart archivé trouvé",
+    "expenseType": "Dépense",
+    "supplierType": "Paiement Fournisseur",
+    "advanceType": "Avance Personnel",
+    "deductionsDetails": "Détails des Retraits :",
+    "description": "Description",
+    "type": "Type",
+    "amount": "Montant",
+    "deductedAmount": "Montant Déduit",
     "auto_print": "Impression et sauvegarde auto"
   },
   "zreport": {

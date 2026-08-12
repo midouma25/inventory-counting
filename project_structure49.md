@@ -48,6 +48,7 @@ inventory-counting/
     ├── project_structure46.md
     ├── project_structure47.md
     ├── project_structure48.md
+    ├── project_structure49.md
     ├── project_structure5.md
     ├── project_structure6.md
     ├── project_structure7.md
@@ -121,7 +122,9 @@ inventory-counting/
                 ├── Suppliers.jsx
             ├── ui/
                 ├── ConfirmAlert.jsx
+                ├── GlobalPrintPreview.jsx
                 ├── Modal.jsx
+                ├── PrintPreviewModal.jsx
                 ├── PrintablePayrollReport.jsx
                 ├── PrintablePayslip.jsx
                 ├── PrintableTicket.jsx
@@ -141,6 +144,7 @@ inventory-counting/
             ├── employeeStore.js
             ├── expenseStore.js
             ├── payrollStore.js
+            ├── printStore.js
             ├── supplierStore.js
 ├── release-builds/
     ├── builder-effective-config.yaml
@@ -238,7 +242,7 @@ import os
 # الإعدادات
 # ==============================
 
-OUTPUT_FILE = "project_structure48.md"
+OUTPUT_FILE = "project_structure49.md"
 MAX_DEPTH = 3                 # أقصى عمق للشجرة
 MAX_FILE_SIZE = 200 * 1024    # 200KB
 
@@ -4070,7 +4074,7 @@ export default function Suppliers() {
 
 ---
 
-## `project_structure48.md`
+## `project_structure49.md`
 
 ```markdown
 # Project Structure
@@ -4123,6 +4127,7 @@ inventory-counting/
     ├── project_structure46.md
     ├── project_structure47.md
     ├── project_structure48.md
+    ├── project_structure49.md
     ├── project_structure5.md
     ├── project_structure6.md
     ├── project_structure7.md
@@ -4196,7 +4201,9 @@ inventory-counting/
                 ├── Suppliers.jsx
             ├── ui/
                 ├── ConfirmAlert.jsx
+                ├── GlobalPrintPreview.jsx
                 ├── Modal.jsx
+                ├── PrintPreviewModal.jsx
                 ├── PrintablePayrollReport.jsx
                 ├── PrintablePayslip.jsx
                 ├── PrintableTicket.jsx
@@ -4216,6 +4223,7 @@ inventory-counting/
             ├── employeeStore.js
             ├── expenseStore.js
             ├── payrollStore.js
+            ├── printStore.js
             ├── supplierStore.js
 ├── release-builds/
     ├── builder-effective-config.yaml
@@ -4313,7 +4321,7 @@ import os
 # الإعدادات
 # ==============================
 
-OUTPUT_FILE = "project_structure48.md"
+OUTPUT_FILE = "project_structure49.md"
 MAX_DEPTH = 3                 # أقصى عمق للشجرة
 MAX_FILE_SIZE = 200 * 1024    # 200KB
 
@@ -11743,6 +11751,7 @@ export default function MainLayout() {
           <Outlet />
 
           <HelpGuide />
+          <GlobalPrintPreview />
         </main>
       </div>
     </div>
@@ -18947,6 +18956,81 @@ export default ConfirmAlert;
 
 ---
 
+## `frontend\src\components\ui\GlobalPrintPreview.jsx`
+
+```javascript
+import React, { useEffect, useRef } from 'react';
+import { X, Printer, Download } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import usePrintStore from '../../store/printStore';
+
+export default function GlobalPrintPreview() {
+  const { t, i18n } = useTranslation();
+  // 🔴 استخرجنا دالة confirmPrint المركزية هنا
+  const { isOpen, htmlContent, docType, confirmPrint, closePreview } = usePrintStore();
+  const iframeRef = useRef(null);
+
+  useEffect(() => {
+    if (isOpen && iframeRef.current && htmlContent) {
+      const doc = iframeRef.current.contentWindow.document;
+      doc.open();
+      doc.write(htmlContent);
+      doc.close();
+    }
+  }, [isOpen, htmlContent]);
+
+  if (!isOpen) return null;
+
+  const isA4 = docType === 'A4';
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/90 backdrop-blur-sm p-2 md:p-6" dir={i18n.dir()}>
+      <div className={`bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl flex flex-col overflow-hidden transition-all w-full ${isA4 ? 'max-w-5xl h-[95vh]' : 'max-w-md h-[85vh]'}`}>
+        
+        <div className="flex justify-between items-center bg-slate-800 p-4 border-b border-slate-700 shadow-sm z-10">
+          <h3 className="font-bold text-lg text-white flex items-center gap-2">
+            {isA4 ? <Download size={20} className="text-blue-400"/> : <Printer size={20} className="text-emerald-400"/>}
+            {t('common.preview', 'معاينة قبل الطباعة')} <span className="text-sm font-normal text-slate-400">({isA4 ? 'Word A4' : 'Thermal 80mm'})</span>
+          </h3>
+          <button onClick={closePreview} className="text-slate-400 hover:text-red-400 transition-colors bg-slate-900 rounded-full p-1.5 hover:bg-red-950/30">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="flex-1 bg-slate-600 overflow-y-auto overflow-x-hidden flex justify-center p-4 custom-scrollbar">
+          <div className={`bg-white shadow-2xl transition-all ${isA4 ? 'w-[210mm] min-h-[297mm]' : 'w-[80mm] min-h-[150mm] mx-auto'}`}>
+            <iframe 
+              ref={iframeRef} 
+              className="w-full h-full border-none pointer-events-none"
+              title="Print Preview"
+            />
+          </div>
+        </div>
+
+        <div className="p-4 border-t border-slate-800 flex justify-end gap-3 bg-slate-900 z-10">
+          <button onClick={closePreview} className="px-6 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 transition-colors">
+            {t('common.cancel', 'إلغاء المعاينة')}
+          </button>
+          
+          {/* 🔴 زر التأكيد ينفذ الدالة المركزية مباشرة */}
+          <button 
+            onClick={confirmPrint} 
+            className={`flex items-center gap-2 px-8 py-2.5 rounded-lg text-sm font-bold transition-all shadow-lg hover:scale-105 ${
+              isA4 ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/50' : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/50'
+            }`}
+          >
+            {isA4 ? <Download size={18} /> : <Printer size={18} />}
+            {isA4 ? t('common.confirmDownload', 'تأكيد وتحميل') : t('common.confirmPrint', 'تأكيد وطباعة')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
 ## `frontend\src\components\ui\Modal.jsx`
 
 ```javascript
@@ -19001,6 +19085,86 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth = 'ma
           {children}
         </div>
         
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+## `frontend\src\components\ui\PrintPreviewModal.jsx`
+
+```javascript
+import React, { useEffect, useRef } from 'react';
+import { X, Printer, Download } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+
+export default function PrintPreviewModal({ isOpen, onClose, htmlContent, type, onConfirm }) {
+  const { t } = useTranslation();
+  const iframeRef = useRef(null);
+
+  // حقن كود الـ HTML داخل الـ Iframe بمجرد فتح النافذة
+  useEffect(() => {
+    if (isOpen && iframeRef.current && htmlContent) {
+      const doc = iframeRef.current.contentWindow.document;
+      doc.open();
+      doc.write(htmlContent);
+      doc.close();
+    }
+  }, [isOpen, htmlContent]);
+
+  if (!isOpen) return null;
+
+  const isA4 = type === 'A4';
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/90 backdrop-blur-sm p-4">
+      <div className={`bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl flex flex-col overflow-hidden transition-all ${isA4 ? 'w-full max-w-4xl h-[95vh]' : 'w-full max-w-md h-[85vh]'}`}>
+        
+        {/* رأس النافذة */}
+        <div className="flex justify-between items-center bg-slate-800 p-4 border-b border-slate-700">
+          <h3 className="font-bold text-lg text-white">
+            {t('common.preview', 'معاينة قبل الطباعة')} - {isA4 ? 'A4 (Word)' : '80mm (Thermal)'}
+          </h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors bg-slate-800 rounded-full p-1 hover:bg-slate-700">
+            <X size={24} />
+          </button>
+        </div>
+
+        {/* منطقة المعاينة (خلفية رمادية لتمييز الورقة البيضاء) */}
+        <div className="flex-1 bg-slate-500 overflow-y-auto flex justify-center p-4 md:p-8">
+            <div className={`bg-white shadow-2xl transition-all ${isA4 ? 'w-[210mm] min-h-[297mm]' : 'w-[80mm] min-h-[150mm] mx-auto'}`}>
+                {/* نستخدم iframe لعزل ستايل الفاتورة عن ستايل البرنامج المظلم */}
+                <iframe 
+                    ref={iframeRef} 
+                    className="w-full h-full border-none pointer-events-none select-none"
+                    title="Print Preview"
+                />
+            </div>
+        </div>
+
+        {/* أزرار القرار (تأكيد أو إلغاء) */}
+        <div className="p-4 border-t border-slate-800 flex justify-end gap-3 bg-slate-900">
+          <button 
+            onClick={onClose}
+            className="px-6 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 transition-colors"
+          >
+            {t('common.cancel', 'إلغاء المعاينة')}
+          </button>
+          <button 
+            onClick={() => {
+                onConfirm(); // تنفيذ دالة الطباعة النهائية
+                onClose(); // إغلاق المعاينة
+            }}
+            className={`flex items-center gap-2 px-8 py-2.5 rounded-lg text-sm font-bold transition-colors shadow-lg ${
+                isA4 ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/50' : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/50'
+            }`}
+          >
+            {isA4 ? <Download size={18} /> : <Printer size={18} />}
+            {isA4 ? t('common.confirmDownload', 'تأكيد وتحميل Word') : t('common.confirmPrint', 'تأكيد وطباعة الوصل')}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -22319,6 +22483,75 @@ const usePayrollStore = create((set, get) => ({
 }));
 
 export default usePayrollStore;
+```
+
+---
+
+## `frontend\src\store\printStore.js`
+
+```javascript
+import { create } from 'zustand';
+
+const usePrintStore = create((set, get) => ({
+  isOpen: false,
+  htmlContent: '',
+  docType: 'A4', // 'A4' (Word) أو 'A7' (Thermal)
+  fileName: 'Report', // اسم الملف الافتراضي عند التحميل
+
+  // دالة فتح المعاينة من أي صفحة
+  openPreview: (htmlContent, docType, fileName = 'Document') => 
+    set({ isOpen: true, htmlContent, docType, fileName }),
+
+  // دالة الإغلاق
+  closePreview: () => 
+    set({ isOpen: false, htmlContent: '' }),
+
+  // 🌟 الدالة المركزية للطباعة (هذه الدالة ستوفر عليك كتابة أكواد الطباعة في كل صفحة!)
+  confirmPrint: () => {
+    const { htmlContent, docType, fileName, closePreview } = get();
+    
+    if (docType === 'A4') {
+      // 📄 تنفيذ تحميل ملف Word (A4)
+      const blob = new Blob(['\ufeff', htmlContent], { type: 'application/msword' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${fileName}_${new Date().toISOString().split('T')[0]}.doc`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } 
+    else if (docType === 'A7') {
+      // 🧾 تنفيذ الطباعة الحرارية (80mm) بصمت
+      let iframe = document.getElementById('global-silent-print-iframe');
+      if (iframe) document.body.removeChild(iframe);
+      
+      iframe = document.createElement('iframe');
+      iframe.id = 'global-silent-print-iframe';
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      document.body.appendChild(iframe);
+
+      const doc = iframe.contentWindow.document;
+      doc.open();
+      doc.write(htmlContent);
+      doc.close();
+
+      iframe.contentWindow.focus();
+      setTimeout(() => { 
+        iframe.contentWindow.print(); 
+      }, 500);
+    }
+    
+    closePreview(); // إغلاق المعاينة بعد التنفيذ
+  }
+}));
+
+export default usePrintStore;
 ```
 
 ---

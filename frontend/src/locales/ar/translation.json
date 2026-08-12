@@ -579,6 +579,14 @@
     "shiftReportTitle": "تقرير وردية كاشير",
     "shiftReportDetail": "تقرير تفصيلي لوردية الكاشير ({{name}})",
     "noArchivedShifts": "لا توجد ورديات أرشيفية",
+    "expenseType": "مصروف",
+    "supplierType": "دفع لمورد",
+    "advanceType": "سلفة عامل",
+    "deductionsDetails": "تفاصيل المسحوبات:",
+    "description": "البيان / الوصف",
+    "type": "نوع السحب",
+    "amount": "المبلغ",
+    "deductedAmount": "المبلغ المخصوم",
     "auto_print": "طباعة وحفظ تلقائي"
   },
   "zreport": {

@@ -9,6 +9,8 @@ import { jsPDF } from 'jspdf';
 export default function EndOfDay() {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.dir() === 'rtl';
+  const alignStart = isRTL ? 'right' : 'left';
+  const alignEnd = isRTL ? 'left' : 'right';
   
   const user = useAuthStore(state => state.user);
   const isSuperAdmin = user?.role === 'superadmin';
@@ -22,7 +24,7 @@ export default function EndOfDay() {
   const [openingBalanceInput, setOpeningBalanceInput] = useState('');
   const [actualAmount, setActualAmount] = useState('');
   const [notes, setNotes] = useState('');
-  const [summary, setSummary] = useState({ expenses: 0, supplierPayments: 0, advances: 0, totalOut: 0 });
+  const [summary, setSummary] = useState({ expenses: 0, supplierPayments: 0, advances: 0, totalOut: 0, deductionsList: [] });
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(true);
@@ -46,6 +48,14 @@ export default function EndOfDay() {
   const showToast = (type, message) => {
     setToast({ type, message });
     setTimeout(() => setToast(null), 4000);
+  };
+
+  // 🌟 دالة مساعدة لترجمة أنواع السحب القادمة من قاعدة البيانات
+  const getTranslatedType = (type) => {
+    if(type === 'مصروف') return t('eod.expenseType', 'مصروف');
+    if(type === 'مورد') return t('eod.supplierType', 'مورد');
+    if(type === 'سلفة') return t('eod.advanceType', 'سلفة');
+    return type;
   };
 
   const fetchData = async () => {
@@ -73,7 +83,7 @@ export default function EndOfDay() {
           if (summaryRes.success) setSummary(summaryRes.data);
         } else {
           setActiveShift(null);
-          setSummary({ expenses: 0, supplierPayments: 0, advances: 0, totalOut: 0 });
+          setSummary({ expenses: 0, supplierPayments: 0, advances: 0, totalOut: 0, deductionsList: [] });
         }
       }
     } catch (error) {
@@ -112,6 +122,51 @@ export default function EndOfDay() {
     i18n.changeLanguage(nextLang);
   };
 
+  const executeCloseShift = async () => {
+    try {
+      const res = await window.api.closeShift({
+        shiftId: activeShift.id, actualCash: Number(actualAmount), difference: todaySales, note: notes
+      });
+      if (res.success) {
+        setReceiptData({
+          cashier: cashierName,
+          startTime: activeShift.start_time,
+          endTime: new Date().toISOString(),
+          opening: currentOpeningBalance,
+          out: totalOut,
+          actual: Number(actualAmount),
+          sales: todaySales,
+          deductionsList: summary.deductionsList || [] 
+        });
+        setIsConfirmModalOpen(false);
+        setShowReceipt(true);
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const executeCloseDay = async () => {
+    try {
+      const reportSnapshot = {
+        date: new Date().toISOString(),
+        adminName: cashierName,
+        totals: { ...grandTotals },
+        shifts: [...allShifts]
+      };
+      const res = await window.api.closeBusinessDay(cashierName);
+      if (res.success) {
+        setZReportData(reportSnapshot);
+        setIsCloseDayModalOpen(false);
+        setShowZReportPrintModal(true); 
+        showToast('success', t('common.success'));
+        fetchData(); 
+      } else {
+        setIsCloseDayModalOpen(false);
+        const errorMsg = res.message ? t(`backendErrors.${res.message}`, { defaultValue: res.message }) : t('common.error');
+        showToast('error', errorMsg);
+      }
+    } catch (err) { console.error(err); }
+  };
+
   const handlePrint = () => {
     const printElement = document.getElementById('printable-receipt');
     if (!printElement) return;
@@ -138,31 +193,38 @@ export default function EndOfDay() {
         <title>Print</title>
         <style>
           @page { margin: 0; }
-          html, body { margin: 0; padding: 0; width: 100%; background: #fff; color: #000; font-family: sans-serif; }
-          .print-wrapper { width: 100%; max-width: 72mm; margin: 0 auto; padding: 2mm 6mm; box-sizing: border-box; }
+          html, body { margin: 0; padding: 0; width: 100%; background: #fff; color: #000; font-family: 'Segoe UI', Tahoma, sans-serif; }
+          .print-wrapper { width: 100%; max-width: 80mm; margin: 0 auto; padding: 4mm 6mm; box-sizing: border-box; }
           .receipt-ticket-forced { width: 100%; box-sizing: border-box; color: #000; }
-          .header-title { text-align: center; font-size: 18px; font-weight: 900; margin: 0 0 2px 0; color: #000; }
-          .header-subtitle1 { text-align: center; font-size: 11px; margin: 0 0 6px 0; font-weight: bold; color: #000; }
-          .badge-action { text-align: center; font-size: 15px; font-weight: bold; border: 2px solid #000; padding: 6px; margin: 8px 0; border-radius: 4px; color: #000; }
-          .receipt-divider { border-top: 1.5px dashed #000; margin: 10px 0; }
-          .flex { display: flex; }
-          .flex-col { flex-direction: column; }
-          .w-full { width: 100%; }
-          .my-2 { margin: 8px 0; }
-          .info-row { display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-bottom: 6px; color: #000; border-bottom: 1px dashed #000; padding-bottom: 3px; }
-          .label-field { white-space: nowrap; }
-          .value-field { text-align: ${isRTL ? 'left' : 'right'}; }
-          .amount-box { display: flex; justify-content: space-between; align-items: center; border: 2px solid #000; border-radius: 4px; padding: 8px 6px; margin: 10px 0; color: #000; }
-          .box-title { font-size: 15px; font-weight: bold; }
-          .box-value { font-size: 18px; font-weight: 900; direction: ltr; }
-          .signatures-area { text-align: center; font-size: 12px; font-weight: bold; margin-top: 15px; color: #000; }
-          .footer-area { text-align: center; font-size: 11px; margin-top: 10px; font-weight: bold; color: #000; }
-          .dev-brand { font-size: 12px; font-weight: 900; color: #000; }
+          
+          .text-center { text-align: center; }
+          .font-bold { font-weight: bold; }
+          .font-black { font-weight: 900; }
+          
+          .header-title { font-size: 18px; margin: 0 0 2px 0; }
+          .header-sub { font-size: 11px; margin: 0 0 6px 0; }
+          .badge { text-align: center; border: 2px solid #000; padding: 6px; margin: 8px 0; border-radius: 4px; font-size: 14px; font-weight: bold; }
+          
+          .data-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 6px; }
+          .data-table td { padding: 4px 0; border-bottom: 1px dashed #eee; vertical-align: middle; }
+          .label-col { width: 50%; font-weight: bold; text-align: ${alignStart}; }
+          .value-col { width: 50%; text-align: ${alignEnd}; }
+          
+          .amount-box { border: 2px solid #000; border-radius: 4px; padding: 6px; margin: 8px 0; width: 100%; box-sizing: border-box; }
+          .amount-table { width: 100%; }
+          .amount-title { font-size: 14px; font-weight: bold; text-align: ${alignStart}; }
+          .amount-val { font-size: 16px; font-weight: 900; text-align: ${alignEnd}; direction: ltr; }
+          
+          .deduct-table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 5px; }
+          .deduct-table th { border-top: 1px dashed #000; border-bottom: 1px solid #000; padding: 4px 0; text-align: ${alignStart}; }
+          .deduct-table td { padding: 3px 0; }
+          
+          .footer { text-align: center; font-size: 11px; margin-top: 15px; border-top: 1px dashed #000; padding-top: 10px; font-weight: bold;}
         </style>
       </head>
       <body>
         <div class="print-wrapper">
-          ${printElement.outerHTML}
+          ${printElement.innerHTML}
         </div>
       </body>
       </html>
@@ -172,32 +234,64 @@ export default function EndOfDay() {
     setTimeout(() => { iframe.contentWindow.print(); }, 500);
   };
 
+  // 🌟 الحل الجذري لمشكلة حفظ الـ PDF: إيقاف التصغير مؤقتاً قبل أخذ الصورة
   const handleSavePDF = async () => {
     const element = document.getElementById('printable-receipt');
     if (!element) return;
     try {
+      // إزالة أي فلاتر ظل أو تصغير قد تكسر الصورة
       element.classList.remove('shadow-2xl');
-      const canvas = await html2canvas(element, { scale: 3, useCORS: true, backgroundColor: '#ffffff' });
+      const parentNode = element.parentElement;
+      const originalTransform = parentNode.style.transform;
+      parentNode.style.transform = 'none'; // إلغاء التصغير مؤقتاً
+      
+      const canvas = await html2canvas(element, { 
+        scale: 3, 
+        useCORS: true, 
+        backgroundColor: '#ffffff',
+        logging: false
+      });
+      
+      // إعادة التصغير والظل كما كان
+      parentNode.style.transform = originalTransform;
+      element.classList.add('shadow-2xl');
+
       const imgData = canvas.toDataURL('image/png');
       const pdfWidth = 80;
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [pdfWidth, pdfHeight] });
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
       pdf.save(`Shift_Receipt_${cashierName}_${new Date().toISOString().split('T')[0]}.pdf`);
-      element.classList.add('shadow-2xl');
-      showToast('success', t('common.success', 'Saved successfully'));
+      
+      showToast('success', t('common.success', 'تم الحفظ بنجاح'));
     } catch (error) {
       console.error(error);
       showToast('error', t('common.error'));
     }
   };
 
+  useEffect(() => {
+    if (showReceipt && receiptData && autoPrintEnabled && !isSuperAdmin) {
+      const timer = setTimeout(() => {
+        handlePrint();
+        handleSavePDF();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [showReceipt, receiptData, autoPrintEnabled, isSuperAdmin]);
+
+  const handleCloseReceipt = () => {
+    setShowReceipt(false);
+    setActiveShift(null);
+    setActualAmount('');
+    setNotes('');
+  };
+
   // =========================================================
-  // 🌟 دوال طباعة الوردية الفردية من الأرشيف
+  // 🌟 دوال طباعة الوردية الفردية من الأرشيف (مع الترجمة الديناميكية)
   // =========================================================
   const exportShiftToWordA4 = (shift) => {
     const dir = isRTL ? 'rtl' : 'ltr';
-    const alignStart = isRTL ? 'right' : 'left';
     const curr = t('currency', 'د.ج');
     const timeIn = new Date(shift.start_time).toLocaleString(i18n.language);
     const timeOut = shift.end_time ? new Date(shift.end_time).toLocaleString(i18n.language) : '-';
@@ -208,21 +302,20 @@ export default function EndOfDay() {
       <meta charset="utf-8">
       <title>${t('eod.shiftReportTitle', 'تقرير وردية كاشير')}</title>
       <style>
-        body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; direction: ${dir}; color: #000; }
+        body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; direction: ${dir}; color: #000; padding: 20px;}
         h2 { text-align: center; color: #1e293b; margin-bottom: 5px; font-size: 22px; text-transform: uppercase; }
         h3 { text-align: center; color: #475569; margin-top: 0; font-size: 13px; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
         th, td { border: 1px solid #334155; padding: 10px; text-align: center; font-size: 12px; }
         th { background-color: #e2e8f0; font-weight: bold; color: #0f172a; }
         .footer-note { text-align: center; font-size: 10px; color: #64748b; margin-top: 40px; font-weight: bold; }
+        .details-table th { background-color: #f8fafc; font-size: 11px; }
+        .details-table td { font-size: 11px; }
       </style>
     </head>
     <body>
       <h2>${currentStoreName}</h2>
-      <h3>${t('eod.shiftReportDetail', {
-        name: shift.cashier_name,
-        defaultValue: `تقرير تفصيلي لوردية الكاشير (${shift.cashier_name})`
-      })}</h3>
+      <h3>${t('eod.shiftReportDetail', { name: shift.cashier_name, defaultValue: `تقرير تفصيلي لوردية الكاشير (${shift.cashier_name})` })}</h3>
       
       <p style="text-align: ${alignStart}; font-size: 13px; font-weight: bold;">
         <b>${t('eod.cashierName', 'الكاشير:')}</b> ${shift.cashier_name} <br/>
@@ -244,7 +337,31 @@ export default function EndOfDay() {
           <td dir="ltr" style="font-weight: bold; background-color: #f1f5f9; font-size: 14px;">${Number(shift.actual_cash || 0).toLocaleString()} ${curr}</td>
         </tr>
       </table>
+    `;
 
+    if (shift.deductionsList && shift.deductionsList.length > 0) {
+      html += `
+        <h4 style="margin-top: 20px; margin-bottom: 5px; text-decoration: underline;">${t('eod.deductionsDetails', 'تفاصيل المسحوبات من الصندوق:')}</h4>
+        <table class="details-table">
+          <tr>
+            <th>${t('eod.description', 'البيان / الوصف')}</th>
+            <th>${t('eod.type', 'نوع السحب')}</th>
+            <th>${t('eod.amount', 'المبلغ המخصوم')}</th>
+          </tr>
+      `;
+      shift.deductionsList.forEach(d => {
+        html += `
+          <tr>
+            <td style="text-align: right; font-weight: bold;">${d.description}</td>
+            <td>${getTranslatedType(d.type)}</td>
+            <td dir="ltr" style="font-weight: bold;">${Number(d.amount).toLocaleString()} ${curr}</td>
+          </tr>
+        `;
+      });
+      html += `</table>`;
+    }
+
+    html += `
       <table style="border: none; margin-top: 60px;">
         <tr>
           <td style="border: none; border-top: 2px solid #000; width: 40%; font-weight: bold;">${t('zreport.manager_sig', 'توقيع الإدارة')}</td>
@@ -288,6 +405,27 @@ export default function EndOfDay() {
 
     const doc = iframe.contentWindow.document;
     doc.open();
+
+    let deductionsHtml = '';
+    if (shift.deductionsList && shift.deductionsList.length > 0) {
+      deductionsHtml += `
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 5px;">
+          <tr>
+            <th style="border-top: 1px dashed #000; border-bottom: 1px solid #000; padding: 4px 0; text-align: ${alignStart};">${t('eod.deductionsDetails', 'تفاصيل المسحوبات:')}</th>
+            <th style="border-top: 1px dashed #000; border-bottom: 1px solid #000; padding: 4px 0; text-align: ${alignEnd};">${t('eod.amount', 'المبلغ')}</th>
+          </tr>
+      `;
+      shift.deductionsList.forEach(d => {
+        deductionsHtml += `
+          <tr>
+            <td style="padding: 3px 0; font-weight: bold; width: 70%; text-align: ${alignStart};">- ${d.description} <span style="font-size: 9px; font-weight: normal;">(${getTranslatedType(d.type)})</span></td>
+            <td style="padding: 3px 0; font-weight: bold; width: 30%; text-align: ${alignEnd};" dir="ltr">${Number(d.amount).toLocaleString()}</td>
+          </tr>
+        `;
+      });
+      deductionsHtml += `</table>`;
+    }
+
     doc.write(`
       <!DOCTYPE html>
       <html lang="${i18n.language}" dir="${isRTL ? 'rtl' : 'ltr'}">
@@ -297,56 +435,49 @@ export default function EndOfDay() {
           @page { margin: 0; }
           html, body { margin: 0; padding: 0; width: 72mm; background: #fff; color: #000; font-family: sans-serif; }
           .print-wrapper { width: 100%; padding: 2mm 5mm; box-sizing: border-box; }
-          h2 { text-align: center; font-size: 18px; margin: 0 0 5px 0; font-weight: 900; color: #000; }
-          .subtitle { text-align: center; font-size: 13px; margin-bottom: 12px; border-bottom: 2px dashed #000; padding-bottom: 6px; font-weight: bold; color: #000; }
-          .info-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin-bottom: 4px; border-bottom: 1px dashed #000; padding-bottom: 2px; color: #000; }
-          table { width: 100%; border-collapse: collapse; font-size: 12px; font-weight: bold; margin-bottom: 10px; margin-top: 10px; color: #000; }
-          td { padding: 4px 0; border-bottom: 1px dashed #000; text-align: ${isRTL ? 'right' : 'left'}; color: #000; }
-          .amount-box { display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 8px 0; margin-top: 15px; color: #000; }
-          .amount-box .box-title { font-size: 15px; font-weight: bold; padding: 0 5px; color: #000; }
-          .amount-box .box-value { font-size: 18px; font-weight: 900; padding: 0 5px; color: #000; }
-          .footer-brand { text-align: center; margin-top: 20px; font-size: 11px; font-weight: 900; border-top: 1px dashed #000; padding-top: 8px; color: #000; }
+          .text-center { text-align: center; }
+          .font-bold { font-weight: bold; }
+          .font-black { font-weight: 900; }
+          .header-title { font-size: 18px; margin: 0 0 2px 0; }
+          .subtitle { font-size: 13px; margin-bottom: 12px; border-bottom: 2px dashed #000; padding-bottom: 6px; }
+          .data-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 6px; }
+          .data-table td { padding: 4px 0; border-bottom: 1px dashed #eee; vertical-align: middle; }
+          .label-col { width: 50%; font-weight: bold; text-align: ${alignStart}; }
+          .value-col { width: 50%; text-align: ${alignEnd}; }
+          .amount-box { border: 2px solid #000; border-radius: 4px; padding: 6px; margin: 8px 0; width: 100%; box-sizing: border-box; }
+          .amount-table { width: 100%; }
+          .amount-title { font-size: 14px; font-weight: bold; text-align: ${alignStart}; }
+          .amount-val { font-size: 16px; font-weight: 900; text-align: ${alignEnd}; direction: ltr; }
+          .footer { font-size: 11px; margin-top: 15px; border-top: 1px dashed #000; padding-top: 10px; }
         </style>
       </head>
       <body>
         <div class="print-wrapper">
-          <h2>${currentStoreName}</h2>
-          <div class="subtitle">${t('eod.shiftArchiveSubtitle', 'أرشيف وردية كاشير')}</div>
+          <div class="text-center font-black header-title">${currentStoreName}</div>
+          <div class="text-center font-bold subtitle">${t('eod.shiftArchiveSubtitle', 'أرشيف وردية كاشير')}</div>
           
-          <div class="info-row">
-            <span>${t('eod.cashierName', 'الكاشير:')}</span>
-            <span>${shift.cashier_name}</span>
-          </div>
-          <div class="info-row">
-            <span>${t('hr.table.timeIn', 'وقت الدخول:')}</span>
-            <span dir="ltr">${timeIn}</span>
-          </div>
-          <div class="info-row">
-            <span>${t('eod.time_out', 'وقت الخروج:')}</span>
-            <span dir="ltr">${timeOut}</span>
-          </div>
-
-          <table>
-            <tr>
-              <td>${t('eod.opening_balance', 'صندوق الافتتاح:')}</td>
-              <td style="text-align: ${isRTL ? 'left' : 'right'};" dir="ltr">${Number(shift.opening_balance).toLocaleString()} ${curr}</td>
-            </tr>
-            <tr>
-              <td>${t('eod.total_deducted', 'المسحوبات (مصاريف/سلف):')}</td>
-              <td style="text-align: ${isRTL ? 'left' : 'right'};" dir="ltr">-${Number(shift.totalOut || 0).toLocaleString()} ${curr}</td>
-            </tr>
-            <tr>
-              <td>${t('eod.today_sales', 'المبيعات المحسوبة:')}</td>
-              <td style="text-align: ${isRTL ? 'left' : 'right'};" dir="ltr">${Number(shift.calculatedSales || 0).toLocaleString()} ${curr}</td>
-            </tr>
+          <table class="data-table">
+            <tr><td class="label-col">${t('eod.cashierName', 'الكاشير:')}</td><td class="value-col font-bold">${shift.cashier_name}</td></tr>
+            <tr><td class="label-col">${t('hr.table.timeIn', 'وقت الدخول:')}</td><td class="value-col" dir="ltr">${timeIn}</td></tr>
+            <tr><td class="label-col">${t('eod.time_out', 'وقت الخروج:')}</td><td class="value-col" dir="ltr">${timeOut}</td></tr>
+            
+            <tr><td class="label-col">${t('eod.opening_balance', 'الافتتاح:')}</td><td class="value-col" dir="ltr">${Number(shift.opening_balance).toLocaleString()} ${curr}</td></tr>
+            <tr><td class="label-col">${t('eod.total_deducted', 'المسحوبات:')}</td><td class="value-col" dir="ltr">-${Number(shift.totalOut || 0).toLocaleString()} ${curr}</td></tr>
+            <tr><td class="label-col">${t('eod.today_sales', 'المبيعات:')}</td><td class="value-col" dir="ltr">${Number(shift.calculatedSales || 0).toLocaleString()} ${curr}</td></tr>
           </table>
 
           <div class="amount-box">
-            <span class="box-title">${t('eod.actual_cash', 'الدرج الفعلي:')}</span>
-            <span class="box-value" dir="ltr">${Number(shift.actual_cash || 0).toLocaleString()} ${curr}</span>
+            <table class="amount-table">
+              <tr>
+                <td class="amount-title">${t('eod.actual_cash', 'الدرج الفعلي:')}</td>
+                <td class="amount-val">${Number(shift.actual_cash || 0).toLocaleString()} ${curr}</td>
+              </tr>
+            </table>
           </div>
 
-          <div class="footer-brand">POWERED BY GHERBI.AI</div>
+          ${deductionsHtml}
+
+          <div class="text-center font-black footer">POWERED BY GHERBI.AI</div>
         </div>
       </body>
       </html>
@@ -359,13 +490,10 @@ export default function EndOfDay() {
     }, 500);
   };
 
-  // =========================================================
-  // 🌟 دوال طباعة التقرير الختامي Z-REPORT
-  // =========================================================
+
   const handleDownloadZReportWordA4 = () => {
     if (!zReportData) return;
     const dir = isRTL ? 'rtl' : 'ltr';
-    const alignStart = isRTL ? 'right' : 'left';
     const curr = t('currency', 'د.ج');
     const dateStr = new Date(zReportData.date).toLocaleString(i18n.language);
 
@@ -514,20 +642,25 @@ export default function EndOfDay() {
           @page { margin: 0; }
           html, body { margin: 0; padding: 0; width: 72mm; background: #fff; color: #000; font-family: sans-serif; }
           .print-wrapper { width: 100%; padding: 2mm 5mm; box-sizing: border-box; }
-          h2 { text-align: center; font-size: 18px; margin: 0 0 5px 0; font-weight: 900; color: #000; }
-          .subtitle { text-align: center; font-size: 13px; margin-bottom: 10px; border-bottom: 2px dashed #000; padding-bottom: 6px; font-weight: bold; color: #000; }
-          .amount-box { display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 6px 0; margin-top: 10px; margin-bottom: 5px; color: #000; }
-          .amount-box .box-title { font-size: 14px; font-weight: bold; }
-          .amount-box .box-value { font-size: 18px; font-weight: 900; }
-          .footer-brand { text-align: center; margin-top: 20px; font-size: 11px; font-weight: 900; border-top: 1px dashed #000; padding-top: 8px; color: #000; }
+          .text-center { text-align: center; }
+          .text-right { text-align: right; }
+          .text-left { text-align: left; }
+          .font-bold { font-weight: bold; }
+          .font-black { font-weight: 900; }
+          .header-title { font-size: 18px; margin: 0 0 2px 0; }
+          .subtitle { font-size: 13px; margin-bottom: 12px; border-bottom: 2px dashed #000; padding-bottom: 6px; }
+          .amount-box { display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 8px 0; margin-top: 15px; }
+          .amount-box .box-title { font-size: 15px; font-weight: bold; padding: 0 5px; }
+          .amount-box .box-value { font-size: 18px; font-weight: 900; padding: 0 5px; }
+          .footer { font-size: 11px; margin-top: 15px; border-top: 1px dashed #000; padding-top: 10px; }
         </style>
       </head>
       <body>
         <div class="print-wrapper">
-          <h2>${currentStoreName}</h2>
-          <div class="subtitle">${t('zreport.title', 'التقرير الختامي (Z-REPORT)')}</div>
+          <div class="text-center font-black header-title">${currentStoreName}</div>
+          <div class="text-center font-bold subtitle">${t('zreport.title', 'التقرير الختامي (Z-REPORT)')}</div>
           
-          <div style="font-size: 11px; font-weight: bold; margin-bottom: 10px; color: #000; text-align: center;">
+          <div style="font-size: 11px; font-weight: bold; margin-bottom: 10px; text-align: center;">
              ${dateStr} <br>
              ${t('zreport.closed_by', 'إغلاق:')} ${zReportData.adminName}
           </div>
@@ -551,7 +684,7 @@ export default function EndOfDay() {
             <span class="box-value" dir="ltr">${Number(zReportData.totals.actual).toLocaleString()} ${curr}</span>
           </div>
 
-          <div class="footer-brand">POWERED BY GHERBI.AI</div>
+          <div class="text-center font-black footer">POWERED BY GHERBI.AI</div>
         </div>
       </body>
       </html>
@@ -565,67 +698,6 @@ export default function EndOfDay() {
     }, 500);
   };
 
-  const handleCloseReceipt = () => {
-    setShowReceipt(false);
-    setActiveShift(null);
-    setActualAmount('');
-    setNotes('');
-  };
-
-  useEffect(() => {
-    if (showReceipt && receiptData && autoPrintEnabled && !isSuperAdmin) {
-      const timer = setTimeout(() => {
-        handlePrint();
-        handleSavePDF();
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [showReceipt, receiptData, autoPrintEnabled, isSuperAdmin]);
-
-  const executeCloseShift = async () => {
-    try {
-      const res = await window.api.closeShift({
-        shiftId: activeShift.id, actualCash: Number(actualAmount), difference: todaySales, note: notes
-      });
-      if (res.success) {
-        setReceiptData({
-          cashier: cashierName,
-          startTime: activeShift.start_time,
-          endTime: new Date().toISOString(),
-          opening: currentOpeningBalance,
-          out: totalOut,
-          actual: Number(actualAmount),
-          sales: todaySales
-        });
-        setIsConfirmModalOpen(false);
-        setShowReceipt(true);
-      }
-    } catch (err) { console.error(err); }
-  };
-
-  const executeCloseDay = async () => {
-    try {
-      const reportSnapshot = {
-        date: new Date().toISOString(),
-        adminName: cashierName,
-        totals: { ...grandTotals },
-        shifts: [...allShifts]
-      };
-      const res = await window.api.closeBusinessDay(cashierName);
-      if (res.success) {
-        setZReportData(reportSnapshot);
-        setIsCloseDayModalOpen(false);
-        setShowZReportPrintModal(true); 
-        showToast('success', t('common.success'));
-        fetchData(); 
-      } else {
-        setIsCloseDayModalOpen(false);
-        const errorMsg = res.message ? t(`backendErrors.${res.message}`, { defaultValue: res.message }) : t('common.error');
-        showToast('error', errorMsg);
-      }
-    } catch (err) { console.error(err); }
-  };
-
   const renderToast = () => toast && (
     <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[9999] px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 ${
       toast.type === 'success' ? 'bg-emerald-600 text-white' : toast.type === 'warning' ? 'bg-amber-600 text-white' : 'bg-red-600 text-white'
@@ -635,11 +707,6 @@ export default function EndOfDay() {
     </div>
   );
 
-  const getFormattedDate = () => {
-    const d = new Date();
-    return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
-  };
-
   // ==========================================
   // واجهة المراقبة للمدير (SuperAdmin)
   // ==========================================
@@ -648,7 +715,6 @@ export default function EndOfDay() {
       <div className="min-h-screen bg-slate-950 text-slate-300 p-6 font-sans relative text-start">
         {renderToast()}
         
-{/* 🌟 نافذة خيارات الطباعة للوردية الأرشيفية الفردية */}
         <Modal isOpen={isPrintModalOpen} onClose={() => setIsPrintModalOpen(false)} title={t('eod.printShiftOptionsTitle', 'خيارات طباعة وردية الكاشير')}>
           <div className="p-6 flex flex-col gap-4 text-start" dir={isRTL ? 'rtl' : 'ltr'}>
             <p className="text-slate-400 mb-4 text-center">{t('eod.printShiftDesc', 'اختر مقاس الورق المناسب لطباعة تفاصيل هذه الوردية.')}</p>
@@ -677,7 +743,6 @@ export default function EndOfDay() {
           </div>
         </Modal>
 
-        {/* 🔴 النافذة السحرية لطباعة التقرير الختامي Z-Report */}
         <Modal isOpen={showZReportPrintModal} onClose={() => setShowZReportPrintModal(false)} title={t('eod.printZReportOptionsTitle', 'خيارات طباعة التقرير الختامي')}>
           <div className="p-6 flex flex-col gap-4 text-start" dir={isRTL ? 'rtl' : 'ltr'}>
             <p className="text-slate-400 mb-4 text-center">{t('eod.printZReportDesc', 'تم ترحيل اليومية بنجاح! اختر كيفية طباعة التقرير.')}</p>
@@ -698,7 +763,7 @@ export default function EndOfDay() {
                 <Printer size={24} className="text-emerald-400 group-hover:text-white" />
                 <div className="text-start">
                   <div className="text-lg">{t('eod.printThermalA7', 'وصل طباعة حرارية (80mm)')}</div>
-                  <div className="text-xs font-normal opacity-80 mt-1">{t('eod.printThermalA7Desc', 'وصل ورقي سريع ومقروء يُطبع فوراً من طابعة الكاشير.')}</div>
+                  <div className="text-xs font-normal opacity-80 mt-1">{t('eod.printThermalA7Desc', 'وصل ورقي سريع ومقروء يُطبع فوراً.')}</div>
                 </div>
               </div>
               <Printer size={20} />
@@ -824,31 +889,29 @@ export default function EndOfDay() {
                       archivedShifts.map(s => (
                         <tr key={s.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
                           <td className="px-6 py-4 font-bold text-white">{s.cashier_name}</td>
-<td className="px-6 py-4 text-sm text-slate-300">
-  <div className="flex flex-col items-start">
-    {/* التاريخ مبني يدوياً لكي لا يتداخل */}
-    <span className="font-mono tracking-widest text-white" dir="ltr">
-      {(() => {
-        const d = new Date(s.start_time);
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      })()}
-    </span>
-    {/* الوقت مرتب بشكل مرن */}
-    <div className="text-xs text-slate-400 mt-1 flex items-center gap-2">
-      <span className="text-emerald-400/80 whitespace-nowrap" dir="ltr">
-        {new Date(s.start_time).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
-      </span>
-      {s.end_time && (
-        <>
-          <span>{isRTL ? '←' : '→'}</span>
-          <span className="text-red-400/80 whitespace-nowrap" dir="ltr">
-            {new Date(s.end_time).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
-          </span>
-        </>
-      )}
-    </div>
-  </div>
-</td>
+                          <td className="px-6 py-4 text-sm text-slate-300">
+                            <div className="flex flex-col items-start">
+                              <span className="font-mono tracking-widest text-white" dir="ltr">
+                                {(() => {
+                                  const d = new Date(s.start_time);
+                                  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                                })()}
+                              </span>
+                              <div className="text-xs text-slate-400 mt-1 flex items-center gap-2">
+                                <span className="text-emerald-400/80 whitespace-nowrap" dir="ltr">
+                                  {new Date(s.start_time).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                                {s.end_time && (
+                                  <>
+                                    <span>{isRTL ? '←' : '→'}</span>
+                                    <span className="text-red-400/80 whitespace-nowrap" dir="ltr">
+                                      {new Date(s.end_time).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </td>
                           <td className="px-6 py-4 text-center font-bold text-slate-400" dir="ltr">{Number(s.opening_balance).toLocaleString()} {t('currency', 'د.ج')}</td>
                           <td className="px-6 py-4 text-center font-bold text-amber-400" dir="ltr">+{Number(s.calculatedSales).toLocaleString()} {t('currency', 'د.ج')}</td>
                           <td className="px-6 py-4 text-center font-bold text-emerald-400 bg-slate-950/50" dir="ltr">{Number(s.actual_cash).toLocaleString()} {t('currency', 'د.ج')}</td>
@@ -893,9 +956,6 @@ export default function EndOfDay() {
     );
   }
 
-  // ==========================================
-  // واجهة الكاشير العادي
-  // ==========================================
   if (isLoading) return <div className="p-6 text-center text-slate-500">{t('hr.table.loading', 'جاري التحميل...')}</div>;
 
   if (!activeShift && !showReceipt) {
@@ -936,76 +996,60 @@ export default function EndOfDay() {
       {showReceipt && receiptData && !isSuperAdmin && (
         <div className="fixed inset-0 z-[9999] bg-slate-950/95 flex items-center justify-center p-4 backdrop-blur-md" dir={isRTL ? "rtl" : "ltr"}>
           <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-5xl flex flex-col md:flex-row overflow-hidden">
-            <div className="bg-slate-800 p-8 flex justify-center items-center w-full md:w-1/2 border-b md:border-b-0 md:border-l border-slate-700 relative overflow-y-auto max-h-[85vh]">
+            
+            {/* عرض الوصل للكاشير قبل الطباعة */}
+            <div className="bg-slate-800 p-8 flex justify-center items-center w-full md:w-1/2 border-b md:border-b-0 md:border-l border-slate-700 relative overflow-y-auto max-h-[85vh] custom-scrollbar">
               <div className="absolute top-4 left-4 bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-700 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 <span className="text-xs font-bold tracking-widest text-slate-300 uppercase">Live Preview</span>
               </div>
+              
               <div style={{ transform: 'scale(0.95)', transformOrigin: 'top center', marginTop: '2rem' }}>
                 <div id="printable-receipt" className="receipt-ticket-forced mx-auto shadow-2xl bg-white text-black print:shadow-none" dir={isRTL ? "rtl" : "ltr"}>
-                  <div className="header-title">GHERBI.AI</div>
-                  <div className="header-subtitle1">CODE &bull; MULTIMEDIA &bull; ALGO &bull; AI</div>
-                  <div className="header-title" style={{ marginTop: '1mm' }}><bdi>{currentStoreName}</bdi></div>
                   
-                  <div className="badge-action">
+                  <div className="text-center font-black" style={{ fontSize: '18px', marginBottom: '2px' }}>{currentStoreName}</div>
+                  <div className="text-center font-bold" style={{ fontSize: '11px', marginBottom: '6px', paddingBottom:'6px', borderBottom: '2px dashed #000' }}>
                     {t('eod.x_report', 'تقرير الوردية (X-REPORT)')}
-                    <div style={{ fontSize: '10px', marginTop: '2px', fontWeight: 'normal' }} dir="ltr">
-                      {getFormattedDate()}
-                    </div>
                   </div>
                   
-                  <div className="receipt-divider"></div>
+                  <table style={{ width: '100%', fontSize: '12px', fontWeight: 'bold', marginBottom: '6px' }}>
+                    <tr><td style={{ padding: '3px 0', borderBottom: '1px dashed #eee', textAlign: alignStart }}>{t('eod.cashierName', 'الكاشير:')}</td><td style={{ padding: '3px 0', borderBottom: '1px dashed #eee', textAlign: alignEnd }}>{receiptData.cashier}</td></tr>
+                    <tr><td style={{ padding: '3px 0', borderBottom: '1px dashed #eee', textAlign: alignStart }}>{t('hr.table.timeIn', 'الدخول:')}</td><td style={{ padding: '3px 0', borderBottom: '1px dashed #eee', textAlign: alignEnd }} dir="ltr">{new Date(receiptData.startTime).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</td></tr>
+                    <tr><td style={{ padding: '3px 0', borderBottom: '1px dashed #eee', textAlign: alignStart }}>{t('eod.time_out', 'الخروج:')}</td><td style={{ padding: '3px 0', borderBottom: '1px dashed #eee', textAlign: alignEnd }} dir="ltr">{new Date(receiptData.endTime).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</td></tr>
+                    
+                    <tr><td style={{ padding: '3px 0', borderBottom: '1px dashed #eee', paddingTop:'10px', textAlign: alignStart }}>{t('eod.opening_balance', 'الافتتاح:')}</td><td style={{ padding: '3px 0', borderBottom: '1px dashed #eee', textAlign: alignEnd, paddingTop:'10px' }} dir="ltr">{receiptData.opening.toLocaleString()} {t('currency', 'DA')}</td></tr>
+                    <tr><td style={{ padding: '3px 0', borderBottom: '1px dashed #eee', textAlign: alignStart }}>{t('eod.total_deducted', 'المسحوبات:')}</td><td style={{ padding: '3px 0', borderBottom: '1px dashed #eee', textAlign: alignEnd }} dir="ltr">{(receiptData.out || 0).toLocaleString()} {t('currency', 'DA')}</td></tr>
+                  </table>
 
-                  <div className="flex flex-col w-full my-2">
-                    <div className="info-row">
-                      <span className="label-field">{t('eod.cashierName', 'الكاشير:')}</span>
-                      <span className="value-field">{receiptData.cashier}</span>
-                    </div>
-                    <div className="info-row">
-                      <span className="label-field">{t('hr.table.timeIn', 'الدخول:')}</span>
-                      <span className="value-field" dir="ltr">{new Date(receiptData.startTime).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
-                    <div className="info-row">
-                      <span className="label-field">{t('eod.time_out', 'الخروج:')}</span>
-                      <span className="value-field" dir="ltr">{new Date(receiptData.endTime).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
+                  {receiptData.deductionsList && receiptData.deductionsList.length > 0 && (
+                    <table style={{ width: '100%', fontSize: '10px', marginTop: '5px' }}>
+                      <tr>
+                        <th style={{ borderTop: '1px dashed #000', borderBottom: '1px solid #000', padding: '4px 0', textAlign: alignStart }}>{t('eod.deductionsDetails', 'تفاصيل المسحوبات:')}</th>
+                        <th style={{ borderTop: '1px dashed #000', borderBottom: '1px solid #000', padding: '4px 0', textAlign: alignEnd }}>{t('eod.amount', 'المبلغ')}</th>
+                      </tr>
+                      {receiptData.deductionsList.map((d, i) => (
+                        <tr key={i}>
+                          <td style={{ padding: '3px 0', fontWeight: 'bold', width: '70%', textAlign: alignStart }}>- {d.description} <span style={{ fontSize: '9px', fontWeight: 'normal' }}>({getTranslatedType(d.type)})</span></td>
+                          <td style={{ padding: '3px 0', fontWeight: 'bold', width: '30%', textAlign: alignEnd }} dir="ltr">{Number(d.amount).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </table>
+                  )}
+
+                  <div style={{ border: '2px solid #000', borderRadius: '4px', padding: '6px', margin: '15px 0' }}>
+                    <table style={{ width: '100%' }}>
+                      <tr>
+                        <td style={{ fontSize: '14px', fontWeight: 'bold', textAlign: alignStart }}>{t('eod.actual_cash', 'الدرج الفعلي:')}</td>
+                        <td style={{ fontSize: '16px', fontWeight: '900', textAlign: alignEnd }} dir="ltr">{(receiptData.actual || 0).toLocaleString()} {t('currency', 'DA')}</td>
+                      </tr>
+                    </table>
                   </div>
 
-                  <div className="receipt-divider"></div>
-
-                  <div className="flex flex-col w-full my-2">
-                    <div className="info-row">
-                      <span className="label-field">{t('eod.opening_balance', 'الافتتاح:')}</span>
-                      <span className="value-field" dir="ltr"><bdi>{receiptData.opening.toLocaleString()} {t('currency', 'DA')}</bdi></span>
-                    </div>
-                    <div className="info-row">
-                      <span className="label-field">{t('eod.total_deducted', 'المسحوبات:')}</span>
-                      <span className="value-field" dir="ltr"><bdi>{(receiptData.out || 0).toLocaleString()} {t('currency', 'DA')}</bdi></span>
-                    </div>
+                  <div style={{ textAlign: 'center', fontSize: '12px', fontWeight: 'bold', marginTop: '15px' }}>
+                    {t('eod.receipt_footer', 'احتفظ بالوصل للمراجعة')}
                   </div>
-
-                  <div className="amount-box">
-                    <span className="box-title">{t('eod.actual_cash', 'الدرج الفعلي:')}</span>
-                    <span className="box-value" dir="ltr">
-                      <bdi>{(receiptData.actual || 0).toLocaleString()} {t('currency', 'DA')}</bdi>
-                    </span>
-                  </div>
-
-                  <div className="amount-box">
-                    <span className="box-title">{t('eod.today_sales', 'المبيعات:')}</span>
-                    <span className="box-value" dir="ltr">
-                      <bdi>{(receiptData.sales || 0).toLocaleString()} {t('currency', 'DA')}</bdi>
-                    </span>
-                  </div>
-
-                  <div className="signatures-area" style={{ justifyContent: 'center', marginTop: '8mm' }}>
-                    <span>{t('eod.receipt_footer', 'احتفظ بالوصل للمراجعة')}</span>
-                  </div>
-
-                  <div className="receipt-divider"></div>
-
-                  <div className="footer-area">
-                    <div className="dev-brand">POWERED BY GHERBI.AI</div>
+                  <div style={{ textAlign: 'center', fontSize: '11px', marginTop: '15px', borderTop: '1px dashed #000', paddingTop: '10px', fontWeight: '900' }}>
+                    POWERED BY GHERBI.AI
                   </div>
                 </div>
               </div>
