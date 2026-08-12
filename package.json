@@ -2,44 +2,44 @@
   "name": "gherbi-pos",
   "version": "1.0.0",
   "description": "A professional system for managing sales and point-of-sale operations",
-  "author": "Mohamed Cherif Gherbi",
+  "author": "Gherbi Mohamed Sherif",
   "main": "backend/main.js",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --win"
+    "dev": "electron . --dev",
+    "build": "electron-builder --win",
+    "build-frontend": "cd frontend && npm run build"
   },
   "build": {
     "appId": "com.gherbiai.pos",
     "productName": "Gherbi POS System",
-    "asar": true,
+    "asar": false,
     "directories": {
       "output": "release-builds"
     },
     "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64",
-            "ia32"
-          ]
-        }
-      ]
+      "target": "nsis"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "artifactName": "${productName}-${version}-${arch}-Setup.${ext}"
+      "createDesktopShortcut": true
     },
     "files": [
       "backend/**/*",
       "frontend/dist/**/*",
-      "package.json"
+      "package.json",
+      "node_modules/**/*"
     ]
   },
   "devDependencies": {
-    "electron": "^22.3.27",
-    "electron-builder": "^23.6.0"
+    "electron": "22.3.27",
+    "electron-builder": "23.6.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "8.4.0",
+    "exceljs": "4.4.0",
+    "express": "4.19.2",
+    "cors": "2.8.5"
   }
 }

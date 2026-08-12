@@ -784,48 +784,76 @@
   }
   ,
 "guide": {
-    "buttonTitle": "User Guide",
-    "modalTitle": "Comprehensive System Guide",
-    "modalDesc": "Select a section below to read its detailed instructions:",
-    "pos": {
-      "title": "End of Day & Shifts (EOD)",
-      "content": "🎯 Purpose:\nThe financial heart of the store. Allows the manager to monitor cashiers, force-close shifts, and archive daily sales securely to prevent fraud.\n\n⚙️ Detailed Steps:\n• Live Shifts: View who is currently working, their check-in time, and live sales.\n• Close Shift: Usually done by the cashier, but the admin can force-close it. Requires entering the 'Actual Cash' counted in the drawer.\n• Z-Report: The most crucial daily action. Closes the business day, archives all shifts and financial data, and resets drawers for the next day.\n• Archive: Access past days to reprint Z-Reports in detailed A4 format or thermal receipt format."
+    "title": "Quick User Guide",
+    "roles": {
+      "superadmin": "Welcome Admin. Here is a detailed operational guide for this page:",
+      "cashier": "Welcome. To ensure a smooth workflow, please read this guide carefully:"
     },
-    "hr": {
-      "title": "HR & Employee Badges",
-      "content": "🎯 Purpose:\nTotal control over your workforce. Track exact attendance for accurate payroll, issue secure access badges, and define system permissions.\n\n⚙️ Detailed Steps:\n• Add Employee: Go to 'Employees' tab, click 'Add'. Assign a name, role (determines their access level), and a unique PIN.\n• Issue Badge: Click 'Employee Badge', enter the PIN, and the system generates a printable barcode ID card.\n• Attendance: Employees scan their barcode to log check-in and check-out times.\n• Edit Time: If an employee forgets to check out, admins can click the edit icon in the attendance log to correct the time manually."
-    },
-    "payroll": {
-      "title": "Payroll Calculator",
-      "content": "🎯 Purpose:\nAutomates monthly salary calculations. Eliminates manual math by aggregating working hours and automatically deducting taken advances.\n\n⚙️ Detailed Steps:\n• Calculate: Select an employee, set the date range and hourly rate. The system calculates the 'Gross Salary'.\n• Auto-Deductions: The system finds any advances taken in that period and subtracts them to show the 'Net Salary'.\n• Payment: Clicking 'Pay and Save' marks advances as paid and archives the salary.\n• Debt Rollover: If advances exceed the salary (negative net), the system will ask to roll over the remaining debt as a new advance for the following month."
-    },
-    "suppliers": {
-      "title": "Suppliers & Debts",
-      "content": "🎯 Purpose:\nA precise digital ledger. Prevents lost invoices, tracks every penny owed or paid, and provides detailed statements for each supplier.\n\n⚙️ Detailed Steps:\n• Add Supplier: Create manually or import a full list via 'Excel'. You can add an 'Initial Debt' balance.\n• Add Debt (Receipt): Open the supplier's profile, click 'Add Receipt', and enter the invoice amount to increase your debt.\n• Pay Supplier: Click 'Add Payment' to register cash given to the supplier. You MUST specify which drawer the money came from (Admin or Cashier) so it balances their shift.\n• Schedule: Schedule future payments to receive notifications in the Agenda."
-    },
-    "expenses": {
-      "title": "Expenses & Advances",
-      "content": "🎯 Purpose:\nEnsure no unexplained cash shortages. Any money leaving the drawer for non-inventory reasons must be recorded here to calculate true net profit.\n\n⚙️ Detailed Steps:\n• Add Expense: Select the source drawer, category (maintenance, utilities), enter the amount, and write a clear description.\n• Staff Advance: If you select 'Staff Advance', you must specify the employee. This automatically sends the debt to the Payroll module for end-of-month deduction.\n• Printing: Filter expenses by date or drawer and print comprehensive reports for accounting."
-    },
-    "map": {
-      "title": "3D Map & PDF Invoices",
-      "content": "🎯 Purpose:\nThe system's revolutionary feature. Digitize your physical store and automate data entry by letting the system read PDF invoices and route items to shelves.\n\n⚙️ Detailed Steps:\n• Build Map: Drag and drop shelves/fridges to design your store. Click a shelf to link it to a category (e.g., Cleaning Supplies).\n• Set Active: Save the map and set it as the 'Active Layout'.\n• Import PDF: Upload a supplier's delivery note (PDF). The system extracts barcodes and quantities.\n• Auto-Routing: The system matches extracted items to your mapped shelves. Review the table, then click 'Save and Link' to inject hundreds of items into your inventory in seconds."
-    },
-    "cashier_shift": {
-      "title": "Shift (Open & Close)",
-      "content": "🎯 Purpose:\nProtects you financially by separating your transactions from other cashiers, holding you accountable only for your shift's timeframe.\n\n⚙️ Detailed Steps:\n1. Open Shift: Count the actual cash in your drawer when you start, and enter it as 'Opening Balance' in the Register screen.\n2. Sales: You cannot access the POS without an open shift.\n3. Close Shift: At the end of your shift, click 'Close Shift'. Count your drawer's physical cash and enter it in 'Actual Cash'.\n4. Notes: If there is a discrepancy (shortage/surplus) between your count and the system, write the reason in the notes.\n5. Print: Your shift report will print automatically as proof of your shift's balance."
-    },
-    "cashier_pos": {
-      "title": "Point of Sale (POS)",
-      "content": "🎯 Purpose:\nYour main workspace. Designed for speed and simplicity to serve customers efficiently.\n\n⚙️ Detailed Steps:\n1. Scan: Use the barcode scanner; items immediately appear in the cart.\n2. Adjust: Click the quantity number in the cart to modify it.\n3. Pay: Click 'Pay' to finalize the transaction, register the revenue, and print the customer ticket.\n4. Cancel: You can delete individual items or clear the entire cart if the customer cancels the purchase."
-    },
-    "cashier_expenses": {
-      "title": "Drawer Expenses",
-      "content": "🎯 Purpose:\nJustify any cash taken out of your drawer. If you don't record it, your shift will show a cash shortage!\n\n⚙️ Detailed Steps:\n1. When to use: If the manager asks you to pay a supplier, pay a utility bill, or give an advance to a coworker from your drawer.\n2. Record: Go to the 'Expenses' page and click 'Add Expense'.\n3. Details: Choose the right category, enter the exact amount, and write a clear note.\n4. Balance: The system will automatically subtract this from your expected drawer total."
-    },
-    "cashier_attendance": {
-      "title": "Check In / Check Out",
-      "content": "🎯 Purpose:\nEnsures your exact working hours are logged so your salary is calculated accurately without unfair deductions.\n\n⚙️ Detailed Steps:\n1. Quick Access: No matter what screen you are on, press (Ctrl + Shift + A) on your keyboard to instantly open the attendance popup.\n2. Scan: Scan your ID badge barcode or type your PIN.\n3. Confirm: Look for the green success message confirming your 'Check In' or 'Check Out'. Always verify this message!"
+    "pages": {
+      "/": {
+        "title": "Dashboard",
+        "content": "🎯 Purpose:\nProvides a comprehensive overview of the store's financial and administrative health from a single screen.\n\n⚙️ Detailed Instructions:\n• Top Cards: Quick summary of Total Supplier Debts, Due This Week, Expenses, and Active Employees.\n• Charts: 📊 Visually tracks expense distribution and your top creditors.\n• Alerts: 🔔 The bottom lists show urgent tasks. Click the 'Pay Now' button next to an alert to settle and record it immediately."
+      },
+      "/pos": {
+        "title": "Point of Sale (POS)",
+        "content": "🎯 Purpose:\nThe main interface for serving customers quickly and accurately.\n\n⚙️ Detailed Steps:\n1. Open Shift: 🔓 Before selling, enter your starting drawer cash and click 'Open Shift'.\n2. Add Items:\n   - 📠 Fast method: Scan the item with the Barcode Scanner.\n   - 🔍 Manual method: Click the search bar and type, or click the product card.\n3. Edit Cart: 🛒 Click the number next to an item in the cart to change its quantity, or click the (🗑️ icon) to remove it.\n4. Pay: 💳 Click the large blue 'Pay' button to calculate the total, open the drawer, and print the thermal ticket."
+      },
+      "/end-of-day": {
+        "title": "End of Day (Z-Report)",
+        "content": "🎯 Purpose:\nMonitor active shifts and close the financial day to secure profits and reset drawers.\n\n⚙️ Detailed Steps:\n1. Monitor Shifts: 👀 View cards of active cashiers showing their check-in time and live sales.\n2. Force Close: 🛑 If a cashier forgot to close their shift, click the red 'Close Shift' button. Enter the 'Actual Cash' physically counted in the drawer.\n3. Z-Report: 🌙 Ensure all shifts are closed, then click the large 'Close Business Day' button to archive sales and reset the system for tomorrow."
+      },
+      "/expenses": {
+        "title": "Expenses & Advances",
+        "content": "🎯 Purpose:\nDocument any cash leaving the drawers (bills, maintenance, advances) to prevent financial shortages.\n\n⚙️ Detailed Steps:\n1. Add Expense: Click the blue 'Add Expense' button (➕ icon).\n2. Fill Data:\n   - 📥 Select 'Source Drawer' (Admin or Cashier).\n   - 📁 Choose the 'Category'.\n   - 👤 If 'Staff Advance', choose the employee's name (auto-deducted from salary later).\n   - ✏️ Enter amount and description.\n3. Save: 💾 Click 'Save' to immediately deduct the amount from the drawer."
+      },
+      "/suppliers": {
+        "title": "Suppliers & Debts",
+        "content": "🎯 Purpose:\nA digital ledger tracking every incoming invoice and outgoing payment.\n\n⚙️ Detailed Steps:\n1. New Supplier: ➕ Click 'New Supplier' at the top to register one.\n2. Search: 🔍 Use the search bar to find a supplier quickly.\n3. Manage Debts:\n   - 👁️ Click 'Details' (⋯ icon) next to the supplier.\n   - 📈 Add Debt: Click 'Add Receipt' and enter the invoice value.\n   - 📉 Make Payment: Click 'Add Payment', enter the amount, and select the source drawer to justify the cash out."
+      },
+      "/hr": {
+        "title": "HR & Staff",
+        "content": "🎯 Purpose:\nManage the team, track live attendance, and generate access badges.\n\n⚙️ Detailed Steps:\n1. Fast Check-in: 📠 The left scanner area is for employees to scan their badges to check in/out.\n2. Add Employee: ➕ Go to the 'Employees' tab, click 'Add Employee', and set their role (determines system access).\n3. PIN Code: 🔑 Assign a unique PIN as an electronic signature.\n4. Print Badge: 🪪 Click the 'Badge' button next to their name to print a barcode ID."
+      },
+      "/payroll": {
+        "title": "Smart Payroll",
+        "content": "🎯 Purpose:\nCalculate exact salaries based on attendance hours and auto-deduct advances.\n\n⚙️ Detailed Steps:\n1. Setup: 📅 Select the employee and click the calendar icon to choose the date range.\n2. Calculate: ⏱️ Enter the hourly rate. The system aggregates hours to calculate the 'Gross Salary'.\n3. Auto-Deduct: ➖ The system subtracts registered advances to show the 'Net Salary'.\n4. Pay: 💰 Click 'Pay and Save'.\n5. Rollover: 🔄 If advances exceed the salary, the system asks to roll over the remaining debt to the next month as a new advance."
+      },
+      "/agenda": {
+        "title": "Agenda & Tasks",
+        "content": "🎯 Purpose:\nA smart calendar reminding you of important deadlines to avoid penalties.\n\n⚙️ Detailed Steps:\n1. Add Task: ➕ Click 'Add Task'. Enter the title, type, and use the (📅 icon) to set the date.\n2. Alerts: 🔔 Due tasks will appear in the notification bell and the Dashboard.\n3. Interact: Click (✅ icon) to mark a task as completed, or (✏️ icon) to reschedule it."
+      },
+      "/inventory": {
+        "title": "Inventory Management",
+        "content": "🎯 Purpose:\nBuild an organized product tree and track prices and stock levels.\n\n⚙️ Detailed Steps:\n1. Structure: 📁 Click 'Add Family' (e.g., Dairy), then select it to add a 'Type' (e.g., Yogurt).\n2. Add Item: ➕ Select the Type, click 'Add Product', and enter the name, price, and pieces per box.\n3. Manual Edit: ✏️ During physical counting, click the edit icon to correct system quantities to match reality."
+      },
+      "/store-map": {
+        "title": "3D Store Map",
+        "content": "🎯 Purpose:\nDraw a digital map matching your physical store for Smart Invoice Imports.\n\n⚙️ Detailed Steps:\n1. Draw: 🗄️ Drag and drop (Shelf/Fridge icons) into the workspace.\n2. Customize: ⚙️ Double-click a shelf to name it and set its capacity.\n3. Rotate: ↻ Select a shelf and use the rotate icon to change its direction.\n4. Save: 💾 Click the green 'Save Map' button. Ensure you click 'Activate' to make it the default map."
+      },
+      "/pdf-importer": {
+        "title": "Smart PDF Importer",
+        "content": "🎯 Purpose:\nSave hours of data entry by letting AI read supplier invoices.\n\n⚙️ Detailed Steps:\n1. Upload: 📎 Click the dashed area and select a PDF invoice (Bon de Livraison).\n2. Extract: 🤖 Wait a few seconds for AI to extract barcodes, names, and quantities.\n3. Routing: 🔗 The system suggests the best shelf based on your '3D Map'. Use the dropdown to correct it if needed.\n4. Save: 💾 Click 'Save & Link' to instantly inject all items into the inventory."
+      },
+      "/archive": {
+        "title": "Daily Archive",
+        "content": "🎯 Purpose:\nThe secure vault to revisit past financial days and extract reports.\n\n⚙️ Detailed Steps:\n1. Browse: 📅 View closed days sorted from newest to oldest.\n2. Details: 👁️ Click the eye icon to view each cashier's performance, shortages, and expenses.\n3. Print: \n   - 🧾 Click the receipt icon for a thermal printout.\n   - 📄 Click the Word icon to download a detailed A4 report for the accountant."
+      },
+      "/audit-logs": {
+        "title": "Audit Logs",
+        "content": "🎯 Purpose:\nThe sleepless eye of management. Records every click and action by users to prevent fraud.\n\n⚙️ How to read it?\n• The table shows: (Who did it?), (Action Type), (Details), and the exact (Date & Time ⏱️).\n• Filter: 🔍 Use the search bar to type an employee's name and track all their actions."
+      },
+      "/settings": {
+        "title": "Users & Settings",
+        "content": "🎯 Purpose:\nControl system access, accounts, and permissions.\n\n⚙️ Detailed Steps:\n1. Add User: ➕ Click 'Add User'. Enter username, password, and role.\n2. Permissions: 🛡️ Cashiers cannot view profits, payroll, or audit logs. Super Admins have full control.\n3. Delete: 🗑️ If an employee leaves, click the trash icon immediately to revoke system access."
+      },
+      "/attendance": {
+        "title": "General Attendance",
+        "content": "🎯 Purpose:\nReview check-in/out times for all staff and fix missing records.\n\n⚙️ Detailed Steps:\n1. Filter: 📅 Use the calendar icon to select a specific day.\n2. Manual Edit: ✏️ If an employee forgot to check out, click the edit icon to manually enter the correct exit time for accurate payroll."
+      },
+      "/cashier-attendance": {
+        "title": "Fast Attendance",
+        "content": "🎯 Purpose:\nA popup window for quick check-ins without leaving the POS screen.\n\n⚙️ Detailed Steps:\n1. Trigger: ⌨️ Press (Ctrl + Shift + A) anywhere in the system to open the popup.\n2. Scan: 🔑 Scan your ID badge or enter your PIN.\n3. Confirm: ✅ Wait for the green 'Success' message to ensure your time is logged."
+      }
     }
   }
 }

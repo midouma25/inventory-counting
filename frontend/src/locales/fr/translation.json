@@ -791,48 +791,76 @@
     "done": "Excellent travail ! Vous êtes prêt à utiliser le système."
   },
 "guide": {
-    "buttonTitle": "Guide",
-    "modalTitle": "Guide Complet du Système",
-    "modalDesc": "Sélectionnez une section ci-dessous pour lire ses instructions détaillées :",
-    "pos": {
-      "title": "Caisse et Clôture (EOD)",
-      "content": "🎯 Objectif :\nLe cœur financier du magasin. Permet au manager de surveiller les caissiers, de clôturer les quarts et d'archiver les ventes pour éviter les fraudes.\n\n⚙️ Étapes Détaillées :\n• Quarts Actifs : Voir qui travaille, l'heure d'arrivée et les ventes en direct.\n• Clôturer Quart : Nécessite la saisie des 'Espèces Réelles' comptées physiquement dans le tiroir.\n• Rapport Z : L'action quotidienne la plus cruciale. Clôture la journée, archive toutes les données et réinitialise les tiroirs.\n• Archive : Accédez aux jours précédents pour réimprimer les Rapports Z en A4 ou en ticket thermique."
+    "title": "Guide Rapide",
+    "roles": {
+      "superadmin": "Bienvenue Administrateur. Voici un guide détaillé pour cette page :",
+      "cashier": "Bienvenue. Pour assurer le bon déroulement de votre travail, lisez ceci attentivement :"
     },
-    "hr": {
-      "title": "RH et Badges Employés",
-      "content": "🎯 Objectif :\nContrôle total sur le personnel. Suivre les présences pour la paie, émettre des badges sécurisés et définir les permissions.\n\n⚙️ Étapes Détaillées :\n• Ajouter : Dans 'Employés', attribuez un nom, un rôle (définit l'accès) et un code PIN unique.\n• Émettre Badge : Cliquez sur 'Badge Employé', entrez le PIN pour générer une carte avec code-barres.\n• Présence : Les employés scannent leur badge pour pointer l'entrée et la sortie.\n• Modifier l'heure : Le manager peut corriger manuellement une erreur de pointage via l'icône d'édition."
-    },
-    "payroll": {
-      "title": "Calculateur de Paie",
-      "content": "🎯 Objectif :\nAutomatise les calculs de salaire mensuel, en déduisant automatiquement les avances prises.\n\n⚙️ Étapes Détaillées :\n• Calculer : Sélectionnez l'employé, la période et le taux horaire pour obtenir le 'Salaire Brut'.\n• Déductions Auto : Le système soustrait les avances pour afficher le 'Salaire Net'.\n• Paiement : 'Payer et Enregistrer' archive le salaire.\n• Report de Dette : Si les avances dépassent le salaire, le système propose de reporter la dette comme nouvelle avance pour le mois suivant."
-    },
-    "suppliers": {
-      "title": "Fournisseurs et Dettes",
-      "content": "🎯 Objectif :\nRegistre numérique précis. Empêche la perte de factures et suit chaque centime dû ou payé.\n\n⚙️ Étapes Détaillées :\n• Ajouter Dette (Reçu) : Dans le profil du fournisseur, ajoutez un reçu pour augmenter la dette.\n• Payer : Cliquez sur 'Ajouter Paiement'. Spécifiez de quel tiroir (Admin ou Caissier) provient l'argent pour équilibrer la caisse.\n• Planifier : Programmez les paiements futurs pour recevoir des alertes dans l'Agenda."
-    },
-    "expenses": {
-      "title": "Dépenses et Avances",
-      "content": "🎯 Objectif :\nJustifier toute sortie d'argent hors inventaire pour calculer le bénéfice net réel.\n\n⚙️ Étapes Détaillées :\n• Ajouter Dépense : Sélectionnez la caisse source, la catégorie, le montant et une description.\n• Avance Personnel : L'avance est envoyée automatiquement au module 'Paie' pour déduction mensuelle.\n• Impression : Filtrez et imprimez des rapports complets pour la comptabilité."
-    },
-    "map": {
-      "title": "Plan 3D et Import PDF",
-      "content": "🎯 Objectif :\nDigitaliser le magasin et automatiser la saisie via les factures PDF.\n\n⚙️ Étapes Détaillées :\n• Plan 3D : Dessinez vos étagères et liez-les à des catégories (ex: Produits laitiers).\n• Import PDF : Téléchargez un bon de livraison. Le système extrait les codes-barres.\n• Routage Auto : Les articles sont assignés aux étagères correspondantes du plan 3D. Cliquez sur 'Enregistrer' pour remplir votre stock instantanément."
-    },
-    "cashier_shift": {
-      "title": "Quart (Ouverture & Clôture)",
-      "content": "🎯 Objectif :\nProtège votre responsabilité financière en séparant vos transactions de celles des autres.\n\n⚙️ Étapes Détaillées :\n1. Ouverture : Comptez votre tiroir et entrez le 'Fond de caisse initial'.\n2. Clôture : Comptez vos espèces réelles et entrez le montant.\n3. Notes : Saisissez la raison de tout écart (manque/surplus) entre le comptage et le système pour vous justifier auprès du manager."
-    },
-    "cashier_pos": {
-      "title": "Point de Vente (Caisse)",
-      "content": "🎯 Objectif :\nInterface de vente rapide pour servir les clients efficacement.\n\n⚙️ Étapes Détaillées :\n1. Scanner le code-barres pour ajouter au panier.\n2. Ajuster la quantité en cliquant sur l'article.\n3. Cliquer sur 'Payer' pour finaliser et imprimer le ticket."
-    },
-    "cashier_expenses": {
-      "title": "Dépenses du Tiroir",
-      "content": "🎯 Objectif :\nJustifier tout argent retiré de votre tiroir pour éviter un déficit lors de la clôture.\n\n⚙️ Étapes Détaillées :\n1. Si le manager demande de payer un fournisseur ou de donner une avance depuis votre tiroir, allez dans 'Dépenses'.\n2. Ajoutez le montant et la note. Le système le déduira de vos ventes attendues."
-    },
-    "cashier_attendance": {
-      "title": "Pointage (Entrée/Sortie)",
-      "content": "🎯 Objectif :\nEnregistrer précisément vos heures pour le calcul de votre salaire.\n\n⚙️ Étapes Détaillées :\n1. Raccourci : Appuyez sur (Ctrl + Shift + A) n'importe où pour ouvrir le pointage.\n2. Scannez votre badge ou tapez votre PIN.\n3. Attendez le message vert de confirmation."
+    "pages": {
+      "/": {
+        "title": "Tableau de Bord (Dashboard)",
+        "content": "🎯 Objectif :\nVous donner un aperçu complet de la santé financière du magasin.\n\n⚙️ Étapes Détaillées :\n• Cartes Supérieures : Résumé des dettes fournisseurs, des paiements dus cette semaine, des dépenses et du personnel présent.\n• Graphiques : 📊 Affiche visuellement la répartition des dépenses et les plus grands créanciers.\n• Alertes : 🔔 Les listes inférieures montrent les tâches urgentes. Cliquez sur 'Payer' à côté d'une alerte pour la régler immédiatement."
+      },
+      "/pos": {
+        "title": "Point de Vente (Caisse)",
+        "content": "🎯 Objectif :\nL'interface principale pour servir les clients rapidement et précisément.\n\n⚙️ Étapes Détaillées :\n1. Ouvrir le Quart : 🔓 Entrez votre fond de caisse initial et cliquez sur 'Ouvrir Quart'.\n2. Ajouter des Articles :\n   - 📠 Rapide : Scannez avec le Lecteur de Code-barres.\n   - 🔍 Manuel : Utilisez la barre de recherche ou cliquez sur la carte produit.\n3. Modifier le Panier : 🛒 Cliquez sur la quantité pour la modifier, ou sur (icône 🗑️) pour supprimer.\n4. Payer : 💳 Cliquez sur le grand bouton bleu 'Payer' pour calculer le total, ouvrir le tiroir et imprimer le ticket thermique."
+      },
+      "/end-of-day": {
+        "title": "Clôture de la Journée (Z-Report)",
+        "content": "🎯 Objectif :\nSurveiller les quarts actifs et clôturer la journée financière pour sécuriser les bénéfices.\n\n⚙️ Étapes Détaillées :\n1. Surveiller : 👀 Affiche les caissiers actifs, leur heure d'arrivée et les ventes en direct.\n2. Clôture Forcée : 🛑 Cliquez sur le bouton rouge 'Clôturer le quart' si un caissier a oublié. Entrez les espèces réelles comptées.\n3. Rapport Z : 🌙 Une fois tous les quarts fermés, cliquez sur 'Clôturer la Journée' pour archiver les ventes et réinitialiser le système pour demain."
+      },
+      "/expenses": {
+        "title": "Dépenses et Avances",
+        "content": "🎯 Objectif :\nDocumenter toute sortie d'argent pour éviter les déficits de caisse.\n\n⚙️ Étapes Détaillées :\n1. Ajouter une Dépense : Cliquez sur (icône ➕).\n2. Remplir les Données :\n   - 📥 Sélectionnez la caisse source (Admin ou Caisse).\n   - 📁 Choisissez la catégorie.\n   - 👤 Pour une 'Avance Personnel', choisissez le nom de l'employé (sera déduit de son salaire automatiquement).\n   - ✏️ Entrez le montant et une note claire.\n3. Enregistrer : 💾 Le montant sera déduit du total du tiroir instantanément."
+      },
+      "/suppliers": {
+        "title": "Fournisseurs et Dettes",
+        "content": "🎯 Objectif :\nUn registre numérique précis des factures et paiements.\n\n⚙️ Étapes Détaillées :\n1. Ajouter : ➕ Cliquez sur 'Nouveau' en haut.\n2. Rechercher : 🔍 Utilisez la barre de recherche.\n3. Gérer les Dettes :\n   - 👁️ Cliquez sur (icône ⋯) pour les détails.\n   - 📈 Ajouter une Facture : Cliquez sur 'Ajouter un Reçu'.\n   - 📉 Paiement : Cliquez sur 'Ajouter Paiement', entrez le montant et spécifiez la caisse source."
+      },
+      "/hr": {
+        "title": "Ressources Humaines",
+        "content": "🎯 Objectif :\nGérer l'équipe, suivre les présences et générer des badges.\n\n⚙️ Étapes Détaillées :\n1. Pointage Rapide : 📠 Les employés utilisent le lecteur de code-barres à gauche pour pointer.\n2. Ajouter Employé : ➕ Dans l'onglet 'Employés', cliquez sur 'Ajouter' et définissez le rôle.\n3. Code PIN : 🔑 Attribuez un PIN unique comme signature électronique.\n4. Imprimer Badge : 🪪 Cliquez sur l'icône de badge pour imprimer une carte d'identité avec code-barres."
+      },
+      "/payroll": {
+        "title": "Calculateur de Paie Intelligent",
+        "content": "🎯 Objectif :\nCalculer les salaires avec précision et déduire les avances automatiquement.\n\n⚙️ Étapes Détaillées :\n1. Préparation : 📅 Choisissez l'employé et utilisez l'icône calendrier pour la période.\n2. Calculer : ⏱️ Entrez le taux horaire. Le système calcule le 'Salaire Brut'.\n3. Déductions Auto : ➖ Le système soustrait les avances pour le 'Salaire Net'.\n4. Payer : 💰 Cliquez sur 'Payer et Enregistrer'.\n5. Report : 🔄 Si les avances dépassent le salaire, le système propose de reporter la dette comme nouvelle avance."
+      },
+      "/agenda": {
+        "title": "Agenda et Tâches",
+        "content": "🎯 Objectif :\nUn calendrier intelligent pour rappeler les échéances importantes (chèques, dettes).\n\n⚙️ Étapes Détaillées :\n1. Ajouter Tâche : ➕ Cliquez sur l'icône plus. Entrez le titre et utilisez (icône 📅) pour la date.\n2. Alertes : 🔔 Les tâches urgentes apparaissent dans la cloche de notification.\n3. Interagir : Cliquez sur (icône ✅) pour marquer comme terminé, ou (icône ✏️) pour reporter."
+      },
+      "/inventory": {
+        "title": "Gestion des Stocks",
+        "content": "🎯 Objectif :\nConstruire une arborescence de produits et suivre les prix et quantités.\n\n⚙️ Étapes Détaillées :\n1. Structure : 📁 Ajoutez une 'Famille', puis un 'Type'.\n2. Ajouter Article : ➕ Sélectionnez le Type, cliquez sur 'Ajouter Produit' et entrez les détails (prix, pièces par boîte).\n3. Modification Manuelle : ✏️ Cliquez sur l'icône crayon pour corriger les quantités en stock manuellement."
+      },
+      "/store-map": {
+        "title": "Plan 3D du Magasin",
+        "content": "🎯 Objectif :\nDessiner une carte numérique pour l'importation intelligente des factures.\n\n⚙️ Étapes Détaillées :\n1. Dessiner : 🗄️ Glissez-déposez (icônes Étagère/Frigo).\n2. Personnaliser : ⚙️ Double-cliquez pour nommer et définir la capacité.\n3. Rotation : ↻ Utilisez l'icône de rotation pour changer la direction.\n4. Enregistrer : 💾 Cliquez sur le bouton vert 'Enregistrer'. Assurez-vous de cliquer sur 'Activer'."
+      },
+      "/pdf-importer": {
+        "title": "Importateur PDF Intelligent",
+        "content": "🎯 Objectif :\nGagner des heures en laissant l'IA lire les factures fournisseurs.\n\n⚙️ Étapes Détaillées :\n1. Uploader : 📎 Cliquez sur la zone pointillée et choisissez un PDF (Bon de Livraison).\n2. Extraire : 🤖 Attendez que l'IA extraie les codes-barres et les quantités.\n3. Routage : 🔗 Le système suggère l'étagère appropriée. Modifiez manuellement si nécessaire via le menu déroulant.\n4. Enregistrer : 💾 Cliquez sur 'Enregistrer et Lier' pour remplir le stock instantanément."
+      },
+      "/archive": {
+        "title": "Archive Quotidienne",
+        "content": "🎯 Objectif :\nLe coffre-fort sécurisé pour revoir les journées financières précédentes.\n\n⚙️ Étapes Détaillées :\n1. Parcourir : 📅 Affiche les jours fermés du plus récent au plus ancien.\n2. Détails : 👁️ Cliquez sur l'icône œil pour voir les performances de chaque caissier et les déficits.\n3. Imprimer : \n   - 🧾 Cliquez sur l'icône reçu pour un ticket thermique.\n   - 📄 Cliquez sur l'icône Word pour un rapport A4 détaillé."
+      },
+      "/audit-logs": {
+        "title": "Journal d'Audit",
+        "content": "🎯 Objectif :\nL'œil vigilant de la direction. Enregistre chaque clic des utilisateurs pour éviter les fraudes.\n\n⚙️ Comment le lire ?\n• Le tableau montre : l'utilisateur, l'action, les détails et l'heure exacte (⏱️).\n• Filtrer : 🔍 Utilisez la barre de recherche pour suivre toutes les actions d'un employé spécifique."
+      },
+      "/settings": {
+        "title": "Utilisateurs et Paramètres",
+        "content": "🎯 Objectif :\nContrôler l'accès au système et les autorisations.\n\n⚙️ Étapes Détaillées :\n1. Ajouter Utilisateur : ➕ Entrez le nom, le mot de passe et le rôle.\n2. Rôles : 🛡️ Les caissiers ne peuvent pas voir les bénéfices ni les journaux d'audit. Les admins ont le contrôle total.\n3. Supprimer : 🗑️ Si un employé part, cliquez sur l'icône poubelle pour bloquer son accès immédiatement."
+      },
+      "/attendance": {
+        "title": "Présence Générale",
+        "content": "🎯 Objectif :\nVérifier les heures de pointage de tout le personnel et corriger les erreurs.\n\n⚙️ Étapes Détaillées :\n1. Filtrer : 📅 Utilisez l'icône calendrier pour sélectionner un jour spécifique.\n2. Modification Manuelle : ✏️ Si un employé a oublié de pointer à la sortie, cliquez sur l'icône crayon pour saisir l'heure correcte manuellement."
+      },
+      "/cashier-attendance": {
+        "title": "Pointage Rapide",
+        "content": "🎯 Objectif :\nUne fenêtre contextuelle pour pointer rapidement sans quitter l'écran de vente.\n\n⚙️ Étapes Détaillées :\n1. Déclencher : ⌨️ Appuyez sur (Ctrl + Shift + A) n'importe où dans le système.\n2. Scanner : 🔑 Scannez votre badge ou entrez le PIN.\n3. Confirmer : ✅ Attendez le message de succès pour confirmer l'enregistrement de l'heure."
+      }
     }
   }
 }
