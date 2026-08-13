@@ -7,6 +7,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 release-builds
+release
 node_modules
 dist
 dist-ssr
@@ -15,7 +16,7 @@ POS_Keygen
 licenseManager.js
 *.js
 **backend/licenseManager.js
-
+full code vers
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

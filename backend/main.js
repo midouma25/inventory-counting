@@ -48,29 +48,28 @@ function createWindow() {
 
   // 2. إنشاء النافذة الرئيسية
   const win = new BrowserWindow({
+    title: 'GHERBI.AI POS SYSTEM', // 👈 1. أضف هذا السطر لإجبار تغيير الاسم
     width: 1200, height: 800, minWidth: 900, minHeight: 600,
     show: false, 
-    icon: path.join(__dirname, 'assets', 'icon.png'), // 🔴 إضافة اللوجو لشريط المهام
+    icon: path.join(__dirname, 'assets', 'icon.png'), 
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
     },
   });
-
   win.setMenuBarVisibility(false);
 
-  // 👇==== الحل السحري للشاشة البيضاء ====👇
-  const isDev = !app.isPackaged; // هل نحن في وضع التطوير أم الإنتاج (exe)؟
+// 👇==== الحل السحري للشاشة البيضاء ====👇
+  const isDev = !app.isPackaged; 
 
   if (isDev) {
-    // في وضع التطوير: اقرأ من سيرفر React
     win.loadURL('http://localhost:5173'); 
   } else {
-    // في وضع الإنتاج (exe): اقرأ من الملفات المبنية مباشرة
-    win.loadFile(path.join(__dirname, '../frontend/dist/index.html'));
+    // 🌟 الان نقرأ من المجلد المفتوح (resources) بدلاً من المجلد المضغوط
+    win.loadFile(path.join(process.resourcesPath, 'frontend', 'dist', 'index.html'));
   }
-  // 👆=====================================👆
+  // 👆=====================
 
   // 3. إظهار النافذة بعد التحميل
   win.once('ready-to-show', () => {
@@ -383,6 +382,7 @@ ipcMain.handle('get-users', () => getUsers());
 
   ipcMain.handle('get-archived-zreport', async (event, id) => getArchivedZReport(id));
 // هذه الدالة ستحول حاسوب المدير إلى سيرفر يخدم الكاشيرات
+// هذه الدالة ستحول حاسوب المدير إلى سيرفر يخدم الكاشيرات
 function startLocalNetworkServer() {
   const apiApp = express();
   apiApp.use(cors());
@@ -394,7 +394,6 @@ function startLocalNetworkServer() {
     const args = req.body.args || [];
     
     try {
-      // التحقق من وجود الدالة في database.js
       if (typeof db[method] === 'function') {
         const result = await db[method](...args);
         res.json({ success: true, data: fixDatesGlobal(result) });
@@ -406,13 +405,28 @@ function startLocalNetworkServer() {
     }
   });
 
-  // بث الواجهة الأمامية (Frontend) ليتمكن الكاشير من فتحها بمتصفح كروم
-  const frontendPath = path.join(__dirname, '..', 'frontend', 'dist'); // المسار بعد عمل Build للـ Vite
-  if (fs.existsSync(frontendPath)) {
-    apiApp.use(express.static(frontendPath));
+  // 🌟 الإصلاح الجذري لمسار الملفات لكي يقرأها Express بوضوح تام
+  let frontendPath;
+  if (app.isPackaged) {
+    // Express يعشق قراءة الملفات من process.resourcesPath لأنه مجلد مفتوح وغير مشفر
+    frontendPath = path.join(process.resourcesPath, 'frontend', 'dist');
+  } else {
+    frontendPath = path.join(__dirname, '..', 'frontend', 'dist');
   }
 
-  // تشغيل السيرفر على البورت 3000 لجميع الأجهزة المتصلة بالراوتر
+  // بث الواجهة الأمامية
+  if (fs.existsSync(frontendPath)) {
+    apiApp.use(express.static(frontendPath));
+    
+// 🌟 الحل الجذري لمشكلة Express 5: استخدام RegExp /.*/ بدلاً من نص '*'
+    apiApp.get(/.*/, (req, res) => {
+      res.sendFile(path.join(frontendPath, 'index.html'));
+    });
+  } else {
+    console.error('🔥 خطأ: لم يتم العثور على مسار الواجهة:', frontendPath);
+  }
+
+  // تشغيل السيرفر على البورت 3000
   apiApp.listen(3000, '0.0.0.0', () => {
     console.log('✅ Local Network Server is running on port 3000');
   });

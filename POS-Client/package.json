@@ -1,31 +1,40 @@
 {
-  "name": "pos-client",
-  "productName": "GHERBI.AI POS Client",
+  "name": "pos-client-cashier",
   "version": "1.0.0",
+  "description": "GHERBI POS - Cashier Client for Windows 7 32-bit",
   "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --ia32"
+  },
   "build": {
-    "appId": "com.gherbi.pos.client",
-    "productName": "GHERBI.AI POS Client",
+    "appId": "com.gherbiai.pos.client",
+    "productName": "GHERBI POS - CASHIER",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.js",
+      "index.html",
+      "error.html"
+    ],
     "win": {
-      "icon": "assets/icon.ico",
+      "icon": "assets/icon.ico", 
       "target": [
         {
           "target": "nsis",
-          "arch": [
-            "x64",
-            "ia32"
-          ]
+          "arch": ["ia32"]
         }
       ]
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "installerIcon": "assets/icon.ico",
-      "uninstallerIcon": "assets/icon.ico"
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true
     }
   },
   "devDependencies": {
-    "electron": "^22.3.27"
+    "electron": "22.3.27",
+    "electron-builder": "^23.6.0"
   }
 }

@@ -1,17 +1,17 @@
 {
-  "name": "pos-manager",
+  "name": "pos-manager-server",
   "version": "1.0.0",
-  "description": "Offline Management System",
+  "description": "Offline Supermarket Management System - SERVER",
   "author": "Cherif <midouma25@gmail.com>",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder"
+    "dist": "electron-builder --win --x64"
   },
-  "build": {
-    "appId": "com.cherif.posmanager",
-    "productName": "POS Manager",
+"build": {
+    "appId": "com.cherif.posmanager.server",
+    "productName": "GHERBI POS SERVER",
     "electronVersion": "30.0.0",
     "directories": {
       "output": "release"
@@ -20,12 +20,20 @@
       "main.js",
       "preload.js",
       "database.js",
-      "dist/**/*",
-      "package.json"
+      "licenseManager.js",
+      "splash.html",
+      "package.json",
+      "assets/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../frontend/dist",
+        "to": "frontend/dist"
+      }
     ],
     "win": {
       "target": "nsis",
-      "icon": "build/icon.ico"
+      "icon": "assets/icon.ico"
     },
     "asar": true
   },
@@ -41,7 +49,7 @@
   },
   "devDependencies": {
     "@electron/rebuild": "^4.2.0",
-    "electron": "^43.1.1",
+    "electron": "^30.0.0",
     "electron-builder": "^24.13.3"
   }
 }
